@@ -1,0 +1,190 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
+import { ChevronLeft, ChevronRight, Sparkles, Calendar, MapPin, Users } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { getHeroSlides, getSiteSettings } from '@/lib/store'
+import type { HeroSlide, SiteSettings } from '@/lib/types'
+
+export function HeroSlideshow() {
+  const [slides, setSlides] = useState<HeroSlide[]>([])
+  const [settings, setSettings] = useState<SiteSettings | null>(null)
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+    setSlides(getHeroSlides())
+    setSettings(getSiteSettings())
+  }, [])
+
+  const nextSlide = useCallback(() => {
+    if (slides.length === 0) return
+    setCurrentSlide((prev) => (prev + 1) % slides.length)
+  }, [slides.length])
+
+  const prevSlide = useCallback(() => {
+    if (slides.length === 0) return
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
+  }, [slides.length])
+
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index)
+    setIsAutoPlaying(false)
+    setTimeout(() => setIsAutoPlaying(true), 5000)
+  }
+
+  useEffect(() => {
+    if (!isAutoPlaying || slides.length === 0) return
+    const interval = setInterval(nextSlide, 5000)
+    return () => clearInterval(interval)
+  }, [isAutoPlaying, nextSlide, slides.length])
+
+  // Default fallback slides for SSR
+  const displaySlides = slides.length > 0 ? slides : [
+    {
+      id: 'default-1',
+      title: 'Executive Masterclass 2024',
+      subtitle: 'Transform Your Business',
+      description: 'A 3-day intensive program on Social Media, Business Automation & AI Agents',
+      imageUrl: '/images/hero-1.jpg',
+      ctaText: 'Register Now',
+      ctaLink: '#register',
+      order: 1,
+      active: true,
+    }
+  ]
+
+  return (
+    <section className="relative h-[600px] overflow-hidden lg:h-[700px]">
+      {/* Slides */}
+      {displaySlides.map((slide, index) => (
+        <div
+          key={slide.id}
+          className={`absolute inset-0 transition-opacity duration-1000 ${
+            index === currentSlide ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          <Image
+            src={slide.imageUrl}
+            alt={slide.title}
+            fill
+            className="object-cover"
+            priority={index === 0}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30" />
+        </div>
+      ))}
+
+      {/* Content Overlay */}
+      <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 text-center">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm text-primary backdrop-blur-sm">
+          <Sparkles className="h-4 w-4" />
+          <span>Limited Seats Available</span>
+        </div>
+
+        <h1 className="mb-4 max-w-4xl text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+          {isMounted && settings ? settings.eventName : 'Executive Masterclass'} on{' '}
+          <span className="text-primary">Social Media, AI & Automation</span>
+        </h1>
+
+        {/* Dynamic Slide Text */}
+        <div className="mb-6 h-20">
+          {displaySlides.map((slide, index) => (
+            <div
+              key={slide.id}
+              className={`transition-all duration-500 ${
+                index === currentSlide
+                  ? 'translate-y-0 opacity-100'
+                  : 'translate-y-4 opacity-0 absolute'
+              }`}
+            >
+              {index === currentSlide && (
+                <>
+                  <h2 className="mb-2 text-2xl font-semibold text-foreground sm:text-3xl">
+                    {slide.title}
+                  </h2>
+                  <p className="text-lg text-muted-foreground">{slide.subtitle}</p>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-8 flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 rounded-full bg-background/50 px-3 py-1.5 backdrop-blur-sm">
+            <Calendar className="h-4 w-4 text-primary" />
+            <span>3 Days Intensive Training</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-full bg-background/50 px-3 py-1.5 backdrop-blur-sm">
+            <MapPin className="h-4 w-4 text-primary" />
+            <span>{isMounted && settings ? `${settings.eventCity}, ${settings.eventCountry}` : 'Dar es Salaam, Tanzania'}</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-full bg-background/50 px-3 py-1.5 backdrop-blur-sm">
+            <Users className="h-4 w-4 text-primary" />
+            <span>Limited Executive Seats</span>
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <Button size="lg" asChild>
+            <a href={displaySlides[currentSlide]?.ctaLink || '#register'}>
+              {displaySlides[currentSlide]?.ctaText || 'Register Now'}
+            </a>
+          </Button>
+          <Button size="lg" variant="outline" asChild>
+            <a href="/about">Learn More</a>
+          </Button>
+        </div>
+      </div>
+
+      {/* Navigation Arrows */}
+      {displaySlides.length > 1 && (
+        <>
+          <button
+            onClick={() => {
+              prevSlide()
+              setIsAutoPlaying(false)
+              setTimeout(() => setIsAutoPlaying(true), 5000)
+            }}
+            className="absolute left-4 top-1/2 z-20 -translate-y-1/2 rounded-full bg-background/50 p-2 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
+            aria-label="Previous slide"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+          <button
+            onClick={() => {
+              nextSlide()
+              setIsAutoPlaying(false)
+              setTimeout(() => setIsAutoPlaying(true), 5000)
+            }}
+            className="absolute right-4 top-1/2 z-20 -translate-y-1/2 rounded-full bg-background/50 p-2 text-foreground backdrop-blur-sm transition-colors hover:bg-background/80"
+            aria-label="Next slide"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </button>
+        </>
+      )}
+
+      {/* Dots Indicator */}
+      {displaySlides.length > 1 && (
+        <div className="absolute bottom-8 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+          {displaySlides.map((slide, index) => (
+            <button
+              key={slide.id}
+              onClick={() => goToSlide(index)}
+              className={`h-2 rounded-full transition-all ${
+                index === currentSlide
+                  ? 'w-8 bg-primary'
+                  : 'w-2 bg-foreground/30 hover:bg-foreground/50'
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}

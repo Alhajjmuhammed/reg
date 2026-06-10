@@ -56,6 +56,7 @@ const initialFormData = {
   whatsappNumber: '',
   email: '',
   gender: '' as Gender | '',
+  country: '',
   city: '',
   occupation: '',
   organizationName: '',
@@ -91,6 +92,7 @@ export function ParticipantModal({
         whatsappNumber: participant.whatsappNumber,
         email: participant.email,
         gender: participant.gender || '',
+        country: participant.country || '',
         city: participant.city,
         occupation: participant.occupation,
         organizationName: participant.organizationName || '',
@@ -130,6 +132,7 @@ export function ParticipantModal({
           whatsappNumber: formData.whatsappNumber,
           email: formData.email,
           gender: formData.gender || undefined,
+          country: formData.country || undefined,
           city: formData.city,
           occupation: formData.occupation,
           organizationName: formData.organizationName || undefined,
@@ -155,6 +158,7 @@ export function ParticipantModal({
           whatsappNumber: formData.whatsappNumber,
           email: formData.email,
           gender: formData.gender || undefined,
+          country: formData.country || undefined,
           city: formData.city,
           occupation: formData.occupation,
           organizationName: formData.organizationName || undefined,
@@ -261,7 +265,7 @@ export function ParticipantModal({
                   <dt className="text-muted-foreground">City</dt>
                   <dd className="flex items-center gap-1.5 font-medium text-foreground">
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                    {participant.city}
+                    {participant.country ? `${participant.city}, ${participant.country}` : participant.city}
                   </dd>
                 </div>
                 {participant.gender && (
@@ -463,6 +467,15 @@ export function ParticipantModal({
                   id="city"
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="country">Country</Label>
+                <Input
+                  id="country"
+                  value={formData.country}
+                  onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                  placeholder="e.g. Tanzania"
                 />
               </div>
               <div className="space-y-2">

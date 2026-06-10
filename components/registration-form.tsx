@@ -13,7 +13,9 @@ import {
   FileText,
   Download,
   Share2,
-  Printer
+  Printer,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,7 +36,7 @@ import { GroupBookingSelector } from './group-booking-selector'
 import { PaymentGateway } from './payment-gateway'
 import { CouponInput } from './coupon-input'
 import { SeatMap } from './seat-map'
-import { createParticipant, getSeatConfiguration, useCoupon } from '@/lib/store'
+import { createParticipant, getSeatConfiguration, useCoupon, createUserAccount } from '@/lib/store'
 import {
   type PackageType,
   type Gender,
@@ -47,12 +49,23 @@ import {
 } from '@/lib/types'
 
 const STEPS = [
-  { id: 1, title: 'Booking Type', description: 'Individual or Group' },
+  { id: 1, title: 'Plan & Seats', description: 'Choose your plan' },
   { id: 2, title: 'Personal Info', description: 'Your details' },
   { id: 3, title: 'Professional', description: 'Work info' },
   { id: 4, title: 'Interests', description: 'Training areas' },
-  { id: 5, title: 'Package & Seats', description: 'Select plan' },
-  { id: 6, title: 'Payment', description: 'Complete payment' },
+  { id: 5, title: 'Payment', description: 'Complete payment' },
+]
+
+const COUNTRIES = [
+  'Tanzania', 'Kenya', 'Uganda', 'Rwanda', 'Ethiopia', 'Ghana', 'Nigeria',
+  'South Africa', 'Egypt', 'Morocco', 'Senegal', 'Cameroon', 'Côte d\'Ivoire',
+  'Mozambique', 'Zimbabwe', 'Zambia', 'Malawi', 'Botswana', 'Namibia', 'Angola',
+  'DR Congo', 'Sudan', 'Somalia', 'Eritrea', 'Djibouti', 'Comoros', 'Madagascar',
+  'Mauritius', 'Seychelles', 'Lesotho', 'Eswatini', 'Burundi', 'Central African Republic',
+  'Chad', 'Algeria', 'Libya', 'Tunisia', 'Togo', 'Benin', 'Niger', 'Mali',
+  'Burkina Faso', 'Guinea', 'Sierra Leone', 'Liberia', 'Gambia', 'Cape Verde',
+  'United States', 'United Kingdom', 'Canada', 'Australia', 'Germany', 'France',
+  'India', 'China', 'Japan', 'Brazil', 'Other',
 ]
 
 interface FormData {
@@ -66,6 +79,7 @@ interface FormData {
   whatsappNumber: string
   email: string
   gender: Gender | ''
+  country: string
   city: string
   // Professional
   occupation: string
@@ -77,6 +91,9 @@ interface FormData {
   // Package
   selectedPackage: PackageType
   selectedSeats: number[]
+  // Account
+  password: string
+  confirmPassword: string
   // Payment
   couponCode: string
   couponDiscount: number
@@ -92,6 +109,7 @@ const initialFormData: FormData = {
   whatsappNumber: '',
   email: '',
   gender: '',
+  country: '',
   city: '',
   occupation: '',
   organizationName: '',
@@ -100,6 +118,8 @@ const initialFormData: FormData = {
   trainingInterests: [],
   selectedPackage: 'standard',
   selectedSeats: [],
+  password: '',
+  confirmPassword: '',
   couponCode: '',
   couponDiscount: 0,
   notes: '',
@@ -124,6 +144,8 @@ export function RegistrationForm() {
   const [registrationResult, setRegistrationResult] = useState<RegistrationResult | null>(null)
   const [seatConfig, setSeatConfig] = useState({ totalSeats: 100, availableSeats: 100, reservedSeats: 0 })
   const [isMounted, setIsMounted] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   
   useEffect(() => {
     setIsMounted(true)
@@ -168,7 +190,12 @@ export function RegistrationForm() {
       if (!formData.email.trim()) newErrors.email = 'Email is required'
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
         newErrors.email = 'Invalid email format'
+      if (!formData.country) newErrors.country = 'Country is required'
       if (!formData.city.trim()) newErrors.city = 'City is required'
+      if (!formData.password || formData.password.length < 6)
+        newErrors.password = 'Password must be at least 6 characters'
+      if (formData.confirmPassword !== formData.password)
+        newErrors.confirmPassword = 'Passwords do not match'
     }
 
     if (step === 3) {
@@ -212,6 +239,7 @@ export function RegistrationForm() {
       whatsappNumber: formData.whatsappNumber,
       email: formData.email,
       gender: formData.gender || undefined,
+      country: formData.country || undefined,
       city: formData.city,
       occupation: formData.occupation,
       organizationName: formData.organizationName || undefined,
@@ -242,6 +270,11 @@ export function RegistrationForm() {
       totalAmount,
       paymentReference: reference,
     })
+
+    // Create user account so participant can log in
+    if (formData.password) {
+      createUserAccount(formData.email, formData.password, participant.id)
+    }
   }
 
   const handlePaymentError = (error: string) => {
@@ -337,8 +370,8 @@ export function RegistrationForm() {
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Button onClick={() => router.push('/admin')} variant="outline" className="flex-1">
-            View Dashboard
+          <Button onClick={() => router.push('/account/dashboard')} variant="outline" className="flex-1">
+            View My Account
           </Button>
           <Button
             onClick={() => {
@@ -362,14 +395,14 @@ export function RegistrationForm() {
     <div className="mx-auto max-w-4xl">
       <StepIndicator steps={STEPS} currentStep={currentStep} className="mb-8" />
 
-      <div className="rounded-lg border border-border bg-card p-6 shadow-xl shadow-black/5 sm:p-8">
-        {/* Step 1: Booking Type */}
+      <div className="rounded-xl border border-border bg-card p-6 shadow-2xl shadow-black/10 ring-1 ring-border/50 sm:p-8">
+        {/* Step 1: Booking Type + Plan + Seats */}
         {currentStep === 1 && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-semibold text-foreground">Choose Booking Type</h2>
+              <h2 className="text-xl font-semibold text-foreground">Choose Your Plan & Seats</h2>
               <p className="text-sm text-muted-foreground">
-                Register as an individual or book multiple seats for your team
+                Select booking type, your training package, and preferred seat
               </p>
             </div>
 
@@ -389,28 +422,59 @@ export function RegistrationForm() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="individual" className="mt-6 space-y-4">
-                <div className="rounded-lg border border-border bg-secondary/30 p-4">
-                  <h3 className="mb-2 font-medium text-foreground">Individual Registration</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Register for one seat. You&apos;ll select your package in the next steps.
-                  </p>
-                  <div className="mt-4 flex items-center gap-2 text-sm">
-                            <Check className="h-4 w-4 text-primary" />
-                            <span className="text-muted-foreground">
-                              {isMounted ? seatConfig.availableSeats : '...'} seats available
-                            </span>
-                  </div>
+              {/* Individual */}
+              <TabsContent value="individual" className="mt-6 space-y-6">
+                <div className="rounded-lg border border-border bg-secondary/30 p-3 flex items-center gap-2 text-sm">
+                  <Check className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-muted-foreground">
+                    {isMounted ? seatConfig.availableSeats : '...'} seats available
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="mb-3 font-medium text-foreground">Select Your Package</h3>
+                  <PackageSelector
+                    selectedPackage={formData.selectedPackage}
+                    onSelect={(pkg) => {
+                      updateField('selectedPackage', pkg)
+                      // Clear seats — new package has a different zone
+                      updateField('selectedSeats', [])
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <h3 className="mb-3 font-medium text-foreground">Choose Your Seat <span className="text-muted-foreground font-normal text-sm">(Optional)</span></h3>
+                  <SeatMap
+                    selectedSeats={formData.selectedSeats}
+                    onSeatSelect={(seats) => updateField('selectedSeats', seats)}
+                    maxSeats={1}
+                    currentPackage={formData.selectedPackage}
+                  />
                 </div>
               </TabsContent>
 
-              <TabsContent value="group" className="mt-6">
+              {/* Group */}
+              <TabsContent value="group" className="mt-6 space-y-6">
                 <GroupBookingSelector
                   selectedSeats={formData.groupSeats}
                   onSeatsChange={(seats) => updateField('groupSeats', seats)}
                   basePackage={formData.groupBasePackage}
-                  onPackageChange={(pkg) => updateField('groupBasePackage', pkg)}
+                  onPackageChange={(pkg) => {
+                    updateField('groupBasePackage', pkg)
+                    updateField('selectedSeats', [])
+                  }}
                 />
+
+                <div>
+                  <h3 className="mb-3 font-medium text-foreground">Choose Seats for Your Group <span className="text-muted-foreground font-normal text-sm">(Optional)</span></h3>
+                  <SeatMap
+                    selectedSeats={formData.selectedSeats}
+                    onSeatSelect={(seats) => updateField('selectedSeats', seats)}
+                    maxSeats={formData.groupSeats}
+                    currentPackage={formData.groupBasePackage}
+                  />
+                </div>
               </TabsContent>
             </Tabs>
           </div>
@@ -512,6 +576,26 @@ export function RegistrationForm() {
 
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="city">
+                  Country <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={formData.country}
+                  onValueChange={(value) => updateField('country', value)}
+                >
+                  <SelectTrigger id="country" className={errors.country ? 'border-destructive' : ''}>
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.country && <p className="text-sm text-destructive">{errors.country}</p>}
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="city">
                   City / Region <span className="text-destructive">*</span>
                 </Label>
                 <Input
@@ -522,6 +606,62 @@ export function RegistrationForm() {
                   className={errors.city ? 'border-destructive' : ''}
                 />
                 {errors.city && <p className="text-sm text-destructive">{errors.city}</p>}
+              </div>
+
+              {/* Account Password */}
+              <div className="space-y-2 sm:col-span-2">
+                <div className="border-t pt-4">
+                  <h3 className="text-base font-medium text-foreground mb-1">Create Account</h3>
+                  <p className="text-sm text-muted-foreground mb-3">Set a password to access your registration dashboard</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">
+                  Password <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Min 6 characters"
+                    value={formData.password}
+                    onChange={(e) => updateField('password', e.target.value)}
+                    className={errors.password ? 'border-destructive pr-10' : 'pr-10'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">
+                  Confirm Password <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Re-enter password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => updateField('confirmPassword', e.target.value)}
+                    className={errors.confirmPassword ? 'border-destructive pr-10' : 'pr-10'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
               </div>
             </div>
           </div>
@@ -632,76 +772,8 @@ export function RegistrationForm() {
           </div>
         )}
 
-        {/* Step 5: Package Selection & Seats */}
+        {/* Step 5: Payment */}
         {currentStep === 5 && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">
-                {formData.bookingType === 'group' ? 'Seat Selection' : 'Select Your Package'}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {formData.bookingType === 'group' 
-                  ? 'Optionally select specific seats for your group'
-                  : 'Choose the package that best fits your needs'}
-              </p>
-            </div>
-
-            {formData.bookingType === 'individual' && (
-              <PackageSelector
-                selectedPackage={formData.selectedPackage}
-                onSelect={(pkg) => updateField('selectedPackage', pkg)}
-              />
-            )}
-
-            {/* Seat Map */}
-            <div className="space-y-4">
-              <h3 className="font-medium text-foreground">
-                {formData.bookingType === 'group' 
-                  ? 'Select Seats for Your Group (Optional)'
-                  : 'Select Your Preferred Seat (Optional)'}
-              </h3>
-              <SeatMap
-                selectedSeats={formData.selectedSeats}
-                onSeatSelect={(seats) => updateField('selectedSeats', seats)}
-                maxSeats={formData.bookingType === 'group' ? formData.groupSeats : 1}
-              />
-            </div>
-
-            {/* Coupon Code */}
-            <div className="space-y-4 rounded-lg border border-border bg-secondary/30 p-4">
-              <h3 className="font-medium text-foreground">Have a Coupon Code?</h3>
-              <CouponInput
-                packageType={formData.bookingType === 'group' ? formData.groupBasePackage : formData.selectedPackage}
-                totalAmount={getBaseAmount()}
-                onApplyCoupon={(code, discount) => {
-                  updateField('couponCode', code)
-                  updateField('couponDiscount', discount)
-                }}
-                onRemoveCoupon={() => {
-                  updateField('couponCode', '')
-                  updateField('couponDiscount', 0)
-                }}
-                appliedCoupon={formData.couponCode}
-                appliedDiscount={formData.couponDiscount}
-              />
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">Additional Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                placeholder="Any special requirements or questions?"
-                value={formData.notes}
-                onChange={(e) => updateField('notes', e.target.value)}
-                rows={3}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Step 6: Payment */}
-        {currentStep === 6 && (
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold text-foreground">Complete Payment</h2>
@@ -747,6 +819,37 @@ export function RegistrationForm() {
               </dl>
             </div>
 
+            {/* Coupon */}
+            <div className="space-y-3 rounded-lg border border-border bg-secondary/30 p-4">
+              <h3 className="font-medium text-foreground">Have a Coupon Code?</h3>
+              <CouponInput
+                packageType={formData.bookingType === 'group' ? formData.groupBasePackage : formData.selectedPackage}
+                totalAmount={getBaseAmount()}
+                onApplyCoupon={(code, discount) => {
+                  updateField('couponCode', code)
+                  updateField('couponDiscount', discount)
+                }}
+                onRemoveCoupon={() => {
+                  updateField('couponCode', '')
+                  updateField('couponDiscount', 0)
+                }}
+                appliedCoupon={formData.couponCode}
+                appliedDiscount={formData.couponDiscount}
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Additional Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                placeholder="Any special requirements or questions?"
+                value={formData.notes}
+                onChange={(e) => updateField('notes', e.target.value)}
+                rows={3}
+              />
+            </div>
+
             <PaymentGateway
               amount={totalAmount}
               onPaymentComplete={handlePaymentComplete}
@@ -758,7 +861,7 @@ export function RegistrationForm() {
         )}
 
         {/* Navigation Buttons */}
-        {currentStep < 6 && (
+        {currentStep < 5 && (
           <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
             <Button
               type="button"
@@ -775,14 +878,14 @@ export function RegistrationForm() {
             </div>
             
             <Button type="button" onClick={handleNext}>
-              {currentStep === 5 ? 'Proceed to Payment' : 'Next'}
+              {currentStep === 4 ? 'Proceed to Payment' : 'Next'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         )}
 
         {/* Back button on payment step */}
-        {currentStep === 6 && !isProcessing && (
+        {currentStep === 5 && !isProcessing && (
           <div className="mt-6 pt-4 border-t border-border">
             <Button
               type="button"
@@ -791,7 +894,7 @@ export function RegistrationForm() {
               className="w-full"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Package Selection
+              Back to Interests
             </Button>
           </div>
         )}

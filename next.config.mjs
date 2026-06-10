@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  basePath: '/masterclass',
+  basePath: process.env.NODE_ENV === 'production' ? '/masterclass' : '',
   typescript: {
     ignoreBuildErrors: true,
   },

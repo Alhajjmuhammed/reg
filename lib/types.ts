@@ -4,6 +4,185 @@ export type PackageType = 'early-bird' | 'standard' | 'corporate-vip'
 export type Gender = 'male' | 'female' | 'other' | 'prefer-not-to-say'
 export type BookingType = 'individual' | 'group'
 export type PaymentMethod = 'mpesa' | 'tigopesa' | 'airtel' | 'halopesa' | 'visa' | 'mastercard' | 'bank-transfer' | 'corporate-invoice'
+export type DocumentType = 'timetable' | 'material' | 'certificate' | 'announcement' | 'other'
+
+// ==================== USER ACCOUNT ====================
+
+export interface UserAccount {
+  id: string
+  email: string
+  passwordHash: string
+  participantId: string
+  createdAt: string
+  lastLogin?: string
+}
+
+// ==================== EVENT DOCUMENTS ====================
+
+export interface EventDocument {
+  id: string
+  title: string
+  description: string
+  fileUrl: string
+  type: DocumentType
+  availableTo: 'all' | PackageType
+  active: boolean
+  uploadedAt: string
+}
+
+export const DEFAULT_DOCUMENTS: EventDocument[] = []
+
+// ==================== SPONSORSHIP ====================
+
+export type SponsorshipTierColor = 'platinum' | 'gold' | 'silver' | 'bronze' | 'custom'
+
+export interface SponsorshipBenefit {
+  text: string
+  included: boolean
+}
+
+export interface SponsorshipTier {
+  id: string
+  name: string
+  color: SponsorshipTierColor
+  customColor?: string  // hex if color === 'custom'
+  price: number
+  currency: string
+  description: string
+  benefits: SponsorshipBenefit[]
+  highlighted: boolean  // shown as "Most Popular"
+  active: boolean
+  order: number
+}
+
+export interface Sponsor {
+  id: string
+  name: string
+  logoUrl: string
+  websiteUrl?: string
+  tierId: string
+  active: boolean
+}
+
+export interface SponsorshipPageSettings {
+  heroTitle: string
+  heroSubtitle: string
+  heroDescription: string
+  whyTitle: string
+  whyDescription: string
+  whyStats: { value: string; label: string }[]
+  contactEmail: string
+  contactPhone: string
+  contactWhatsApp: string
+  pageActive: boolean
+}
+
+export const DEFAULT_SPONSORSHIP_TIERS: SponsorshipTier[] = [
+  {
+    id: 'tier-platinum',
+    name: 'Platinum',
+    color: 'platinum',
+    price: 5000000,
+    currency: 'TZS',
+    description: 'Maximum exposure — your brand front and center at Tanzania\'s premier business training event.',
+    benefits: [
+      { text: 'Premium logo placement on all materials', included: true },
+      { text: 'Keynote speaking slot (30 min)', included: true },
+      { text: '10 complimentary VIP registrations', included: true },
+      { text: 'Exhibition booth (prime location)', included: true },
+      { text: 'Full-page ad in event program', included: true },
+      { text: 'Social media feature (5 posts)', included: true },
+      { text: 'Branded session room', included: true },
+      { text: 'Post-event attendee report', included: true },
+    ],
+    highlighted: true,
+    active: true,
+    order: 1,
+  },
+  {
+    id: 'tier-gold',
+    name: 'Gold',
+    color: 'gold',
+    price: 3000000,
+    currency: 'TZS',
+    description: 'High-visibility sponsorship package with meaningful engagement opportunities.',
+    benefits: [
+      { text: 'Logo on all event materials', included: true },
+      { text: 'Panel discussion participation', included: true },
+      { text: '6 complimentary Standard registrations', included: true },
+      { text: 'Exhibition booth', included: true },
+      { text: 'Half-page ad in event program', included: true },
+      { text: 'Social media feature (3 posts)', included: true },
+      { text: 'Branded session room', included: false },
+      { text: 'Post-event attendee report', included: true },
+    ],
+    highlighted: false,
+    active: true,
+    order: 2,
+  },
+  {
+    id: 'tier-silver',
+    name: 'Silver',
+    color: 'silver',
+    price: 1500000,
+    currency: 'TZS',
+    description: 'Solid brand presence with excellent reach across all event touchpoints.',
+    benefits: [
+      { text: 'Logo on event materials', included: true },
+      { text: 'Panel discussion participation', included: false },
+      { text: '3 complimentary Early Bird registrations', included: true },
+      { text: 'Exhibition booth', included: false },
+      { text: 'Quarter-page ad in event program', included: true },
+      { text: 'Social media feature (1 post)', included: true },
+      { text: 'Branded session room', included: false },
+      { text: 'Post-event attendee report', included: false },
+    ],
+    highlighted: false,
+    active: true,
+    order: 3,
+  },
+  {
+    id: 'tier-bronze',
+    name: 'Bronze',
+    color: 'bronze',
+    price: 700000,
+    currency: 'TZS',
+    description: 'Entry-level sponsorship with brand visibility in front of 500+ professionals.',
+    benefits: [
+      { text: 'Logo on event materials', included: true },
+      { text: 'Panel discussion participation', included: false },
+      { text: '1 complimentary registration', included: true },
+      { text: 'Exhibition booth', included: false },
+      { text: 'Listing in event program', included: true },
+      { text: 'Social media mention', included: true },
+      { text: 'Branded session room', included: false },
+      { text: 'Post-event attendee report', included: false },
+    ],
+    highlighted: false,
+    active: true,
+    order: 4,
+  },
+]
+
+export const DEFAULT_SPONSORS: Sponsor[] = []
+
+export const DEFAULT_SPONSORSHIP_SETTINGS: SponsorshipPageSettings = {
+  heroTitle: 'Partner With Us',
+  heroSubtitle: 'Sponsorship & Partnership Opportunities',
+  heroDescription: 'Connect your brand with 500+ ambitious entrepreneurs, managers, and business leaders at Tanzania\'s most impactful business training event of the year.',
+  whyTitle: 'Why Sponsor Executive Masterclass?',
+  whyDescription: 'Our attendees are decision-makers and influencers actively investing in their professional growth — and your brand.',
+  whyStats: [
+    { value: '500+', label: 'Attendees' },
+    { value: '3 Days', label: 'Event Duration' },
+    { value: '80%', label: 'Senior Managers' },
+    { value: '50+', label: 'Companies' },
+  ],
+  contactEmail: 'sponsorship@executivemasterclass.co.tz',
+  contactPhone: '+255 712 345 678',
+  contactWhatsApp: '+255712345678',
+  pageActive: true,
+}
 
 // ==================== SITE CONFIGURATION ====================
 
@@ -695,12 +874,23 @@ export function getGroupPricing(seats: number, basePackage: PackageType = 'stand
 }
 
 // Seat Management
+export interface PackageSeatAllocation {
+  'early-bird': number
+  'standard': number
+  'corporate-vip': number
+}
+
 export interface SeatConfiguration {
   totalSeats: number
   reservedSeats: number
   confirmedSeats: number
   availableSeats: number
   waitlistCount: number
+  // Per-package seat counts. Seats are laid out sequentially:
+  // Early Bird: 1 … earlyBirdSeats
+  // Standard:   earlyBirdSeats+1 … earlyBirdSeats+standardSeats
+  // VIP:        rest
+  packageSeats: PackageSeatAllocation
 }
 
 export const DEFAULT_SEAT_CONFIG: SeatConfiguration = {
@@ -709,6 +899,11 @@ export const DEFAULT_SEAT_CONFIG: SeatConfiguration = {
   confirmedSeats: 0,
   availableSeats: 100,
   waitlistCount: 0,
+  packageSeats: {
+    'early-bird': 40,
+    'standard': 40,
+    'corporate-vip': 20,
+  },
 }
 
 // Payment Methods Configuration
@@ -888,7 +1083,9 @@ export interface Participant {
   whatsappNumber: string
   email: string
   gender?: Gender
+  country?: string
   city: string
+  passwordHash?: string
   occupation: string
   organizationName?: string
   businessType: string

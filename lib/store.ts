@@ -22,6 +22,12 @@ import type {
   CompanyStat,
   Package,
   PaymentMethodConfig,
+  UserAccount,
+  EventDocument,
+  PackageSeatAllocation,
+  SponsorshipTier,
+  Sponsor,
+  SponsorshipPageSettings,
 } from './types'
 import { 
   DEFAULT_SEAT_CONFIG, 
@@ -37,6 +43,10 @@ import {
   DEFAULT_CHATBOT_QA,
   DEFAULT_COMPANY_STATS,
   PAYMENT_METHODS_CONFIG,
+  DEFAULT_DOCUMENTS,
+  DEFAULT_SPONSORSHIP_TIERS,
+  DEFAULT_SPONSORS,
+  DEFAULT_SPONSORSHIP_SETTINGS,
 } from './types'
 
 // Storage Keys
@@ -59,6 +69,14 @@ const STORAGE_KEYS = {
   companyStats: 'masterclass_company_stats',
   packages: 'masterclass_packages',
   paymentMethods: 'masterclass_payment_methods',
+  // Auth & documents
+  userAccounts: 'masterclass_user_accounts',
+  currentUser: 'masterclass_current_user',
+  documents: 'masterclass_documents',
+  // Sponsorship
+  sponsorshipTiers: 'masterclass_sponsorship_tiers',
+  sponsors: 'masterclass_sponsors',
+  sponsorshipSettings: 'masterclass_sponsorship_settings',
 }
 
 // Helper to safely access localStorage
@@ -548,43 +566,81 @@ export function updatePaymentMethod(id: string, data: Partial<PaymentMethodConfi
 
 export function getSeatConfiguration(): SeatConfiguration {
   const stored = getStorage<SeatConfiguration>(STORAGE_KEYS.seats, DEFAULT_SEAT_CONFIG)
+  // Ensure packageSeats always present (migration)
+  if (!stored.packageSeats) {
+    stored.packageSeats = DEFAULT_SEAT_CONFIG.packageSeats
+  }
   const participants = getParticipants()
-  
   const confirmedSeats = participants.filter(p => p.status === 'confirmed').length
   const reservedSeats = participants.filter(p => p.status === 'pending').length
   const waitlistCount = getWaitlist().length
-  
+  const total = stored.packageSeats['early-bird'] + stored.packageSeats['standard'] + stored.packageSeats['corporate-vip']
   return {
     ...stored,
+    totalSeats: total,
     confirmedSeats,
     reservedSeats,
-    availableSeats: stored.totalSeats - confirmedSeats - reservedSeats,
+    availableSeats: total - confirmedSeats - reservedSeats,
     waitlistCount,
   }
 }
 
-export function updateTotalSeats(totalSeats: number): SeatConfiguration {
+export function updatePackageSeats(allocation: PackageSeatAllocation): SeatConfiguration {
   const config = getSeatConfiguration()
-  const newConfig = { ...config, totalSeats }
-  newConfig.availableSeats = totalSeats - config.confirmedSeats - config.reservedSeats
+  const total = allocation['early-bird'] + allocation['standard'] + allocation['corporate-vip']
+  const newConfig: SeatConfiguration = {
+    ...config,
+    packageSeats: allocation,
+    totalSeats: total,
+    availableSeats: total - config.confirmedSeats - config.reservedSeats,
+  }
   setStorage(STORAGE_KEYS.seats, newConfig)
   return newConfig
 }
 
-export function reserveSeats(count: number): number[] | null {
+// Keep for backward compat
+export function updateTotalSeats(totalSeats: number): SeatConfiguration {
+  return updatePackageSeats(getSeatConfiguration().packageSeats)
+}
+
+/**
+ * Seat layout order (closest to stage first): VIP → Standard → Early Bird
+ * VIP:        seats 1 … vipCount
+ * Standard:   vipCount+1 … vipCount+standardCount
+ * Early Bird: rest
+ */
+export function getSeatRangeForPackage(pkg: PackageType): { start: number; end: number } {
   const config = getSeatConfiguration()
-  if (config.availableSeats < count) return null
-  
+  const vip = config.packageSeats['corporate-vip']
+  const st = config.packageSeats['standard']
+  const eb = config.packageSeats['early-bird']
+  if (pkg === 'corporate-vip') return { start: 1, end: vip }
+  if (pkg === 'standard') return { start: vip + 1, end: vip + st }
+  return { start: vip + st + 1, end: vip + st + eb }
+}
+
+// Returns a map of seatNumber → packageType for all booked seats
+export function getBookedSeats(): Map<string, PackageType> {
   const participants = getParticipants()
-  const takenSeats = new Set(participants.flatMap(p => p.seatNumbers || []))
-  
-  const assignedSeats: number[] = []
-  for (let i = 1; i <= config.totalSeats && assignedSeats.length < count; i++) {
-    if (!takenSeats.has(i)) {
-      assignedSeats.push(i)
+  const booked = new Map<string, PackageType>()
+  for (const p of participants) {
+    if (p.seatNumbers) {
+      for (const seatNum of p.seatNumbers) {
+        booked.set(String(seatNum), p.selectedPackage)
+      }
     }
   }
-  
+  return booked
+}
+
+export function reserveSeats(count: number, pkg: PackageType): number[] | null {
+  const range = getSeatRangeForPackage(pkg)
+  const participants = getParticipants()
+  const takenSeats = new Set(participants.flatMap(p => p.seatNumbers || []))
+  const assignedSeats: number[] = []
+  for (let i = range.start; i <= range.end && assignedSeats.length < count; i++) {
+    if (!takenSeats.has(i)) assignedSeats.push(i)
+  }
   return assignedSeats.length === count ? assignedSeats : null
 }
 
@@ -749,7 +805,7 @@ export function processPayment(
             paymentMethod: method,
             paymentReference: transaction.reference,
             status: newStatus,
-            seatNumbers: newStatus === 'confirmed' ? reserveSeats(1) || undefined : undefined,
+            seatNumbers: newStatus === 'confirmed' ? reserveSeats(1, participant.selectedPackage) || undefined : undefined,
             receiptNumber: newPaymentStatus === 'paid' ? generateReceiptNumber() : undefined,
           })
           
@@ -893,7 +949,7 @@ export function createParticipant(
   if (config.availableSeats <= 0) {
     status = 'waitlist'
   } else if (data.paymentStatus === 'paid') {
-    seatNumbers = reserveSeats(1) || undefined
+    seatNumbers = reserveSeats(1, data.selectedPackage) || undefined
     status = 'confirmed'
   }
   
@@ -1130,6 +1186,96 @@ export function exportToCSV(): string {
   return csv
 }
 
+// ==================== SPONSORSHIP ====================
+
+export function getSponsorshipSettings(): SponsorshipPageSettings {
+  return getStorage<SponsorshipPageSettings>(STORAGE_KEYS.sponsorshipSettings, DEFAULT_SPONSORSHIP_SETTINGS)
+}
+
+export function updateSponsorshipSettings(data: Partial<SponsorshipPageSettings>): SponsorshipPageSettings {
+  const current = getSponsorshipSettings()
+  const updated = { ...current, ...data }
+  setStorage(STORAGE_KEYS.sponsorshipSettings, updated)
+  return updated
+}
+
+export function getSponsorshipTiers(): SponsorshipTier[] {
+  const stored = getStorage<SponsorshipTier[]>(STORAGE_KEYS.sponsorshipTiers, [])
+  if (stored.length === 0) {
+    setStorage(STORAGE_KEYS.sponsorshipTiers, DEFAULT_SPONSORSHIP_TIERS)
+    return DEFAULT_SPONSORSHIP_TIERS
+  }
+  return stored.filter(t => t.active).sort((a, b) => a.order - b.order)
+}
+
+export function getAllSponsorshipTiers(): SponsorshipTier[] {
+  const stored = getStorage<SponsorshipTier[]>(STORAGE_KEYS.sponsorshipTiers, [])
+  if (stored.length === 0) {
+    setStorage(STORAGE_KEYS.sponsorshipTiers, DEFAULT_SPONSORSHIP_TIERS)
+    return DEFAULT_SPONSORSHIP_TIERS
+  }
+  return stored.sort((a, b) => a.order - b.order)
+}
+
+export function createSponsorshipTier(data: Omit<SponsorshipTier, 'id'>): SponsorshipTier {
+  const tiers = getAllSponsorshipTiers()
+  const tier: SponsorshipTier = { ...data, id: uuidv4() }
+  tiers.push(tier)
+  setStorage(STORAGE_KEYS.sponsorshipTiers, tiers)
+  return tier
+}
+
+export function updateSponsorshipTier(id: string, data: Partial<SponsorshipTier>): SponsorshipTier | null {
+  const tiers = getAllSponsorshipTiers()
+  const idx = tiers.findIndex(t => t.id === id)
+  if (idx === -1) return null
+  tiers[idx] = { ...tiers[idx], ...data }
+  setStorage(STORAGE_KEYS.sponsorshipTiers, tiers)
+  return tiers[idx]
+}
+
+export function deleteSponsorshipTier(id: string): boolean {
+  const tiers = getAllSponsorshipTiers()
+  const filtered = tiers.filter(t => t.id !== id)
+  if (filtered.length === tiers.length) return false
+  setStorage(STORAGE_KEYS.sponsorshipTiers, filtered)
+  return true
+}
+
+export function getSponsors(): Sponsor[] {
+  const stored = getStorage<Sponsor[]>(STORAGE_KEYS.sponsors, [])
+  return stored.filter(s => s.active)
+}
+
+export function getAllSponsors(): Sponsor[] {
+  return getStorage<Sponsor[]>(STORAGE_KEYS.sponsors, [])
+}
+
+export function createSponsor(data: Omit<Sponsor, 'id'>): Sponsor {
+  const sponsors = getAllSponsors()
+  const sponsor: Sponsor = { ...data, id: uuidv4() }
+  sponsors.push(sponsor)
+  setStorage(STORAGE_KEYS.sponsors, sponsors)
+  return sponsor
+}
+
+export function updateSponsor(id: string, data: Partial<Sponsor>): Sponsor | null {
+  const sponsors = getAllSponsors()
+  const idx = sponsors.findIndex(s => s.id === id)
+  if (idx === -1) return null
+  sponsors[idx] = { ...sponsors[idx], ...data }
+  setStorage(STORAGE_KEYS.sponsors, sponsors)
+  return sponsors[idx]
+}
+
+export function deleteSponsor(id: string): boolean {
+  const sponsors = getAllSponsors()
+  const filtered = sponsors.filter(s => s.id !== id)
+  if (filtered.length === sponsors.length) return false
+  setStorage(STORAGE_KEYS.sponsors, filtered)
+  return true
+}
+
 // ==================== RESET DATA ====================
 
 export function resetAllData(): void {
@@ -1138,4 +1284,111 @@ export function resetAllData(): void {
       localStorage.removeItem(key)
     }
   })
+}
+
+// ==================== AUTH ====================
+
+function hashPassword(password: string): string {
+  // Simple deterministic hash for localStorage-based auth
+  let hash = 5381
+  const str = password + ':em_salt_v1'
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i)
+    hash = hash & hash
+  }
+  return Math.abs(hash).toString(36)
+}
+
+export function createUserAccount(email: string, password: string, participantId: string): UserAccount {
+  const accounts = getStorage<UserAccount[]>(STORAGE_KEYS.userAccounts, [])
+  const existing = accounts.find(a => a.email.toLowerCase() === email.toLowerCase())
+  if (existing) return existing
+  const account: UserAccount = {
+    id: uuidv4(),
+    email: email.toLowerCase(),
+    passwordHash: hashPassword(password),
+    participantId,
+    createdAt: new Date().toISOString(),
+  }
+  accounts.push(account)
+  setStorage(STORAGE_KEYS.userAccounts, accounts)
+  return account
+}
+
+export function loginUser(email: string, password: string): UserAccount | null {
+  const accounts = getStorage<UserAccount[]>(STORAGE_KEYS.userAccounts, [])
+  const account = accounts.find(a => a.email.toLowerCase() === email.toLowerCase())
+  if (!account) return null
+  if (account.passwordHash !== hashPassword(password)) return null
+  // Update lastLogin
+  const idx = accounts.indexOf(account)
+  accounts[idx] = { ...account, lastLogin: new Date().toISOString() }
+  setStorage(STORAGE_KEYS.userAccounts, accounts)
+  // Persist session
+  setStorage(STORAGE_KEYS.currentUser, accounts[idx])
+  return accounts[idx]
+}
+
+export function getCurrentUser(): UserAccount | null {
+  return getStorage<UserAccount | null>(STORAGE_KEYS.currentUser, null)
+}
+
+export function logoutUser(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEYS.currentUser)
+  }
+}
+
+export function getUserByParticipantId(participantId: string): UserAccount | null {
+  const accounts = getStorage<UserAccount[]>(STORAGE_KEYS.userAccounts, [])
+  return accounts.find(a => a.participantId === participantId) || null
+}
+
+// ==================== EVENT DOCUMENTS ====================
+
+export function getDocuments(): EventDocument[] {
+  const stored = getStorage<EventDocument[]>(STORAGE_KEYS.documents, [])
+  if (stored.length === 0) {
+    setStorage(STORAGE_KEYS.documents, DEFAULT_DOCUMENTS)
+    return DEFAULT_DOCUMENTS
+  }
+  return stored.filter(d => d.active).sort((a, b) => a.uploadedAt > b.uploadedAt ? -1 : 1)
+}
+
+export function getAllDocuments(): EventDocument[] {
+  const stored = getStorage<EventDocument[]>(STORAGE_KEYS.documents, [])
+  if (stored.length === 0) {
+    setStorage(STORAGE_KEYS.documents, DEFAULT_DOCUMENTS)
+    return DEFAULT_DOCUMENTS
+  }
+  return stored.sort((a, b) => a.uploadedAt > b.uploadedAt ? -1 : 1)
+}
+
+export function createDocument(data: Omit<EventDocument, 'id'>): EventDocument {
+  const docs = getAllDocuments()
+  const newDoc: EventDocument = { ...data, id: uuidv4() }
+  docs.unshift(newDoc)
+  setStorage(STORAGE_KEYS.documents, docs)
+  return newDoc
+}
+
+export function updateDocument(id: string, data: Partial<EventDocument>): EventDocument | null {
+  const docs = getAllDocuments()
+  const idx = docs.findIndex(d => d.id === id)
+  if (idx === -1) return null
+  docs[idx] = { ...docs[idx], ...data }
+  setStorage(STORAGE_KEYS.documents, docs)
+  return docs[idx]
+}
+
+export function deleteDocument(id: string): boolean {
+  const docs = getAllDocuments()
+  const filtered = docs.filter(d => d.id !== id)
+  if (filtered.length === docs.length) return false
+  setStorage(STORAGE_KEYS.documents, filtered)
+  return true
+}
+
+export function getDocumentsForParticipant(packageType: string): EventDocument[] {
+  return getDocuments().filter(d => d.availableTo === 'all' || d.availableTo === packageType)
 }

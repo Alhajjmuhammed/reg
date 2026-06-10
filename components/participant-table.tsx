@@ -93,6 +93,7 @@ export function ParticipantTable() {
           p.email.toLowerCase().includes(query) ||
           p.phoneNumber.includes(searchQuery) ||
           p.city.toLowerCase().includes(query) ||
+          p.country?.toLowerCase().includes(query) ||
           p.organizationName?.toLowerCase().includes(query)
       )
     }

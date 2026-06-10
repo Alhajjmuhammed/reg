@@ -52,7 +52,7 @@ import {
   HelpCircle,
   MessageSquare,
   Star,
-  Package,
+  Package as PackageIcon,
   CreditCard,
   Armchair,
   Save,
@@ -96,7 +96,7 @@ import {
   getAllPaymentMethods,
   updatePaymentMethod,
   getSeatConfiguration,
-  updateTotalSeats,
+  updatePackageSeats,
   resetAllData,
 } from '@/lib/store'
 import type {
@@ -157,7 +157,11 @@ export default function AdminSettingsPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>([])
   
   // Seat Configuration
-  const [totalSeats, setTotalSeats] = useState(100)
+  const [packageSeats, setPackageSeats] = useState({
+    'early-bird': 40,
+    'standard': 40,
+    'corporate-vip': 20,
+  })
   
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string } | null>(null)
@@ -175,7 +179,8 @@ export default function AdminSettingsPage() {
     setChatbotQA(getAllChatbotQA())
     setPackages(getAllPackages())
     setPaymentMethods(getAllPaymentMethods())
-    setTotalSeats(getSeatConfiguration().totalSeats)
+    const seatCfg = getSeatConfiguration()
+    setPackageSeats(seatCfg.packageSeats)
   }, [])
 
   const handleSaveSettings = () => {
@@ -191,7 +196,7 @@ export default function AdminSettingsPage() {
 
   const handleSaveSeats = () => {
     setIsSaving(true)
-    updateTotalSeats(totalSeats)
+    updatePackageSeats(packageSeats)
     setTimeout(() => {
       setIsSaving(false)
       setSaveMessage('Seat configuration updated!')
@@ -381,7 +386,7 @@ export default function AdminSettingsPage() {
               <span className="hidden sm:inline">Chatbot</span>
             </TabsTrigger>
             <TabsTrigger value="packages" className="flex items-center gap-1 text-xs">
-              <Package className="h-3 w-3" />
+              <PackageIcon className="h-3 w-3" />
               <span className="hidden sm:inline">Packages</span>
             </TabsTrigger>
             <TabsTrigger value="payment" className="flex items-center gap-1 text-xs">
@@ -1070,51 +1075,113 @@ export default function AdminSettingsPage() {
           <TabsContent value="seats" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Seat Configuration</CardTitle>
-                <CardDescription>Manage total available seats for the event</CardDescription>
+                <CardTitle>Seat Configuration per Package</CardTitle>
+                <CardDescription>
+                  Set how many seats are allocated to each plan. Registrants can only pick seats from their own plan's zone.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="totalSeats">Total Seats</Label>
-                    <Input
-                      id="totalSeats"
-                      type="number"
-                      min={1}
-                      max={1000}
-                      value={totalSeats}
-                      onChange={(e) => setTotalSeats(parseInt(e.target.value))}
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      The maximum number of participants for this event
+                <p className="text-xs text-muted-foreground -mt-2">Seat order in the map: VIP (front) → Standard → Early Bird (back).</p>
+                <div className="grid gap-6 sm:grid-cols-3">
+                  {/* VIP — front rows */}
+                  <div className="rounded-xl border-2 border-purple-200 dark:border-purple-800/50 bg-purple-50/40 dark:bg-purple-950/20 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-purple-500" />
+                      <span className="font-semibold text-purple-700 dark:text-purple-300 text-sm">Corporate VIP Zone</span>
+                      <span className="text-[10px] bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded px-1.5 py-0.5 font-medium">Front</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="seats-vip" className="text-purple-700 dark:text-purple-300">Number of Seats</Label>
+                      <Input
+                        id="seats-vip"
+                        type="number"
+                        min={0}
+                        max={500}
+                        value={packageSeats['corporate-vip']}
+                        onChange={(e) => setPackageSeats(prev => ({ ...prev, 'corporate-vip': Math.max(0, parseInt(e.target.value) || 0) }))}
+                        className="border-purple-300 dark:border-purple-700 focus-visible:ring-purple-400"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Seats 1 – {packageSeats['corporate-vip']}
                     </p>
                   </div>
-                  <Card className="bg-muted/50">
-                    <CardContent className="pt-6">
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Confirmed</span>
-                          <span className="font-semibold">{getSeatConfiguration().confirmedSeats}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Reserved</span>
-                          <span className="font-semibold">{getSeatConfiguration().reservedSeats}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Available</span>
-                          <span className="font-semibold text-success">{getSeatConfiguration().availableSeats}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Waitlist</span>
-                          <span className="font-semibold text-warning">{getSeatConfiguration().waitlistCount}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+
+                  {/* Standard */}
+                  <div className="rounded-xl border-2 border-blue-200 dark:border-blue-800/50 bg-blue-50/40 dark:bg-blue-950/20 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-blue-500" />
+                      <span className="font-semibold text-blue-700 dark:text-blue-300 text-sm">Standard Zone</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="seats-st" className="text-blue-700 dark:text-blue-300">Number of Seats</Label>
+                      <Input
+                        id="seats-st"
+                        type="number"
+                        min={0}
+                        max={500}
+                        value={packageSeats['standard']}
+                        onChange={(e) => setPackageSeats(prev => ({ ...prev, 'standard': Math.max(0, parseInt(e.target.value) || 0) }))}
+                        className="border-blue-300 dark:border-blue-700 focus-visible:ring-blue-400"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Seats {packageSeats['corporate-vip'] + 1} – {packageSeats['corporate-vip'] + packageSeats['standard']}
+                    </p>
+                  </div>
+
+                  {/* Early Bird — back rows */}
+                  <div className="rounded-xl border-2 border-amber-200 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/20 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-amber-500" />
+                      <span className="font-semibold text-amber-700 dark:text-amber-300 text-sm">Early Bird Zone</span>
+                      <span className="text-[10px] bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-300 rounded px-1.5 py-0.5 font-medium">Back</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="seats-eb" className="text-amber-700 dark:text-amber-300">Number of Seats</Label>
+                      <Input
+                        id="seats-eb"
+                        type="number"
+                        min={0}
+                        max={500}
+                        value={packageSeats['early-bird']}
+                        onChange={(e) => setPackageSeats(prev => ({ ...prev, 'early-bird': Math.max(0, parseInt(e.target.value) || 0) }))}
+                        className="border-amber-300 dark:border-amber-700 focus-visible:ring-amber-400"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Seats {packageSeats['corporate-vip'] + packageSeats['standard'] + 1} – {packageSeats['corporate-vip'] + packageSeats['standard'] + packageSeats['early-bird']}
+                    </p>
+                  </div>
                 </div>
+
+                {/* Summary row */}
+                <div className="rounded-lg bg-muted/50 border p-4 flex flex-wrap items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">Total Venue Capacity</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {packageSeats['early-bird'] + packageSeats['standard'] + packageSeats['corporate-vip']} seats
+                    </p>
+                  </div>
+                  <div className="flex gap-6 text-sm text-muted-foreground">
+                    <div>
+                      <p>Confirmed</p>
+                      <p className="font-bold text-foreground">{getSeatConfiguration().confirmedSeats}</p>
+                    </div>
+                    <div>
+                      <p>Pending</p>
+                      <p className="font-bold text-foreground">{getSeatConfiguration().reservedSeats}</p>
+                    </div>
+                    <div>
+                      <p>Waitlist</p>
+                      <p className="font-bold text-foreground">{getSeatConfiguration().waitlistCount}</p>
+                    </div>
+                  </div>
+                </div>
+
                 <Button onClick={handleSaveSeats} disabled={isSaving}>
                   <Save className="mr-2 h-4 w-4" />
-                  {isSaving ? 'Saving...' : 'Update Seat Configuration'}
+                  {isSaving ? 'Saving...' : 'Save Seat Configuration'}
                 </Button>
               </CardContent>
             </Card>

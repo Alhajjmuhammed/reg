@@ -8,6 +8,8 @@ import {
   Users,
   Settings,
   FileText,
+  FolderOpen,
+  Handshake,
   Menu,
   X,
   ChevronDown,
@@ -25,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -35,6 +38,8 @@ const navigation = [
   { name: 'Participants', href: '/admin/participants', icon: Users },
   { name: 'Coupons', href: '/admin/coupons', icon: Ticket },
   { name: 'Reports', href: '/admin/reports', icon: FileText },
+  { name: 'Documents', href: '/admin/documents', icon: FolderOpen },
+  { name: 'Sponsorship', href: '/admin/sponsorship', icon: Handshake },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ]
 
@@ -120,6 +125,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex-1" />
 
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
               <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" />

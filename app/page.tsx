@@ -3,6 +3,8 @@ import { HeroSlideshow } from '@/components/hero-slideshow'
 import { WhatYouWillLearn } from '@/components/what-you-will-learn'
 import { TrainersShowcase } from '@/components/trainers-showcase'
 import { WhatsAppChatbot } from '@/components/whatsapp-chatbot'
+import { ThemeToggle } from '@/components/theme-toggle'
+import { UserHeaderNav } from '@/components/user-header-nav'
 import { Sparkles, Check, Gift, CreditCard, Smartphone, Shield, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { GROUP_PRICING_TIERS, PACKAGES } from '@/lib/types'
@@ -46,16 +48,24 @@ export default function HomePage() {
             <Link href="#register" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
               Register
             </Link>
+            <Link href="/sponsorship" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+              Sponsorship
+            </Link>
+            <Link href="/account/dashboard" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+              My Account
+            </Link>
           </nav>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <UserHeaderNav />
             <Link
               href="/admin"
               className="hidden rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 sm:inline-flex"
             >
               Admin
             </Link>
-            <Button size="sm" asChild className="md:hidden">
-              <a href="#register">Register</a>
+            <Button size="sm" asChild>
+              <a href="#register">Register Now</a>
             </Button>
           </div>
         </div>
@@ -222,12 +232,13 @@ export default function HomePage() {
       </section>
 
       {/* Registration Form Section */}
-      <section id="register" className="py-16 lg:py-24">
+      <section id="register" className="py-16 lg:py-24 bg-secondary/20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 text-3xl font-bold text-foreground">Register Now</h2>
-            <p className="text-muted-foreground">
-              Secure your seat for this transformational learning experience
+            <span className="inline-block rounded-full bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary mb-4">Registration Open</span>
+            <h2 className="mb-4 text-3xl font-bold text-foreground">Secure Your Seat</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Join hundreds of professionals transforming their business with digital skills
             </p>
           </div>
           <RegistrationForm />

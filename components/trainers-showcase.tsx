@@ -6,6 +6,7 @@ import { Linkedin, Twitter, Globe, Award, BookOpen, Users } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { getTrainers } from '@/lib/store'
 import type { Trainer } from '@/lib/types'
+import { assetUrl } from '@/lib/utils'
 
 export function TrainersShowcase() {
   const [trainers, setTrainers] = useState<Trainer[]>([])
@@ -62,7 +63,7 @@ export function TrainersShowcase() {
             >
               <div className="relative h-72 overflow-hidden">
                 <Image
-                  src={trainer.photoUrl || '/images/trainer-placeholder.jpg'}
+                  src={assetUrl(trainer.photoUrl || '/images/trainer-placeholder.jpg')}
                   alt={trainer.name}
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-105"

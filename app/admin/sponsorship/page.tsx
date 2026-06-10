@@ -54,6 +54,7 @@ import {
 } from '@/lib/store'
 import type { SponsorshipTier, Sponsor, SponsorshipPageSettings, SponsorshipTierColor } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { assetUrl } from '@/lib/utils'
 
 const TIER_COLORS: { value: SponsorshipTierColor; label: string; dot: string }[] = [
   { value: 'platinum', label: 'Platinum', dot: 'bg-slate-500' },
@@ -326,7 +327,7 @@ export default function AdminSponsorshipPage() {
                   <div key={sponsor.id} className={cn('flex items-center gap-4 px-4 py-3', !sponsor.active && 'opacity-50')}>
                     {/* Logo preview */}
                     {sponsor.logoUrl ? (
-                      <img src={sponsor.logoUrl} alt={sponsor.name} className="h-10 w-20 object-contain rounded" />
+                      <img src={assetUrl(sponsor.logoUrl)} alt={sponsor.name} className="h-10 w-20 object-contain rounded" />
                     ) : (
                       <div className="h-10 w-20 rounded border bg-muted flex items-center justify-center text-xs text-muted-foreground">No logo</div>
                     )}

@@ -111,6 +111,7 @@ import type {
   PaymentMethodConfig,
   PackageType,
 } from '@/lib/types'
+import { assetUrl } from '@/lib/utils'
 
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState('general')
@@ -672,7 +673,7 @@ export default function AdminSettingsPage() {
                         <div className="flex items-start gap-4">
                           <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                             {trainer.photoUrl ? (
-                              <img src={trainer.photoUrl} alt={trainer.name} className="h-full w-full object-cover" />
+                              <img src={assetUrl(trainer.photoUrl)} alt={trainer.name} className="h-full w-full object-cover" />
                             ) : (
                               <Users className="h-8 w-8 text-muted-foreground" />
                             )}

@@ -26,6 +26,7 @@ import { UserHeaderNav } from '@/components/user-header-nav'
 import { getSponsorshipTiers, getSponsors, getSponsorshipSettings } from '@/lib/store'
 import type { SponsorshipTier, Sponsor, SponsorshipPageSettings } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { assetUrl } from '@/lib/utils'
 
 const TIER_STYLES: Record<string, {
   gradient: string
@@ -291,7 +292,7 @@ export default function SponsorshipPage() {
                 >
                   {sponsor.logoUrl ? (
                     <img
-                      src={sponsor.logoUrl}
+                      src={assetUrl(sponsor.logoUrl)}
                       alt={sponsor.name}
                       className="h-14 max-w-[140px] object-contain grayscale group-hover:grayscale-0 transition-all"
                     />

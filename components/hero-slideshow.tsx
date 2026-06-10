@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Sparkles, Calendar, MapPin, Users } from 'lu
 import { Button } from '@/components/ui/button'
 import { getHeroSlides, getSiteSettings } from '@/lib/store'
 import type { HeroSlide, SiteSettings } from '@/lib/types'
+import { assetUrl } from '@/lib/utils'
 
 export function HeroSlideshow() {
   const [slides, setSlides] = useState<HeroSlide[]>([])
@@ -68,7 +69,7 @@ export function HeroSlideshow() {
           }`}
         >
           <Image
-            src={slide.imageUrl}
+            src={assetUrl(slide.imageUrl)}
             alt={slide.title}
             fill
             className="object-cover"

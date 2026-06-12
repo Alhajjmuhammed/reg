@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { logoutAll, getCurrentAdmin } from '@/lib/store'
 import {
-  Sparkles,
   LayoutDashboard,
   Users,
   Settings,
@@ -17,6 +17,7 @@ import {
   Bell,
   Ticket,
   MessageSquare,
+  GraduationCap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -40,11 +41,18 @@ const navigation = [
   { name: 'Reports', href: '/admin/reports', icon: FileText },
   { name: 'Documents', href: '/admin/documents', icon: FolderOpen },
   { name: 'Sponsorship', href: '/admin/sponsorship', icon: Handshake },
+  { name: 'Trainers', href: '/admin/trainers', icon: GraduationCap },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ]
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    if (!getCurrentAdmin()) {
+      window.location.href = '/login'
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-background">
@@ -64,14 +72,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         )}
       >
         {/* Logo */}
-        <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
-            <Sparkles className="h-5 w-5 text-sidebar-primary-foreground" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-bold text-sidebar-foreground">Masterclass</span>
-            <span className="text-xs text-muted-foreground">Admin Portal</span>
-          </div>
+        <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
+          <img src="/images/logo.png" alt="eOpsprimax" className="h-8 w-auto object-contain" />
+          <span className="text-xs text-muted-foreground">Admin Portal</span>
           <button
             className="ml-auto lg:hidden"
             onClick={() => setIsSidebarOpen(false)}
@@ -153,7 +156,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive focus:text-destructive">
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => { logoutAll(); window.location.href = '/login' }}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </DropdownMenuItem>

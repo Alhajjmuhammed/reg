@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import {
-  Sparkles, Search, CheckCircle2, Clock, XCircle, Users,
+  Search, CheckCircle2, Clock, XCircle, Users,
   CreditCard, Package, MapPin, Mail, Phone, Calendar,
   ArrowLeft, Download, Share2, Receipt,
 } from 'lucide-react'
@@ -78,10 +78,7 @@ export default function MyRegistrationPage() {
       <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Sparkles className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-foreground">Executive Masterclass</span>
+            <img src="/images/logo.png" alt="eOpsprimax" className="h-8 w-auto object-contain" />
           </Link>
           <div className="flex items-center gap-3">
             <ThemeToggle />
@@ -166,8 +163,7 @@ export default function MyRegistrationPage() {
               {/* Receipt header */}
               <div className="border-b border-border bg-secondary/30 p-5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <span className="font-bold text-foreground">Executive Masterclass</span>
+                  <img src="/images/logo.png" alt="eOpsprimax" className="h-5 w-auto object-contain" />
                 </div>
                 {result.receiptNumber && (
                   <div className="text-right">

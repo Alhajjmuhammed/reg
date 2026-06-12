@@ -8,6 +8,18 @@ export type DocumentType = 'timetable' | 'material' | 'certificate' | 'announcem
 
 // ==================== USER ACCOUNT ====================
 
+export type UserRole = 'admin' | 'trainer' | 'participant'
+
+export interface AdminCredential {
+  email: string
+  passwordHash: string
+}
+
+export const DEFAULT_ADMIN_CREDENTIAL: AdminCredential = {
+  email: 'admin@masterclass.co.tz',
+  passwordHash: '', // populated by store using hashPassword on first use
+}
+
 export interface UserAccount {
   id: string
   email: string
@@ -16,6 +28,53 @@ export interface UserAccount {
   createdAt: string
   lastLogin?: string
 }
+
+// ==================== TRAINER ACCOUNT ====================
+
+export type TrainerMaterialType = 'pdf' | 'video' | 'slides' | 'image' | 'link' | 'other'
+
+export interface TrainerAccount {
+  id: string
+  trainerId: string   // links to Trainer.id
+  email: string
+  passwordHash: string
+  createdAt: string
+  lastLogin?: string
+}
+
+export interface TrainerMaterial {
+  id: string
+  trainerId: string
+  title: string
+  description: string
+  fileUrl: string      // base64 data URL or external URL
+  fileName: string
+  fileType: TrainerMaterialType
+  visibleToParticipants: boolean
+  uploadedAt: string
+  active: boolean
+}
+
+export interface TrainerAnnouncement {
+  id: string
+  trainerId: string
+  title: string
+  message: string
+  postedAt: string
+  active: boolean
+}
+
+export interface AttendanceRecord {
+  id: string
+  participantId: string
+  trainerId: string
+  session: string   // e.g. "Day 1 Morning"
+  date: string
+  present: boolean
+  markedAt: string
+}
+
+export const DEFAULT_SESSIONS = ['Day 1 – Morning', 'Day 1 – Afternoon', 'Day 2 – Morning', 'Day 2 – Afternoon', 'Day 3 – Morning', 'Day 3 – Afternoon']
 
 // ==================== EVENT DOCUMENTS ====================
 
@@ -58,7 +117,9 @@ export interface SponsorshipTier {
 export interface Sponsor {
   id: string
   name: string
+  description: string
   logoUrl: string
+  bannerUrl: string
   websiteUrl?: string
   tierId: string
   active: boolean
@@ -164,7 +225,38 @@ export const DEFAULT_SPONSORSHIP_TIERS: SponsorshipTier[] = [
   },
 ]
 
-export const DEFAULT_SPONSORS: Sponsor[] = []
+export const DEFAULT_SPONSORS: Sponsor[] = [
+  {
+    id: 'sponsor-crdb',
+    name: 'CRDB Bank',
+    description: 'Tanzania\'s leading commercial bank empowering entrepreneurs and businesses with innovative financial solutions across East Africa.',
+    logoUrl: 'https://placehold.co/220x100/1a56db/ffffff?text=CRDB+Bank&font=raleway',
+    bannerUrl: '/images/hero-1.jpg',
+    websiteUrl: 'https://www.crdbbank.co.tz',
+    tierId: 'tier-platinum',
+    active: true,
+  },
+  {
+    id: 'sponsor-vodacom',
+    name: 'Vodacom Tanzania',
+    description: 'Connecting millions of Tanzanians with world-class mobile and digital services, driving innovation and economic growth.',
+    logoUrl: 'https://placehold.co/220x100/e60000/ffffff?text=Vodacom&font=raleway',
+    bannerUrl: '/images/hero-2.jpg',
+    websiteUrl: 'https://www.vodacom.co.tz',
+    tierId: 'tier-gold',
+    active: true,
+  },
+  {
+    id: 'sponsor-azam',
+    name: 'Azam Media',
+    description: 'East Africa\'s largest media group — broadcasting inspiration, information and entertainment to millions of viewers daily.',
+    logoUrl: 'https://placehold.co/220x100/f97316/ffffff?text=Azam+Media&font=raleway',
+    bannerUrl: '/images/hero-3.jpg',
+    websiteUrl: 'https://azammedia.co.tz',
+    tierId: 'tier-silver',
+    active: true,
+  },
+]
 
 export const DEFAULT_SPONSORSHIP_SETTINGS: SponsorshipPageSettings = {
   heroTitle: 'Partner With Us',

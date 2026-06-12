@@ -23,11 +23,17 @@ import type {
   Package,
   PaymentMethodConfig,
   UserAccount,
+  TrainerAccount,
+  TrainerMaterial,
+  TrainerAnnouncement,
+  AttendanceRecord,
   EventDocument,
   PackageSeatAllocation,
   SponsorshipTier,
   Sponsor,
   SponsorshipPageSettings,
+  AdminCredential,
+  UserRole,
 } from './types'
 import { 
   DEFAULT_SEAT_CONFIG, 
@@ -47,6 +53,7 @@ import {
   DEFAULT_SPONSORSHIP_TIERS,
   DEFAULT_SPONSORS,
   DEFAULT_SPONSORSHIP_SETTINGS,
+  DEFAULT_ADMIN_CREDENTIAL,
 } from './types'
 
 // Storage Keys
@@ -77,6 +84,15 @@ const STORAGE_KEYS = {
   sponsorshipTiers: 'masterclass_sponsorship_tiers',
   sponsors: 'masterclass_sponsors',
   sponsorshipSettings: 'masterclass_sponsorship_settings',
+  // Trainer portal
+  trainerAccounts: 'masterclass_trainer_accounts',
+  currentTrainer: 'masterclass_current_trainer',
+  trainerMaterials: 'masterclass_trainer_materials',
+  trainerAnnouncements: 'masterclass_trainer_announcements',
+  attendance: 'masterclass_attendance',
+  // Admin credential
+  adminCredential: 'masterclass_admin_credential',
+  currentAdmin: 'masterclass_current_admin',
 }
 
 // Helper to safely access localStorage
@@ -265,6 +281,10 @@ export function getAllTrainers(): Trainer[] {
     return DEFAULT_TRAINERS
   }
   return stored.sort((a, b) => a.order - b.order)
+}
+
+export function getTrainerById(id: string): Trainer | null {
+  return getAllTrainers().find(t => t.id === id) || null
 }
 
 export function createTrainer(data: Omit<Trainer, 'id'>): Trainer {
@@ -1244,11 +1264,20 @@ export function deleteSponsorshipTier(id: string): boolean {
 
 export function getSponsors(): Sponsor[] {
   const stored = getStorage<Sponsor[]>(STORAGE_KEYS.sponsors, [])
+  if (stored.length === 0) {
+    setStorage(STORAGE_KEYS.sponsors, DEFAULT_SPONSORS)
+    return DEFAULT_SPONSORS.filter(s => s.active)
+  }
   return stored.filter(s => s.active)
 }
 
 export function getAllSponsors(): Sponsor[] {
-  return getStorage<Sponsor[]>(STORAGE_KEYS.sponsors, [])
+  const stored = getStorage<Sponsor[]>(STORAGE_KEYS.sponsors, [])
+  if (stored.length === 0) {
+    setStorage(STORAGE_KEYS.sponsors, DEFAULT_SPONSORS)
+    return DEFAULT_SPONSORS
+  }
+  return stored
 }
 
 export function createSponsor(data: Omit<Sponsor, 'id'>): Sponsor {
@@ -1284,6 +1313,256 @@ export function resetAllData(): void {
       localStorage.removeItem(key)
     }
   })
+}
+
+// ==================== ADMIN CREDENTIAL ====================
+
+const DEFAULT_ADMIN_PASSWORD = 'admin123'
+
+export function getAdminCredential(): AdminCredential {
+  const stored = getStorage<AdminCredential | null>(STORAGE_KEYS.adminCredential, null)
+  if (stored) return stored
+  // Seed default
+  const cred: AdminCredential = { email: DEFAULT_ADMIN_CREDENTIAL.email, passwordHash: hashPassword(DEFAULT_ADMIN_PASSWORD) }
+  setStorage(STORAGE_KEYS.adminCredential, cred)
+  return cred
+}
+
+export function updateAdminCredential(email: string, password: string): void {
+  setStorage(STORAGE_KEYS.adminCredential, { email: email.toLowerCase(), passwordHash: hashPassword(password) })
+}
+
+export function loginAdmin(email: string, password: string): boolean {
+  const cred = getAdminCredential()
+  if (cred.email !== email.toLowerCase()) return false
+  if (cred.passwordHash !== hashPassword(password)) return false
+  setStorage(STORAGE_KEYS.currentAdmin, { email: cred.email, loggedInAt: new Date().toISOString() })
+  return true
+}
+
+export function getCurrentAdmin(): { email: string; loggedInAt: string } | null {
+  return getStorage<{ email: string; loggedInAt: string } | null>(STORAGE_KEYS.currentAdmin, null)
+}
+
+export function logoutAdmin(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEYS.currentAdmin)
+  }
+}
+
+// ==================== UNIFIED LOGIN ====================
+
+export type LoginResult =
+  | { role: 'admin'; email: string }
+  | { role: 'trainer'; account: TrainerAccount }
+  | { role: 'participant'; account: UserAccount }
+  | null
+
+export function loginUnified(email: string, password: string): LoginResult {
+  const lowerEmail = email.toLowerCase().trim()
+
+  // 1. Check admin
+  const cred = getAdminCredential()
+  if (cred.email === lowerEmail && cred.passwordHash === hashPassword(password)) {
+    setStorage(STORAGE_KEYS.currentAdmin, { email: lowerEmail, loggedInAt: new Date().toISOString() })
+    return { role: 'admin', email: lowerEmail }
+  }
+
+  // 2. Check trainer
+  const trainerAccounts = getAllTrainerAccounts()
+  const trainerAcc = trainerAccounts.find(a => a.email === lowerEmail)
+  if (trainerAcc && trainerAcc.passwordHash === hashPassword(password)) {
+    const idx = trainerAccounts.indexOf(trainerAcc)
+    trainerAccounts[idx] = { ...trainerAcc, lastLogin: new Date().toISOString() }
+    setStorage(STORAGE_KEYS.trainerAccounts, trainerAccounts)
+    setStorage(STORAGE_KEYS.currentTrainer, trainerAccounts[idx])
+    return { role: 'trainer', account: trainerAccounts[idx] }
+  }
+
+  // 3. Check participant
+  const participantAccounts = getStorage<UserAccount[]>(STORAGE_KEYS.userAccounts, [])
+  const participantAcc = participantAccounts.find(a => a.email === lowerEmail)
+  if (participantAcc && participantAcc.passwordHash === hashPassword(password)) {
+    const idx = participantAccounts.indexOf(participantAcc)
+    participantAccounts[idx] = { ...participantAcc, lastLogin: new Date().toISOString() }
+    setStorage(STORAGE_KEYS.userAccounts, participantAccounts)
+    setStorage(STORAGE_KEYS.currentUser, participantAccounts[idx])
+    return { role: 'participant', account: participantAccounts[idx] }
+  }
+
+  return null
+}
+
+export function logoutAll(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEYS.currentAdmin)
+    localStorage.removeItem(STORAGE_KEYS.currentTrainer)
+    localStorage.removeItem(STORAGE_KEYS.currentUser)
+  }
+}
+
+export function getCurrentRole(): { role: UserRole; label: string; email: string } | null {
+  const admin = getStorage<{ email: string } | null>(STORAGE_KEYS.currentAdmin, null)
+  if (admin) return { role: 'admin', label: 'Admin', email: admin.email }
+  const trainer = getStorage<TrainerAccount | null>(STORAGE_KEYS.currentTrainer, null)
+  if (trainer) return { role: 'trainer', label: 'Trainer', email: trainer.email }
+  const participant = getStorage<UserAccount | null>(STORAGE_KEYS.currentUser, null)
+  if (participant) return { role: 'participant', label: 'Participant', email: participant.email }
+  return null
+}
+
+
+
+export function getAllTrainerAccounts(): TrainerAccount[] {
+  return getStorage<TrainerAccount[]>(STORAGE_KEYS.trainerAccounts, [])
+}
+
+export function createTrainerAccount(trainerId: string, email: string, password: string): TrainerAccount {
+  const accounts = getAllTrainerAccounts()
+  const existing = accounts.find(a => a.email.toLowerCase() === email.toLowerCase())
+  if (existing) return existing
+  const account: TrainerAccount = {
+    id: uuidv4(),
+    trainerId,
+    email: email.toLowerCase(),
+    passwordHash: hashPassword(password),
+    createdAt: new Date().toISOString(),
+  }
+  accounts.push(account)
+  setStorage(STORAGE_KEYS.trainerAccounts, accounts)
+  return account
+}
+
+export function updateTrainerAccount(id: string, data: Partial<Omit<TrainerAccount, 'id'>>): TrainerAccount | null {
+  const accounts = getAllTrainerAccounts()
+  const idx = accounts.findIndex(a => a.id === id)
+  if (idx === -1) return null
+  if (data.passwordHash) {
+    // raw password passed — hash it
+    data = { ...data, passwordHash: hashPassword(data.passwordHash) }
+  }
+  accounts[idx] = { ...accounts[idx], ...data }
+  setStorage(STORAGE_KEYS.trainerAccounts, accounts)
+  return accounts[idx]
+}
+
+export function deleteTrainerAccount(id: string): boolean {
+  const accounts = getAllTrainerAccounts()
+  const filtered = accounts.filter(a => a.id !== id)
+  if (filtered.length === accounts.length) return false
+  setStorage(STORAGE_KEYS.trainerAccounts, filtered)
+  return true
+}
+
+export function loginTrainer(email: string, password: string): TrainerAccount | null {
+  const accounts = getAllTrainerAccounts()
+  const account = accounts.find(a => a.email.toLowerCase() === email.toLowerCase())
+  if (!account) return null
+  if (account.passwordHash !== hashPassword(password)) return null
+  const idx = accounts.indexOf(account)
+  accounts[idx] = { ...account, lastLogin: new Date().toISOString() }
+  setStorage(STORAGE_KEYS.trainerAccounts, accounts)
+  setStorage(STORAGE_KEYS.currentTrainer, accounts[idx])
+  return accounts[idx]
+}
+
+export function getCurrentTrainer(): TrainerAccount | null {
+  return getStorage<TrainerAccount | null>(STORAGE_KEYS.currentTrainer, null)
+}
+
+export function logoutTrainer(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEYS.currentTrainer)
+  }
+}
+
+// ==================== TRAINER MATERIALS ====================
+
+export function getTrainerMaterials(trainerId?: string): TrainerMaterial[] {
+  const all = getStorage<TrainerMaterial[]>(STORAGE_KEYS.trainerMaterials, [])
+  const active = all.filter(m => m.active)
+  return trainerId ? active.filter(m => m.trainerId === trainerId) : active
+}
+
+export function getAllTrainerMaterials(trainerId?: string): TrainerMaterial[] {
+  const all = getStorage<TrainerMaterial[]>(STORAGE_KEYS.trainerMaterials, [])
+  return trainerId ? all.filter(m => m.trainerId === trainerId) : all
+}
+
+export function createTrainerMaterial(data: Omit<TrainerMaterial, 'id'>): TrainerMaterial {
+  const all = getStorage<TrainerMaterial[]>(STORAGE_KEYS.trainerMaterials, [])
+  const material: TrainerMaterial = { ...data, id: uuidv4() }
+  all.push(material)
+  setStorage(STORAGE_KEYS.trainerMaterials, all)
+  return material
+}
+
+export function updateTrainerMaterial(id: string, data: Partial<TrainerMaterial>): TrainerMaterial | null {
+  const all = getStorage<TrainerMaterial[]>(STORAGE_KEYS.trainerMaterials, [])
+  const idx = all.findIndex(m => m.id === id)
+  if (idx === -1) return null
+  all[idx] = { ...all[idx], ...data }
+  setStorage(STORAGE_KEYS.trainerMaterials, all)
+  return all[idx]
+}
+
+export function deleteTrainerMaterial(id: string): boolean {
+  const all = getStorage<TrainerMaterial[]>(STORAGE_KEYS.trainerMaterials, [])
+  const filtered = all.filter(m => m.id !== id)
+  if (filtered.length === all.length) return false
+  setStorage(STORAGE_KEYS.trainerMaterials, filtered)
+  return true
+}
+
+// ==================== TRAINER ANNOUNCEMENTS ====================
+
+export function getTrainerAnnouncements(trainerId?: string): TrainerAnnouncement[] {
+  const all = getStorage<TrainerAnnouncement[]>(STORAGE_KEYS.trainerAnnouncements, [])
+  const active = all.filter(a => a.active)
+  return trainerId ? active.filter(a => a.trainerId === trainerId) : active
+}
+
+export function getAllTrainerAnnouncements(trainerId?: string): TrainerAnnouncement[] {
+  const all = getStorage<TrainerAnnouncement[]>(STORAGE_KEYS.trainerAnnouncements, [])
+  return trainerId ? all.filter(a => a.trainerId === trainerId) : all
+}
+
+export function createTrainerAnnouncement(data: Omit<TrainerAnnouncement, 'id'>): TrainerAnnouncement {
+  const all = getStorage<TrainerAnnouncement[]>(STORAGE_KEYS.trainerAnnouncements, [])
+  const ann: TrainerAnnouncement = { ...data, id: uuidv4() }
+  all.push(ann)
+  setStorage(STORAGE_KEYS.trainerAnnouncements, all)
+  return ann
+}
+
+export function deleteTrainerAnnouncement(id: string): boolean {
+  const all = getStorage<TrainerAnnouncement[]>(STORAGE_KEYS.trainerAnnouncements, [])
+  const filtered = all.filter(a => a.id !== id)
+  if (filtered.length === all.length) return false
+  setStorage(STORAGE_KEYS.trainerAnnouncements, filtered)
+  return true
+}
+
+// ==================== ATTENDANCE ====================
+
+export function getAttendance(trainerId?: string): AttendanceRecord[] {
+  const all = getStorage<AttendanceRecord[]>(STORAGE_KEYS.attendance, [])
+  return trainerId ? all.filter(r => r.trainerId === trainerId) : all
+}
+
+export function upsertAttendance(trainerId: string, participantId: string, session: string, date: string, present: boolean): AttendanceRecord {
+  const all = getStorage<AttendanceRecord[]>(STORAGE_KEYS.attendance, [])
+  const existing = all.find(r => r.trainerId === trainerId && r.participantId === participantId && r.session === session)
+  if (existing) {
+    existing.present = present
+    existing.markedAt = new Date().toISOString()
+    setStorage(STORAGE_KEYS.attendance, all)
+    return existing
+  }
+  const record: AttendanceRecord = { id: uuidv4(), trainerId, participantId, session, date, present, markedAt: new Date().toISOString() }
+  all.push(record)
+  setStorage(STORAGE_KEYS.attendance, all)
+  return record
 }
 
 // ==================== AUTH ====================

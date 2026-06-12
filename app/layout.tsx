@@ -12,21 +12,8 @@ export const metadata: Metadata = {
   description: 'A 3-day professional intensive training program on Social Media Management, Business Automation & AI Agents',
   generator: 'v0.app',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/images/logo-icon.png',
+    apple: '/images/logo-icon.png',
   },
 }
 

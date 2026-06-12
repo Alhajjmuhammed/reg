@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
-export default function AccountLoginPage() {
+export default function TrainerLoginRedirectPage() {
   redirect('/login')
 }

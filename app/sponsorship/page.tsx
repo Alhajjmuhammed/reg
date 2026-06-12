@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import {
-  Sparkles,
   Star,
   Users,
   TrendingUp,
@@ -18,15 +17,142 @@ import {
   Globe,
   Handshake,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { UserHeaderNav } from '@/components/user-header-nav'
+import { Navbar } from '@/components/navbar'
 import { getSponsorshipTiers, getSponsors, getSponsorshipSettings } from '@/lib/store'
 import type { SponsorshipTier, Sponsor, SponsorshipPageSettings } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { assetUrl } from '@/lib/utils'
+
+// ==================== PARTNERS CAROUSEL ====================
+
+function PartnersCarousel({ sponsors }: { sponsors: Sponsor[] }) {
+  const [current, setCurrent] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const total = sponsors.length
+
+  const next = useCallback(() => setCurrent(c => (c + 1) % total), [total])
+  const prev = () => setCurrent(c => (c - 1 + total) % total)
+
+  useEffect(() => {
+    if (total <= 1) return
+    timerRef.current = setInterval(next, 5000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [next, total])
+
+  const resetTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = setInterval(next, 5000)
+  }
+
+  const goTo = (i: number) => { setCurrent(i); resetTimer() }
+  const handlePrev = () => { prev(); resetTimer() }
+  const handleNext = () => { next(); resetTimer() }
+
+  if (total === 0) return null
+  const sponsor = sponsors[current]
+
+  return (
+    <div className="relative">
+      {/* Card */}
+      <div className="overflow-hidden rounded-2xl border bg-card shadow-md">
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          {/* Left column: logo (top) + description (bottom) */}
+          <div className="flex flex-col border-b md:border-b-0 md:border-r border-border">
+            {/* Top: logo */}
+            <div className="flex items-center justify-center bg-muted/40 p-10 min-h-[200px]">
+              {sponsor.logoUrl ? (
+                <img
+                  src={sponsor.logoUrl}
+                  alt={sponsor.name}
+                  className="max-h-28 max-w-[220px] object-contain"
+                />
+              ) : (
+                <div className="flex h-24 w-full max-w-[220px] items-center justify-center rounded-xl border-2 border-dashed text-2xl font-bold text-muted-foreground">
+                  {sponsor.name[0]}
+                </div>
+              )}
+            </div>
+            {/* Bottom: name + description */}
+            <div className="flex flex-col gap-2 p-6 flex-1">
+              <h3 className="text-lg font-bold text-foreground">{sponsor.name}</h3>
+              {sponsor.description ? (
+                <p className="text-sm text-muted-foreground leading-relaxed">{sponsor.description}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Official partner of Executive Masterclass</p>
+              )}
+              {sponsor.websiteUrl && (
+                <a
+                  href={sponsor.websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-auto inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Visit website
+                </a>
+              )}
+            </div>
+          </div>
+
+          {/* Right column: sponsor banner */}
+          <div className="relative min-h-[260px] md:min-h-[360px] overflow-hidden bg-muted/20">
+            {sponsor.bannerUrl ? (
+              <img
+                src={sponsor.bannerUrl}
+                alt={`${sponsor.name} banner`}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full min-h-[260px] items-center justify-center flex-col gap-3 text-muted-foreground">
+                <Building2 className="h-16 w-16 opacity-20" />
+                <span className="text-sm opacity-40">No banner uploaded</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      {total > 1 && (
+        <>
+          <button
+            onClick={handlePrev}
+            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/80 border shadow backdrop-blur-sm hover:bg-background transition-colors"
+            aria-label="Previous partner"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            onClick={handleNext}
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/80 border shadow backdrop-blur-sm hover:bg-background transition-colors"
+            aria-label="Next partner"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+          {/* Dots */}
+          <div className="flex items-center justify-center gap-2 mt-5">
+            {sponsors.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                className={cn(
+                  'rounded-full transition-all',
+                  i === current ? 'w-6 h-2 bg-primary' : 'w-2 h-2 bg-muted-foreground/30 hover:bg-muted-foreground/60'
+                )}
+                aria-label={`Go to partner ${i + 1}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 
 const TIER_STYLES: Record<string, {
   gradient: string
@@ -105,54 +231,37 @@ export default function SponsorshipPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold text-foreground">Executive Masterclass</span>
-          </Link>
-          <nav className="hidden items-center gap-6 md:flex">
-            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Home</Link>
-            <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground transition-colors">About</Link>
-            <Link href="/#packages" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Packages</Link>
-            <Link href="/sponsorship" className="text-sm text-primary font-medium">Sponsorship</Link>
-          </nav>
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <UserHeaderNav />
-            <Button size="sm" asChild>
-              <Link href="/#register">Register Now</Link>
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-border bg-gradient-to-br from-primary/10 via-background to-background py-24 lg:py-32">
-        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative">
+      <section className="relative overflow-hidden border-b border-border min-h-[560px] flex items-center">
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/images/hero-1.jpg')" }}
+        />
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-black/65" />
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-24 lg:py-32 w-full">
           <div className="mx-auto max-w-3xl text-center">
-            <Badge className="mb-6 inline-flex items-center gap-2 px-4 py-1.5 text-sm">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-sm text-white backdrop-blur-sm">
               <Handshake className="h-4 w-4" />
-              {settings.heroSubtitle}
-            </Badge>
-            <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl mb-6">
-              {settings.heroTitle}
+              Sponsorship &amp; Partnership Opportunities
+            </div>
+            <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl mb-6">
+              Partner With Us
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              {settings.heroDescription}
+            <p className="text-lg text-white/80 max-w-2xl mx-auto leading-relaxed">
+              Connect your brand with 500+ ambitious entrepreneurs, managers, and business leaders at Tanzania&apos;s most impactful business training event of the year.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="gap-2" asChild>
+              <Button size="lg" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground" asChild>
                 <a href={`mailto:${settings.contactEmail}`}>
                   <Mail className="h-4 w-4" />
-                  Get in Touch
+                  Send Email
                 </a>
               </Button>
-              <Button size="lg" variant="outline" className="gap-2" asChild>
+              <Button size="lg" variant="outline" className="gap-2 border-white/40 bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm" asChild>
                 <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
                   <MessageCircle className="h-4 w-4" />
                   WhatsApp Us
@@ -203,8 +312,14 @@ export default function SponsorshipPage() {
       </section>
 
       {/* Sponsorship Tiers */}
-      <section className="py-20 lg:py-28">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section className="relative py-20 lg:py-28 overflow-hidden">
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/images/hero-2.jpg')" }}
+        />
+        <div className="absolute inset-0 bg-background/88 dark:bg-background/92" />
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
             <h2 className="text-3xl font-bold text-foreground mb-4">Sponsorship Packages</h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
@@ -276,34 +391,13 @@ export default function SponsorshipPage() {
         </div>
       </section>
 
-      {/* Current Sponsors */}
+      {/* Current Sponsors / Partners Carousel */}
       {sponsors.length > 0 && (
         <section className="border-t border-border py-16 bg-muted/30">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-bold text-center text-foreground mb-10">Our Sponsors</h2>
-            <div className="flex flex-wrap items-center justify-center gap-8">
-              {sponsors.map(sponsor => (
-                <a
-                  key={sponsor.id}
-                  href={sponsor.websiteUrl || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex flex-col items-center gap-2 opacity-70 hover:opacity-100 transition-opacity"
-                >
-                  {sponsor.logoUrl ? (
-                    <img
-                      src={assetUrl(sponsor.logoUrl)}
-                      alt={sponsor.name}
-                      className="h-14 max-w-[140px] object-contain grayscale group-hover:grayscale-0 transition-all"
-                    />
-                  ) : (
-                    <div className="flex h-14 items-center justify-center rounded-xl border bg-card px-6 font-semibold text-foreground">
-                      {sponsor.name}
-                    </div>
-                  )}
-                </a>
-              ))}
-            </div>
+            <h2 className="text-2xl font-bold text-center text-foreground mb-2">Our Partners</h2>
+            <p className="text-center text-muted-foreground mb-10 text-sm">Companies that believe in our mission</p>
+            <PartnersCarousel sponsors={sponsors} />
           </div>
         </section>
       )}

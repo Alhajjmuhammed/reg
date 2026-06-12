@@ -24,7 +24,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import {
   getCurrentUser,
-  logoutUser,
+  logoutAll,
   getParticipantById,
   getDocumentsForParticipant,
 } from '@/lib/store'
@@ -73,7 +73,7 @@ export default function AccountDashboard() {
     setIsMounted(true)
     const currentUser = getCurrentUser()
     if (!currentUser) {
-      router.replace('/account/login')
+      router.replace('/login')
       return
     }
     setUser(currentUser)
@@ -85,8 +85,8 @@ export default function AccountDashboard() {
   }, [router])
 
   const handleLogout = () => {
-    logoutUser()
-    router.push('/')
+    logoutAll()
+    window.location.href = '/login'
   }
 
   if (!isMounted) return null

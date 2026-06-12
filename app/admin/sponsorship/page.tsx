@@ -82,7 +82,9 @@ const emptyTier: Omit<SponsorshipTier, 'id'> = {
 
 const emptySponsor: Omit<Sponsor, 'id'> = {
   name: '',
+  description: '',
   logoUrl: '',
+  bannerUrl: '',
   websiteUrl: '',
   tierId: '',
   active: true,
@@ -109,6 +111,20 @@ export default function AdminSponsorshipPage() {
   const [sponsorDialog, setSponsorDialog] = useState(false)
   const [editingSponsor, setEditingSponsor] = useState<Sponsor | null>(null)
   const [sponsorForm, setSponsorForm] = useState<Omit<Sponsor, 'id'>>({ ...emptySponsor })
+
+  // Image upload helper
+  const readFileAsDataURL = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+
+  const handleImageUpload = async (field: 'logoUrl' | 'bannerUrl', file: File) => {
+    const dataUrl = await readFileAsDataURL(file)
+    setSponsorForm(f => ({ ...f, [field]: dataUrl }))
+  }
 
   // Delete confirms
   const [deleteTierId, setDeleteTierId] = useState<string | null>(null)
@@ -176,7 +192,7 @@ export default function AdminSponsorshipPage() {
   }
   const openEditSponsor = (s: Sponsor) => {
     setEditingSponsor(s)
-    setSponsorForm({ name: s.name, logoUrl: s.logoUrl, websiteUrl: s.websiteUrl || '', tierId: s.tierId, active: s.active })
+    setSponsorForm({ name: s.name, description: s.description || '', logoUrl: s.logoUrl, bannerUrl: s.bannerUrl || '', websiteUrl: s.websiteUrl || '', tierId: s.tierId, active: s.active })
     setSponsorDialog(true)
   }
   const saveSponsor = () => {
@@ -573,9 +589,48 @@ export default function AdminSponsorshipPage() {
               <Input placeholder="e.g. CRDB Bank" value={sponsorForm.name} onChange={e => setSponsorForm(f => ({ ...f, name: e.target.value }))} />
             </div>
             <div className="space-y-2">
-              <Label>Logo URL</Label>
-              <Input placeholder="https://..." value={sponsorForm.logoUrl} onChange={e => setSponsorForm(f => ({ ...f, logoUrl: e.target.value }))} />
-              <p className="text-xs text-muted-foreground">Direct image URL (PNG/SVG recommended)</p>
+              <Label>Description</Label>
+              <Textarea rows={2} placeholder="Short description shown in the partners carousel..." value={sponsorForm.description} onChange={e => setSponsorForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            {/* Logo upload */}
+            <div className="space-y-2">
+              <Label>Partner Logo</Label>
+              <div className="flex items-center gap-3">
+                {sponsorForm.logoUrl && (
+                  <img src={sponsorForm.logoUrl} alt="logo preview" className="h-14 w-28 object-contain rounded border bg-muted" />
+                )}
+                <label className="cursor-pointer flex items-center gap-2 rounded-md border border-dashed px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors">
+                  <Plus className="h-4 w-4" />
+                  {sponsorForm.logoUrl ? 'Change Logo' : 'Upload Logo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => e.target.files?.[0] && handleImageUpload('logoUrl', e.target.files[0])}
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">PNG, SVG, JPG — shown in left column of the carousel card</p>
+            </div>
+            {/* Banner upload */}
+            <div className="space-y-2">
+              <Label>Sponsor Banner</Label>
+              <div className="flex items-center gap-3">
+                {sponsorForm.bannerUrl && (
+                  <img src={sponsorForm.bannerUrl} alt="banner preview" className="h-14 w-28 object-cover rounded border" />
+                )}
+                <label className="cursor-pointer flex items-center gap-2 rounded-md border border-dashed px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors">
+                  <Plus className="h-4 w-4" />
+                  {sponsorForm.bannerUrl ? 'Change Banner' : 'Upload Banner'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => e.target.files?.[0] && handleImageUpload('bannerUrl', e.target.files[0])}
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">Wide image — shown in right column of the carousel card</p>
             </div>
             <div className="space-y-2">
               <Label>Website URL</Label>

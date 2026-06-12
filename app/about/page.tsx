@@ -2,7 +2,6 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
-  Sparkles,
   Target,
   Award,
   Users,
@@ -24,6 +23,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { WhatsAppChatbot } from '@/components/whatsapp-chatbot'
+import { Navbar } from '@/components/navbar'
 
 export const metadata: Metadata = {
   title: 'About Us - Executive Masterclass',
@@ -120,40 +120,7 @@ const faqs = [
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold text-foreground">Executive Masterclass</span>
-          </Link>
-          <nav className="hidden items-center gap-6 md:flex">
-            <Link href="/" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-              Home
-            </Link>
-            <Link href="/about" className="text-sm font-medium text-foreground">
-              About
-            </Link>
-            <Link href="/#packages" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-              Packages
-            </Link>
-            <Link href="/#trainers" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-              Trainers
-            </Link>
-            <Link href="/#register" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-              Register
-            </Link>
-          </nav>
-          <Link
-            href="/admin"
-            className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80"
-          >
-            Admin Dashboard
-          </Link>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-border py-20 lg:py-28">

@@ -19,11 +19,13 @@ import {
   Phone,
   Mail,
   MessageCircle,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { WhatsAppChatbot } from '@/components/whatsapp-chatbot'
 import { Navbar } from '@/components/navbar'
+import { SiteFooter } from '@/components/site-footer'
 
 export const metadata: Metadata = {
   title: 'About Us - Executive Masterclass',
@@ -417,14 +419,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-8">
-        <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
-          <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} Executive Masterclass. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
 
       {/* WhatsApp Chatbot */}
       <WhatsAppChatbot />

@@ -1,11 +1,11 @@
 'use client'
 
 import { v4 as uuidv4 } from 'uuid'
-import type { 
-  Participant, 
-  GroupRegistration, 
-  SeatConfiguration, 
-  CouponCode, 
+import type {
+  Participant,
+  GroupRegistration,
+  SeatConfiguration,
+  CouponCode,
   PaymentTransaction,
   WaitlistEntry,
   EmailNotification,
@@ -34,11 +34,13 @@ import type {
   SponsorshipPageSettings,
   AdminCredential,
   UserRole,
+  AcademicPartner,
+  AcademicPartnerSettings,
 } from './types'
-import { 
-  DEFAULT_SEAT_CONFIG, 
-  DEFAULT_COUPONS, 
-  PACKAGES, 
+import {
+  DEFAULT_SEAT_CONFIG,
+  DEFAULT_COUPONS,
+  PACKAGES,
   getGroupPricing,
   DEFAULT_SITE_SETTINGS,
   DEFAULT_HERO_SLIDES,
@@ -54,6 +56,8 @@ import {
   DEFAULT_SPONSORS,
   DEFAULT_SPONSORSHIP_SETTINGS,
   DEFAULT_ADMIN_CREDENTIAL,
+  DEFAULT_ACADEMIC_PARTNERS,
+  DEFAULT_ACADEMIC_PARTNER_SETTINGS,
 } from './types'
 
 // Storage Keys
@@ -93,6 +97,9 @@ const STORAGE_KEYS = {
   // Admin credential
   adminCredential: 'masterclass_admin_credential',
   currentAdmin: 'masterclass_current_admin',
+  // Academic partners
+  academicPartners: 'masterclass_academic_partners',
+  academicPartnerSettings: 'masterclass_academic_partner_settings',
 }
 
 // Helper to safely access localStorage
@@ -1302,6 +1309,62 @@ export function deleteSponsor(id: string): boolean {
   const filtered = sponsors.filter(s => s.id !== id)
   if (filtered.length === sponsors.length) return false
   setStorage(STORAGE_KEYS.sponsors, filtered)
+  return true
+}
+
+// ==================== ACADEMIC PARTNERS ====================
+
+export function getAcademicPartners(): AcademicPartner[] {
+  const stored = getStorage<AcademicPartner[]>(STORAGE_KEYS.academicPartners, [])
+  if (stored.length === 0) {
+    setStorage(STORAGE_KEYS.academicPartners, DEFAULT_ACADEMIC_PARTNERS)
+    return DEFAULT_ACADEMIC_PARTNERS.filter(p => p.active)
+  }
+  return stored.filter(p => p.active)
+}
+
+export function getAllAcademicPartners(): AcademicPartner[] {
+  const stored = getStorage<AcademicPartner[]>(STORAGE_KEYS.academicPartners, [])
+  if (stored.length === 0) {
+    setStorage(STORAGE_KEYS.academicPartners, DEFAULT_ACADEMIC_PARTNERS)
+    return DEFAULT_ACADEMIC_PARTNERS
+  }
+  return stored
+}
+
+export function createAcademicPartner(data: Omit<AcademicPartner, 'id'>): AcademicPartner {
+  const partners = getAllAcademicPartners()
+  const partner: AcademicPartner = { ...data, id: uuidv4() }
+  partners.push(partner)
+  setStorage(STORAGE_KEYS.academicPartners, partners)
+  return partner
+}
+
+export function updateAcademicPartner(id: string, data: Partial<AcademicPartner>): AcademicPartner | null {
+  const partners = getAllAcademicPartners()
+  const idx = partners.findIndex(p => p.id === id)
+  if (idx === -1) return null
+  partners[idx] = { ...partners[idx], ...data }
+  setStorage(STORAGE_KEYS.academicPartners, partners)
+  return partners[idx]
+}
+
+export function getAcademicPartnerSettings(): AcademicPartnerSettings {
+  return getStorage<AcademicPartnerSettings>(STORAGE_KEYS.academicPartnerSettings, DEFAULT_ACADEMIC_PARTNER_SETTINGS)
+}
+
+export function updateAcademicPartnerSettings(data: Partial<AcademicPartnerSettings>): AcademicPartnerSettings {
+  const current = getAcademicPartnerSettings()
+  const updated = { ...current, ...data }
+  setStorage(STORAGE_KEYS.academicPartnerSettings, updated)
+  return updated
+}
+
+export function deleteAcademicPartner(id: string): boolean {
+  const partners = getAllAcademicPartners()
+  const filtered = partners.filter(p => p.id !== id)
+  if (filtered.length === partners.length) return false
+  setStorage(STORAGE_KEYS.academicPartners, filtered)
   return true
 }
 

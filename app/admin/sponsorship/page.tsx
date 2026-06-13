@@ -39,6 +39,10 @@ import {
   Building2,
   LayoutTemplate,
   Settings2,
+  GraduationCap,
+  Upload,
+  FileText,
+  X,
 } from 'lucide-react'
 import {
   getAllSponsorshipTiers,
@@ -51,8 +55,14 @@ import {
   deleteSponsor,
   getSponsorshipSettings,
   updateSponsorshipSettings,
+  getAllAcademicPartners,
+  createAcademicPartner,
+  updateAcademicPartner,
+  deleteAcademicPartner,
+  getAcademicPartnerSettings,
+  updateAcademicPartnerSettings,
 } from '@/lib/store'
-import type { SponsorshipTier, Sponsor, SponsorshipPageSettings, SponsorshipTierColor } from '@/lib/types'
+import type { SponsorshipTier, Sponsor, SponsorshipPageSettings, SponsorshipTierColor, AcademicPartner, AcademicPartnerSettings } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { assetUrl } from '@/lib/utils'
 
@@ -90,6 +100,15 @@ const emptySponsor: Omit<Sponsor, 'id'> = {
   active: true,
 }
 
+const emptyAcademicPartner: Omit<AcademicPartner, 'id'> = {
+  name: '',
+  description: '',
+  logoUrl: '',
+  bannerUrl: '',
+  websiteUrl: '',
+  active: true,
+}
+
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-TZ', { style: 'decimal', minimumFractionDigits: 0 }).format(amount) + ' TZS'
 }
@@ -112,6 +131,14 @@ export default function AdminSponsorshipPage() {
   const [editingSponsor, setEditingSponsor] = useState<Sponsor | null>(null)
   const [sponsorForm, setSponsorForm] = useState<Omit<Sponsor, 'id'>>({ ...emptySponsor })
 
+  // Academic partners
+  const [academicPartners, setAcademicPartners] = useState<AcademicPartner[]>([])
+  const [academicSettings, setAcademicSettings] = useState<AcademicPartnerSettings>({ sectionTitle: 'Academic Partner', sectionDescription: 'Recognised institution that endorses our curriculum' })
+  const [academicDialog, setAcademicDialog] = useState(false)
+  const [editingAcademic, setEditingAcademic] = useState<AcademicPartner | null>(null)
+  const [academicForm, setAcademicForm] = useState<Omit<AcademicPartner, 'id'>>({ ...emptyAcademicPartner })
+  const [deleteAcademicId, setDeleteAcademicId] = useState<string | null>(null)
+
   // Image upload helper
   const readFileAsDataURL = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -126,6 +153,16 @@ export default function AdminSponsorshipPage() {
     setSponsorForm(f => ({ ...f, [field]: dataUrl }))
   }
 
+  const handleAcademicImageUpload = async (field: 'logoUrl' | 'bannerUrl', file: File) => {
+    const dataUrl = await readFileAsDataURL(file)
+    setAcademicForm(f => ({ ...f, [field]: dataUrl }))
+  }
+
+  const handleProposalUpload = async (file: File) => {
+    const dataUrl = await readFileAsDataURL(file)
+    setSettings(s => s ? { ...s, proposalFileUrl: dataUrl, proposalFileName: file.name } : s)
+  }
+
   // Delete confirms
   const [deleteTierId, setDeleteTierId] = useState<string | null>(null)
   const [deleteSponsorId, setDeleteSponsorId] = useState<string | null>(null)
@@ -135,6 +172,8 @@ export default function AdminSponsorshipPage() {
     setTiers(getAllSponsorshipTiers())
     setSponsors(getAllSponsors())
     setSettings(getSponsorshipSettings())
+    setAcademicPartners(getAllAcademicPartners())
+    setAcademicSettings(getAcademicPartnerSettings())
   }, [])
 
   const showSave = (msg: string) => { setSaveMsg(msg); setTimeout(() => setSaveMsg(''), 3000) }
@@ -212,6 +251,41 @@ export default function AdminSponsorshipPage() {
     refreshSponsors()
   }
 
+  // ---- Academic Partner Settings ----
+  const saveAcademicSettings = () => {
+    updateAcademicPartnerSettings(academicSettings)
+    showSave('Section settings saved!')
+  }
+
+  // ---- Academic Partner CRUD ----
+  const refreshAcademic = () => setAcademicPartners(getAllAcademicPartners())
+  const openAddAcademic = () => {
+    setEditingAcademic(null)
+    setAcademicForm({ ...emptyAcademicPartner })
+    setAcademicDialog(true)
+  }
+  const openEditAcademic = (p: AcademicPartner) => {
+    setEditingAcademic(p)
+    setAcademicForm({ name: p.name, description: p.description, logoUrl: p.logoUrl, bannerUrl: p.bannerUrl || '', websiteUrl: p.websiteUrl || '', active: p.active })
+    setAcademicDialog(true)
+  }
+  const saveAcademic = () => {
+    if (!academicForm.name.trim()) return
+    if (editingAcademic) {
+      updateAcademicPartner(editingAcademic.id, academicForm)
+    } else {
+      createAcademicPartner(academicForm)
+    }
+    setAcademicDialog(false)
+    refreshAcademic()
+    showSave('Academic partner saved!')
+  }
+  const handleDeleteAcademic = (id: string) => {
+    deleteAcademicPartner(id)
+    setDeleteAcademicId(null)
+    refreshAcademic()
+  }
+
   // ---- Settings save ----
   const saveSettings = () => {
     if (!settings) return
@@ -250,6 +324,9 @@ export default function AdminSponsorshipPage() {
             </TabsTrigger>
             <TabsTrigger value="sponsors" className="gap-1.5">
               <Building2 className="h-3.5 w-3.5" /> Sponsors
+            </TabsTrigger>
+            <TabsTrigger value="academic" className="gap-1.5">
+              <GraduationCap className="h-3.5 w-3.5" /> Academic Partners
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-1.5">
               <Settings2 className="h-3.5 w-3.5" /> Page Settings
@@ -377,6 +454,84 @@ export default function AdminSponsorshipPage() {
             </div>
           </TabsContent>
 
+          {/* ---- ACADEMIC PARTNERS ---- */}
+          <TabsContent value="academic" className="space-y-6 mt-6">
+            {/* Section heading settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Section Heading</CardTitle>
+                <CardDescription>Title and description shown above the academic partner card on the home page</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Section Title</Label>
+                  <Input
+                    placeholder="e.g. Academic Partner"
+                    value={academicSettings.sectionTitle}
+                    onChange={e => setAcademicSettings(s => ({ ...s, sectionTitle: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Section Description</Label>
+                  <Input
+                    placeholder="e.g. Recognised institution that endorses our curriculum"
+                    value={academicSettings.sectionDescription}
+                    onChange={e => setAcademicSettings(s => ({ ...s, sectionDescription: e.target.value }))}
+                  />
+                </div>
+                <Button onClick={saveAcademicSettings} size="sm" className="gap-2">
+                  <Save className="h-4 w-4" /> Save Section Settings
+                </Button>
+              </CardContent>
+            </Card>
+
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">{academicPartners.length} academic partner{academicPartners.length !== 1 ? 's' : ''}</p>
+              <Button onClick={openAddAcademic} className="gap-2">
+                <Plus className="h-4 w-4" /> Add Academic Partner
+              </Button>
+            </div>
+            <div className="rounded-lg border divide-y">
+              {academicPartners.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <GraduationCap className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                  <p>No academic partners added yet.</p>
+                </div>
+              ) : (
+                academicPartners.map(partner => (
+                  <div key={partner.id} className={cn('flex items-center gap-4 px-4 py-3', !partner.active && 'opacity-50')}>
+                    {partner.logoUrl ? (
+                      <img src={partner.logoUrl} alt={partner.name} className="h-10 w-20 object-contain rounded" />
+                    ) : (
+                      <div className="h-10 w-20 rounded border bg-muted flex items-center justify-center text-xs text-muted-foreground">No logo</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm text-foreground">{partner.name}</p>
+                      {partner.websiteUrl && (
+                        <a href={partner.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1 mt-0.5">
+                          <ExternalLink className="h-2.5 w-2.5" /> Website
+                        </a>
+                      )}
+                    </div>
+                    <Switch
+                      checked={partner.active}
+                      onCheckedChange={(v) => { updateAcademicPartner(partner.id, { active: v }); refreshAcademic() }}
+                      aria-label="Toggle academic partner active"
+                    />
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditAcademic(partner)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteAcademicId(partner.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
           {/* ---- PAGE SETTINGS ---- */}
           <TabsContent value="settings" className="space-y-6 mt-6">
             <Card>
@@ -476,6 +631,56 @@ export default function AdminSponsorshipPage() {
                 <div className="space-y-2">
                   <Label>WhatsApp (digits only)</Label>
                   <Input value={settings.contactWhatsApp} onChange={e => setSettings(s => s ? { ...s, contactWhatsApp: e.target.value } : s)} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Sponsorship Proposal</CardTitle>
+                <CardDescription>Upload a PDF or document that visitors can download from the sponsorship page</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Proposal Title</Label>
+                  <Input
+                    placeholder="e.g. Sponsorship Proposal 2024"
+                    value={settings.proposalTitle || ''}
+                    onChange={e => setSettings(s => s ? { ...s, proposalTitle: e.target.value } : s)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Upload Proposal File</Label>
+                  {settings.proposalFileUrl ? (
+                    <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3">
+                      <FileText className="h-5 w-5 text-primary shrink-0" />
+                      <span className="flex-1 text-sm text-foreground truncate">
+                        {settings.proposalFileName || 'Proposal uploaded'}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive shrink-0"
+                        onClick={() => setSettings(s => s ? { ...s, proposalFileUrl: undefined, proposalFileName: undefined } : s)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="cursor-pointer flex items-center gap-3 rounded-lg border border-dashed px-4 py-5 hover:border-primary hover:bg-muted/30 transition-colors">
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Click to upload proposal</p>
+                        <p className="text-xs text-muted-foreground">PDF, DOC, DOCX — stored and served to visitors</p>
+                      </div>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        className="hidden"
+                        onChange={e => e.target.files?.[0] && handleProposalUpload(e.target.files[0])}
+                      />
+                    </label>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -687,6 +892,94 @@ export default function AdminSponsorshipPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteSponsorId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => deleteSponsorId && handleDeleteSponsor(deleteSponsorId)}>Remove</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---- Academic Partner Dialog ---- */}
+      <Dialog open={academicDialog} onOpenChange={setAcademicDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingAcademic ? 'Edit Academic Partner' : 'Add Academic Partner'}</DialogTitle>
+            <DialogDescription>Academic partner details — shown on the home page below the curriculum section</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Institution Name <span className="text-destructive">*</span></Label>
+              <Input placeholder="e.g. University of Dar es Salaam" value={academicForm.name} onChange={e => setAcademicForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea rows={2} placeholder="Short description shown in the partner card..." value={academicForm.description} onChange={e => setAcademicForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            {/* Logo upload */}
+            <div className="space-y-2">
+              <Label>Institution Logo</Label>
+              <div className="flex items-center gap-3">
+                {academicForm.logoUrl && (
+                  <img src={academicForm.logoUrl} alt="logo preview" className="h-14 w-28 object-contain rounded border bg-muted" />
+                )}
+                <label className="cursor-pointer flex items-center gap-2 rounded-md border border-dashed px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors">
+                  <Plus className="h-4 w-4" />
+                  {academicForm.logoUrl ? 'Change Logo' : 'Upload Logo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => e.target.files?.[0] && handleAcademicImageUpload('logoUrl', e.target.files[0])}
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">PNG, SVG, JPG — shown in left column of the partner card</p>
+            </div>
+            {/* Banner upload */}
+            <div className="space-y-2">
+              <Label>Banner Image</Label>
+              <div className="flex items-center gap-3">
+                {academicForm.bannerUrl && (
+                  <img src={academicForm.bannerUrl} alt="banner preview" className="h-14 w-28 object-cover rounded border" />
+                )}
+                <label className="cursor-pointer flex items-center gap-2 rounded-md border border-dashed px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors">
+                  <Plus className="h-4 w-4" />
+                  {academicForm.bannerUrl ? 'Change Banner' : 'Upload Banner'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => e.target.files?.[0] && handleAcademicImageUpload('bannerUrl', e.target.files[0])}
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">Wide image — shown in right column of the partner card</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Website URL</Label>
+              <Input placeholder="https://..." value={academicForm.websiteUrl} onChange={e => setAcademicForm(f => ({ ...f, websiteUrl: e.target.value }))} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={academicForm.active} onCheckedChange={v => setAcademicForm(f => ({ ...f, active: v }))} />
+              <Label>Active (show on home page)</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAcademicDialog(false)}>Cancel</Button>
+            <Button onClick={saveAcademic} disabled={!academicForm.name.trim()}>
+              {editingAcademic ? 'Save Changes' : 'Add Partner'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Academic Partner Confirm */}
+      <Dialog open={!!deleteAcademicId} onOpenChange={() => setDeleteAcademicId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remove academic partner?</DialogTitle>
+            <DialogDescription>This will remove the academic partner from the home page.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteAcademicId(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deleteAcademicId && handleDeleteAcademic(deleteAcademicId)}>Remove</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

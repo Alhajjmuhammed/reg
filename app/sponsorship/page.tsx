@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import Link from 'next/link'
 import {
   Star,
   Users,
@@ -19,9 +18,12 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Download,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Navbar } from '@/components/navbar'
+import { SiteFooter } from '@/components/site-footer'
 import { getSponsorshipTiers, getSponsors, getSponsorshipSettings } from '@/lib/store'
 import type { SponsorshipTier, Sponsor, SponsorshipPageSettings } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -311,6 +313,42 @@ export default function SponsorshipPage() {
         </div>
       </section>
 
+      {/* Proposal Download */}
+      {settings.proposalFileUrl && (
+        <section className="border-b border-border py-12 bg-primary/5">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-6 rounded-2xl border border-primary/20 bg-card px-8 py-7 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                  <FileText className="h-7 w-7 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground text-lg">
+                    {settings.proposalTitle || 'Sponsorship Proposal'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Download our detailed sponsorship proposal to learn more about partnership opportunities
+                  </p>
+                  {settings.proposalFileName && (
+                    <p className="text-xs text-muted-foreground mt-0.5 opacity-70">{settings.proposalFileName}</p>
+                  )}
+                </div>
+              </div>
+              <a
+                href={settings.proposalFileUrl}
+                download={settings.proposalFileName || 'sponsorship-proposal'}
+                className="shrink-0"
+              >
+                <Button size="lg" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Download Proposal
+                </Button>
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Sponsorship Tiers */}
       <section className="relative py-20 lg:py-28 overflow-hidden">
         {/* Background image */}
@@ -450,13 +488,7 @@ export default function SponsorshipPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-8">
-        <div className="mx-auto max-w-7xl px-4 text-center text-sm text-muted-foreground">
-          <Link href="/" className="hover:text-foreground transition-colors">Executive Masterclass</Link>
-          {' '}&mdash; Tanzania&apos;s Premier Business Training Event
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

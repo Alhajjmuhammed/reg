@@ -136,6 +136,9 @@ export interface SponsorshipPageSettings {
   contactPhone: string
   contactWhatsApp: string
   pageActive: boolean
+  proposalTitle?: string
+  proposalFileName?: string
+  proposalFileUrl?: string
 }
 
 export const DEFAULT_SPONSORSHIP_TIERS: SponsorshipTier[] = [
@@ -275,6 +278,40 @@ export const DEFAULT_SPONSORSHIP_SETTINGS: SponsorshipPageSettings = {
   contactWhatsApp: '+255712345678',
   pageActive: true,
 }
+
+// ==================== ACADEMIC PARTNERS ====================
+
+export interface AcademicPartner {
+  id: string
+  name: string
+  description: string
+  logoUrl: string
+  bannerUrl?: string
+  websiteUrl?: string
+  active: boolean
+}
+
+export interface AcademicPartnerSettings {
+  sectionTitle: string
+  sectionDescription: string
+}
+
+export const DEFAULT_ACADEMIC_PARTNER_SETTINGS: AcademicPartnerSettings = {
+  sectionTitle: 'Academic Partner',
+  sectionDescription: 'Recognised institution that endorses our curriculum',
+}
+
+export const DEFAULT_ACADEMIC_PARTNERS: AcademicPartner[] = [
+  {
+    id: 'academic-1',
+    name: 'University of Dar es Salaam',
+    description: 'Tanzania\'s premier research university, partnering with Executive Masterclass to bridge academic knowledge and practical business skills for East African professionals.',
+    logoUrl: 'https://placehold.co/220x100/1a56db/ffffff?text=UDSM&font=raleway',
+    bannerUrl: '/images/hero-2.jpg',
+    websiteUrl: 'https://www.udsm.ac.tz',
+    active: true,
+  },
+]
 
 // ==================== SITE CONFIGURATION ====================
 

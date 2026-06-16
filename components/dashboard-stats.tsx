@@ -7,15 +7,15 @@ import {
   Clock,
   CheckCircle,
   TrendingUp,
-  Package,
+  Package as PackageIcon,
   CreditCard,
   Smartphone,
   Building2,
   Armchair,
   UserPlus,
 } from 'lucide-react'
-import { getStatistics } from '@/lib/store'
-import { PACKAGES } from '@/lib/types'
+import { getStatistics, getAllPackages } from '@/lib/store'
+import type { Package } from '@/lib/types'
 
 interface Stats {
   totalRegistrations: number
@@ -46,9 +46,11 @@ interface Stats {
 
 export function DashboardStats() {
   const [stats, setStats] = useState<Stats | null>(null)
+  const [packages, setPackages] = useState<Package[]>([])
 
   useEffect(() => {
     setStats(getStatistics())
+    setPackages(getAllPackages())
   }, [])
 
   if (!stats) {
@@ -129,11 +131,11 @@ export function DashboardStats() {
         {/* Package Distribution */}
         <div className="rounded-lg border border-border bg-card p-5">
           <div className="mb-4 flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
+            <PackageIcon className="h-5 w-5 text-primary" />
             <h3 className="font-semibold text-foreground">Package Distribution</h3>
           </div>
           <div className="space-y-4">
-            {PACKAGES.map((pkg) => {
+            {packages.map((pkg) => {
               const count = stats.packageDistribution[pkg.id] || 0
               const percentage =
                 stats.totalRegistrations > 0
@@ -168,6 +170,7 @@ export function DashboardStats() {
               { key: 'mpesa', label: 'M-Pesa', icon: Smartphone, color: 'text-green-500' },
               { key: 'tigopesa', label: 'Tigo Pesa', icon: Smartphone, color: 'text-blue-500' },
               { key: 'airtel', label: 'Airtel Money', icon: Smartphone, color: 'text-red-500' },
+              { key: 'halopesa', label: 'Halo Pesa', icon: Smartphone, color: 'text-orange-500' },
               { key: 'card', label: 'Card Payments', icon: CreditCard, color: 'text-purple-500' },
               { key: 'bank', label: 'Bank Transfer', icon: Building2, color: 'text-amber-500' },
             ].map((method) => {

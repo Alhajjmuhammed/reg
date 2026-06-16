@@ -73,7 +73,7 @@ export function HeroSlideshow() {
             alt={slide.title}
             fill
             className="object-cover"
-            priority={index === 0}
+            priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/30" />
         </div>
@@ -136,7 +136,7 @@ export function HeroSlideshow() {
             </a>
           </Button>
           <Button size="lg" variant="outline" asChild>
-            <a href="/about">Learn More</a>
+            <a href="/#curriculum">Learn More</a>
           </Button>
         </div>
       </div>

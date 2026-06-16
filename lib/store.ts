@@ -32,15 +32,18 @@ import type {
   SponsorshipTier,
   Sponsor,
   SponsorshipPageSettings,
+  SponsorshipApplication,
   AdminCredential,
   UserRole,
   AcademicPartner,
   AcademicPartnerSettings,
+  GroupPricingTier,
 } from './types'
 import {
   DEFAULT_SEAT_CONFIG,
   DEFAULT_COUPONS,
   PACKAGES,
+  GROUP_PRICING_TIERS,
   getGroupPricing,
   DEFAULT_SITE_SETTINGS,
   DEFAULT_HERO_SLIDES,
@@ -88,6 +91,7 @@ const STORAGE_KEYS = {
   sponsorshipTiers: 'masterclass_sponsorship_tiers',
   sponsors: 'masterclass_sponsors',
   sponsorshipSettings: 'masterclass_sponsorship_settings',
+  sponsorshipApplications: 'masterclass_sponsorship_applications',
   // Trainer portal
   trainerAccounts: 'masterclass_trainer_accounts',
   currentTrainer: 'masterclass_current_trainer',
@@ -97,6 +101,7 @@ const STORAGE_KEYS = {
   // Admin credential
   adminCredential: 'masterclass_admin_credential',
   currentAdmin: 'masterclass_current_admin',
+  groupPricingTiers: 'masterclass_group_pricing_tiers',
   // Academic partners
   academicPartners: 'masterclass_academic_partners',
   academicPartnerSettings: 'masterclass_academic_partner_settings',
@@ -130,86 +135,6 @@ function generateReceiptNumber(): string {
   const random = Math.random().toString(36).substring(2, 8).toUpperCase()
   return `MC${year}${month}-${random}`
 }
-
-// Initial demo data
-const DEMO_PARTICIPANTS: Participant[] = [
-  {
-    id: uuidv4(),
-    fullName: 'John Mwangi',
-    phoneNumber: '+255 712 345 678',
-    whatsappNumber: '+255 712 345 678',
-    email: 'john.mwangi@example.com',
-    gender: 'male',
-    city: 'Dar es Salaam',
-    occupation: 'Marketing Officer',
-    organizationName: 'TechCorp Tanzania',
-    businessType: 'Technology',
-    yearsOfExperience: 5,
-    trainingInterests: ['social-media', 'ai-tools', 'automation'],
-    bookingType: 'individual',
-    selectedPackage: 'standard',
-    paymentStatus: 'paid',
-    amountPaid: 380000,
-    totalAmount: 380000,
-    paymentMethod: 'mpesa',
-    paymentReference: 'MP123456789',
-    status: 'confirmed',
-    registrationDate: '2024-01-15T10:30:00Z',
-    lastUpdated: '2024-01-15T14:20:00Z',
-    seatNumbers: [15],
-    receiptNumber: 'MC202401-A1B2C3',
-  },
-  {
-    id: uuidv4(),
-    fullName: 'Sarah Kimaro',
-    phoneNumber: '+255 756 789 012',
-    whatsappNumber: '+255 756 789 012',
-    email: 'sarah.kimaro@example.com',
-    gender: 'female',
-    city: 'Arusha',
-    occupation: 'Business Owner',
-    organizationName: 'Kimaro Enterprises',
-    businessType: 'Retail & E-commerce',
-    yearsOfExperience: 8,
-    trainingInterests: ['digital-marketing', 'lead-generation', 'business-development'],
-    bookingType: 'individual',
-    selectedPackage: 'corporate-vip',
-    paymentStatus: 'partial',
-    amountPaid: 325000,
-    totalAmount: 650000,
-    paymentMethod: 'bank-transfer',
-    paymentReference: 'BT987654321',
-    status: 'pending',
-    registrationDate: '2024-01-16T09:15:00Z',
-    lastUpdated: '2024-01-16T09:15:00Z',
-    notes: 'Waiting for remaining payment',
-  },
-  {
-    id: uuidv4(),
-    fullName: 'Michael Ochieng',
-    phoneNumber: '+255 784 567 890',
-    whatsappNumber: '+255 784 567 890',
-    email: 'michael.ochieng@example.com',
-    gender: 'male',
-    city: 'Mwanza',
-    occupation: 'Content Creator',
-    businessType: 'Media & Entertainment',
-    yearsOfExperience: 3,
-    trainingInterests: ['social-media', 'ai-tools', 'agency-growth'],
-    bookingType: 'individual',
-    selectedPackage: 'early-bird',
-    paymentStatus: 'paid',
-    amountPaid: 250000,
-    totalAmount: 250000,
-    paymentMethod: 'tigopesa',
-    paymentReference: 'TP456789123',
-    status: 'confirmed',
-    registrationDate: '2024-01-17T11:45:00Z',
-    lastUpdated: '2024-01-17T12:00:00Z',
-    seatNumbers: [22],
-    receiptNumber: 'MC202401-D4E5F6',
-  },
-]
 
 // ==================== SITE SETTINGS ====================
 
@@ -316,6 +241,15 @@ export function deleteTrainer(id: string): boolean {
   const filtered = trainers.filter(t => t.id !== id)
   if (filtered.length === trainers.length) return false
   setStorage(STORAGE_KEYS.trainers, filtered)
+  // Clean up related records
+  const accounts = getAllTrainerAccounts()
+  setStorage(STORAGE_KEYS.trainerAccounts, accounts.filter(a => a.trainerId !== id))
+  const materials = getStorage<TrainerMaterial[]>(STORAGE_KEYS.trainerMaterials, [])
+  setStorage(STORAGE_KEYS.trainerMaterials, materials.filter(m => m.trainerId !== id))
+  const announcements = getStorage<TrainerAnnouncement[]>(STORAGE_KEYS.trainerAnnouncements, [])
+  setStorage(STORAGE_KEYS.trainerAnnouncements, announcements.filter(a => a.trainerId !== id))
+  const attendance = getStorage<AttendanceRecord[]>(STORAGE_KEYS.attendance, [])
+  setStorage(STORAGE_KEYS.attendance, attendance.filter(r => r.trainerId !== id))
   return true
 }
 
@@ -532,23 +466,41 @@ export function updateCompanyStats(stats: CompanyStat[]): CompanyStat[] {
 // ==================== PACKAGES ====================
 
 export function getPackages(): Package[] {
-  const stored = getStorage<Package[]>(STORAGE_KEYS.packages, [])
-  if (stored.length === 0) {
+  if (typeof window === 'undefined') return []
+  const raw = localStorage.getItem(STORAGE_KEYS.packages)
+  if (raw === null) {
+    // Key never set (fresh install) — seed defaults
     const packagesWithActive = PACKAGES.map(p => ({ ...p, active: true }))
     setStorage(STORAGE_KEYS.packages, packagesWithActive)
     return packagesWithActive
   }
-  return stored.filter(p => p.active)
+  try {
+    const stored = JSON.parse(raw) as Package[]
+    return stored.filter(p => p.active)
+  } catch {
+    return []
+  }
 }
 
 export function getAllPackages(): Package[] {
-  const stored = getStorage<Package[]>(STORAGE_KEYS.packages, [])
-  if (stored.length === 0) {
+  if (typeof window === 'undefined') return []
+  const raw = localStorage.getItem(STORAGE_KEYS.packages)
+  if (raw === null) {
+    // Key never set (fresh install) — seed defaults
     const packagesWithActive = PACKAGES.map(p => ({ ...p, active: true }))
     setStorage(STORAGE_KEYS.packages, packagesWithActive)
     return packagesWithActive
   }
-  return stored
+  try {
+    const stored = JSON.parse(raw) as Package[]
+    // Backfill any new fields added to PACKAGES defaults that aren't in stored data yet
+    return stored.map(pkg => {
+      const def = PACKAGES.find(p => p.id === pkg.id)
+      return def ? { ...def, ...pkg } : pkg
+    })
+  } catch {
+    return []
+  }
 }
 
 export function updatePackage(id: PackageType, data: Partial<Package>): Package | null {
@@ -560,7 +512,82 @@ export function updatePackage(id: PackageType, data: Partial<Package>): Package 
   return packages[index]
 }
 
+export function createPackage(data: Omit<Package, 'id'>): Package {
+  const packages = getAllPackages()
+  const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'package'
+  let id = slug
+  let counter = 1
+  while (packages.some(p => p.id === id)) id = `${slug}-${counter++}`
+  const newPackage: Package = { ...data, id }
+  setStorage(STORAGE_KEYS.packages, [...packages, newPackage])
+  return newPackage
+}
+
+export function deletePackage(id: string): void {
+  const packages = getAllPackages().filter(p => p.id !== id)
+  setStorage(STORAGE_KEYS.packages, packages)
+  const stored = getStorage<SeatConfiguration>(STORAGE_KEYS.seats, DEFAULT_SEAT_CONFIG)
+  if (stored.packageSeats) {
+    const { [id]: _removed, ...rest } = stored.packageSeats
+    setStorage(STORAGE_KEYS.seats, { ...stored, packageSeats: rest })
+  }
+}
+
+// ==================== GROUP PRICING TIERS ====================
+
+export function getGroupPricingTiers(): GroupPricingTier[] {
+  if (typeof window === 'undefined') return GROUP_PRICING_TIERS
+  const raw = localStorage.getItem(STORAGE_KEYS.groupPricingTiers)
+  if (raw === null) return GROUP_PRICING_TIERS
+  try {
+    const parsed = JSON.parse(raw) as GroupPricingTier[]
+    return parsed.length > 0 ? parsed : GROUP_PRICING_TIERS
+  } catch {
+    return GROUP_PRICING_TIERS
+  }
+}
+
+export function updateGroupPricingTiers(tiers: GroupPricingTier[]): void {
+  setStorage(STORAGE_KEYS.groupPricingTiers, tiers)
+}
+
+export function computeGroupPricing(seats: number, basePackage: PackageType) {
+  const tiers = getGroupPricingTiers()
+  const pkg = getAllPackages().find(p => p.id === basePackage)
+  return getGroupPricing(seats, basePackage, tiers, pkg?.price)
+}
+
 // ==================== PAYMENT METHODS ====================
+
+function migratePaymentMethods(stored: PaymentMethodConfig[]): PaymentMethodConfig[] {
+  let changed = false
+  const result = [...stored]
+  for (const def of PAYMENT_METHODS_CONFIG) {
+    const idx = result.findIndex(m => m.id === def.id)
+    if (idx === -1) {
+      const mpesaIdx = result.findIndex(m => m.id === 'mpesa')
+      const insertAt = mpesaIdx >= 0 ? mpesaIdx + 1 : result.length
+      result.splice(insertAt, 0, def)
+      changed = true
+    } else {
+      // Sync non-admin-editable fields so renamed/updated config (name, icon,
+      // instructions, accountInfo) reaches browsers with stale cached data.
+      // `active` is admin-controlled via settings, so it's preserved.
+      const existing = result[idx]
+      if (
+        existing.name !== def.name ||
+        existing.icon !== def.icon ||
+        existing.instructions !== def.instructions ||
+        existing.accountInfo !== def.accountInfo
+      ) {
+        result[idx] = { ...existing, name: def.name, icon: def.icon, instructions: def.instructions, accountInfo: def.accountInfo }
+        changed = true
+      }
+    }
+  }
+  if (changed) setStorage(STORAGE_KEYS.paymentMethods, result)
+  return result
+}
 
 export function getPaymentMethods(): PaymentMethodConfig[] {
   const stored = getStorage<PaymentMethodConfig[]>(STORAGE_KEYS.paymentMethods, [])
@@ -568,7 +595,7 @@ export function getPaymentMethods(): PaymentMethodConfig[] {
     setStorage(STORAGE_KEYS.paymentMethods, PAYMENT_METHODS_CONFIG)
     return PAYMENT_METHODS_CONFIG
   }
-  return stored.filter(p => p.active)
+  return migratePaymentMethods(stored).filter(p => p.active)
 }
 
 export function getAllPaymentMethods(): PaymentMethodConfig[] {
@@ -577,7 +604,7 @@ export function getAllPaymentMethods(): PaymentMethodConfig[] {
     setStorage(STORAGE_KEYS.paymentMethods, PAYMENT_METHODS_CONFIG)
     return PAYMENT_METHODS_CONFIG
   }
-  return stored
+  return migratePaymentMethods(stored)
 }
 
 export function updatePaymentMethod(id: string, data: Partial<PaymentMethodConfig>): PaymentMethodConfig | null {
@@ -592,16 +619,30 @@ export function updatePaymentMethod(id: string, data: Partial<PaymentMethodConfi
 // ==================== SEAT MANAGEMENT ====================
 
 export function getSeatConfiguration(): SeatConfiguration {
-  const stored = getStorage<SeatConfiguration>(STORAGE_KEYS.seats, DEFAULT_SEAT_CONFIG)
-  // Ensure packageSeats always present (migration)
+  const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.seats) : null
+  const stored: SeatConfiguration = raw
+    ? (() => { try { return JSON.parse(raw) } catch { return { ...DEFAULT_SEAT_CONFIG } } })()
+    : { ...DEFAULT_SEAT_CONFIG, packageSeats: { ...DEFAULT_SEAT_CONFIG.packageSeats } }
+
   if (!stored.packageSeats) {
-    stored.packageSeats = DEFAULT_SEAT_CONFIG.packageSeats
+    stored.packageSeats = { ...DEFAULT_SEAT_CONFIG.packageSeats }
+    setStorage(STORAGE_KEYS.seats, stored)
   }
+  // Auto-add seat entries for any packages that don't have one yet
+  let changed = false
+  const packages = getAllPackages()
+  for (const pkg of packages) {
+    if (!(pkg.id in stored.packageSeats)) {
+      stored.packageSeats[pkg.id] = 0
+      changed = true
+    }
+  }
+  if (changed) setStorage(STORAGE_KEYS.seats, stored)
   const participants = getParticipants()
   const confirmedSeats = participants.filter(p => p.status === 'confirmed').length
   const reservedSeats = participants.filter(p => p.status === 'pending').length
   const waitlistCount = getWaitlist().length
-  const total = stored.packageSeats['early-bird'] + stored.packageSeats['standard'] + stored.packageSeats['corporate-vip']
+  const total = Object.values(stored.packageSeats).reduce((sum, n) => sum + n, 0)
   return {
     ...stored,
     totalSeats: total,
@@ -614,7 +655,7 @@ export function getSeatConfiguration(): SeatConfiguration {
 
 export function updatePackageSeats(allocation: PackageSeatAllocation): SeatConfiguration {
   const config = getSeatConfiguration()
-  const total = allocation['early-bird'] + allocation['standard'] + allocation['corporate-vip']
+  const total = Object.values(allocation).reduce((sum, n) => sum + n, 0)
   const newConfig: SeatConfiguration = {
     ...config,
     packageSeats: allocation,
@@ -636,14 +677,14 @@ export function updateTotalSeats(totalSeats: number): SeatConfiguration {
  * Standard:   vipCount+1 … vipCount+standardCount
  * Early Bird: rest
  */
-export function getSeatRangeForPackage(pkg: PackageType): { start: number; end: number } {
+export function getSeatRangeForPackage(pkg: string): { start: number; end: number } {
   const config = getSeatConfiguration()
-  const vip = config.packageSeats['corporate-vip']
-  const st = config.packageSeats['standard']
-  const eb = config.packageSeats['early-bird']
-  if (pkg === 'corporate-vip') return { start: 1, end: vip }
-  if (pkg === 'standard') return { start: vip + 1, end: vip + st }
-  return { start: vip + st + 1, end: vip + st + eb }
+  let start = 1
+  for (const [id, count] of Object.entries(config.packageSeats)) {
+    if (id === pkg) return { start, end: start + count - 1 }
+    start += count
+  }
+  return { start: 1, end: 0 }
 }
 
 // Returns a map of seatNumber → packageType for all booked seats
@@ -950,12 +991,7 @@ export function sendNotification(
 // ==================== PARTICIPANT CRUD ====================
 
 export function getParticipants(): Participant[] {
-  const stored = getStorage<Participant[]>(STORAGE_KEYS.participants, [])
-  if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.participants, DEMO_PARTICIPANTS)
-    return DEMO_PARTICIPANTS
-  }
-  return stored
+  return getStorage<Participant[]>(STORAGE_KEYS.participants, [])
 }
 
 export function getParticipantById(id: string): Participant | undefined {
@@ -964,19 +1000,25 @@ export function getParticipantById(id: string): Participant | undefined {
 }
 
 export function createParticipant(
-  data: Omit<Participant, 'id' | 'registrationDate' | 'lastUpdated' | 'receiptNumber' | 'seatNumbers'>
+  data: Omit<Participant, 'id' | 'registrationDate' | 'lastUpdated' | 'receiptNumber' | 'seatNumbers'> & { preferredSeats?: number[] }
 ): Participant {
   const participants = getParticipants()
   const config = getSeatConfiguration()
   const now = new Date().toISOString()
-  
+
   let status = data.status
   let seatNumbers: number[] | undefined
-  
-  if (config.availableSeats <= 0) {
+
+  const seatCount = data.groupSeats ?? 1
+  if (config.availableSeats < seatCount) {
     status = 'waitlist'
   } else if (data.paymentStatus === 'paid') {
-    seatNumbers = reserveSeats(1, data.selectedPackage) || undefined
+    const takenSeats = new Set(participants.flatMap(p => p.seatNumbers || []))
+    if (data.preferredSeats && data.preferredSeats.length === seatCount && data.preferredSeats.every(s => !takenSeats.has(s))) {
+      seatNumbers = data.preferredSeats
+    } else {
+      seatNumbers = reserveSeats(seatCount, data.selectedPackage) || undefined
+    }
     status = 'confirmed'
   }
   
@@ -1003,9 +1045,20 @@ export function updateParticipant(id: string, data: Partial<Participant>): Parti
   const index = participants.findIndex((p) => p.id === id)
   if (index === -1) return null
 
+  const current = participants[index]
+  const becamePaid = data.paymentStatus === 'paid' && current.paymentStatus !== 'paid'
+
+  let seatNumbers = data.seatNumbers ?? current.seatNumbers
+  if (becamePaid && !seatNumbers) {
+    const seatCount = current.groupSeats ?? 1
+    seatNumbers = reserveSeats(seatCount, current.selectedPackage) || undefined
+  }
+
   const updated: Participant = {
-    ...participants[index],
+    ...current,
     ...data,
+    seatNumbers,
+    receiptNumber: becamePaid && !current.receiptNumber ? generateReceiptNumber() : (data.receiptNumber ?? current.receiptNumber),
     lastUpdated: new Date().toISOString(),
   }
   participants[index] = updated
@@ -1086,16 +1139,16 @@ export function getStatistics() {
   const partialPayments = participants.filter((p) => p.paymentStatus === 'partial').length
   const unpaidParticipants = participants.filter((p) => p.paymentStatus === 'unpaid').length
   
-  const packageDistribution = {
-    'early-bird': participants.filter((p) => p.selectedPackage === 'early-bird').length,
-    standard: participants.filter((p) => p.selectedPackage === 'standard').length,
-    'corporate-vip': participants.filter((p) => p.selectedPackage === 'corporate-vip').length,
+  const packageDistribution: Record<string, number> = {}
+  for (const pkg of getAllPackages()) {
+    packageDistribution[pkg.id] = participants.filter(p => p.selectedPackage === pkg.id).length
   }
   
   const paymentMethodStats = {
     mpesa: transactions.filter(t => t.paymentMethod === 'mpesa' && t.status === 'completed').length,
     tigopesa: transactions.filter(t => t.paymentMethod === 'tigopesa' && t.status === 'completed').length,
     airtel: transactions.filter(t => t.paymentMethod === 'airtel' && t.status === 'completed').length,
+    halopesa: transactions.filter(t => t.paymentMethod === 'halopesa' && t.status === 'completed').length,
     card: transactions.filter(t => ['visa', 'mastercard'].includes(t.paymentMethod) && t.status === 'completed').length,
     bank: transactions.filter(t => t.paymentMethod === 'bank-transfer' && t.status === 'completed').length,
   }
@@ -1312,6 +1365,48 @@ export function deleteSponsor(id: string): boolean {
   return true
 }
 
+// ==================== SPONSORSHIP APPLICATIONS ====================
+
+export function getSponsorshipApplications(): SponsorshipApplication[] {
+  return getStorage<SponsorshipApplication[]>(STORAGE_KEYS.sponsorshipApplications, [])
+}
+
+export function createSponsorshipApplication(
+  data: Omit<SponsorshipApplication, 'id' | 'invoiceNumber' | 'submittedAt' | 'status' | 'paymentStatus'>
+): SponsorshipApplication {
+  const apps = getSponsorshipApplications()
+  const seq = (apps.length + 1).toString().padStart(4, '0')
+  const year = new Date().getFullYear()
+  const app: SponsorshipApplication = {
+    ...data,
+    id: uuidv4(),
+    invoiceNumber: `SPO-${year}-${seq}`,
+    submittedAt: new Date().toISOString(),
+    status: 'pending',
+    paymentStatus: 'unpaid',
+  }
+  apps.push(app)
+  setStorage(STORAGE_KEYS.sponsorshipApplications, apps)
+  return app
+}
+
+export function updateSponsorshipApplication(id: string, data: Partial<SponsorshipApplication>): SponsorshipApplication | null {
+  const apps = getSponsorshipApplications()
+  const idx = apps.findIndex(a => a.id === id)
+  if (idx === -1) return null
+  apps[idx] = { ...apps[idx], ...data }
+  setStorage(STORAGE_KEYS.sponsorshipApplications, apps)
+  return apps[idx]
+}
+
+export function deleteSponsorshipApplication(id: string): boolean {
+  const apps = getSponsorshipApplications()
+  const filtered = apps.filter(a => a.id !== id)
+  if (filtered.length === apps.length) return false
+  setStorage(STORAGE_KEYS.sponsorshipApplications, filtered)
+  return true
+}
+
 // ==================== ACADEMIC PARTNERS ====================
 
 export function getAcademicPartners(): AcademicPartner[] {
@@ -1384,8 +1479,9 @@ const DEFAULT_ADMIN_PASSWORD = 'admin123'
 
 export function getAdminCredential(): AdminCredential {
   const stored = getStorage<AdminCredential | null>(STORAGE_KEYS.adminCredential, null)
-  if (stored) return stored
-  // Seed default
+  // Only use stored credential if it has a valid non-empty passwordHash
+  if (stored && stored.email && stored.passwordHash) return stored
+  // Seed default (covers first run and cases where stored hash is empty/corrupt)
   const cred: AdminCredential = { email: DEFAULT_ADMIN_CREDENTIAL.email, passwordHash: hashPassword(DEFAULT_ADMIN_PASSWORD) }
   setStorage(STORAGE_KEYS.adminCredential, cred)
   return cred
@@ -1393,6 +1489,11 @@ export function getAdminCredential(): AdminCredential {
 
 export function updateAdminCredential(email: string, password: string): void {
   setStorage(STORAGE_KEYS.adminCredential, { email: email.toLowerCase(), passwordHash: hashPassword(password) })
+}
+
+export function updateAdminEmail(email: string): void {
+  const cred = getAdminCredential()
+  setStorage(STORAGE_KEYS.adminCredential, { ...cred, email: email.toLowerCase() })
 }
 
 export function loginAdmin(email: string, password: string): boolean {
@@ -1423,18 +1524,19 @@ export type LoginResult =
 
 export function loginUnified(email: string, password: string): LoginResult {
   const lowerEmail = email.toLowerCase().trim()
+  const hashedPassword = hashPassword(password)
 
-  // 1. Check admin
+  // 1. Check admin (case-insensitive email comparison)
   const cred = getAdminCredential()
-  if (cred.email === lowerEmail && cred.passwordHash === hashPassword(password)) {
+  if (cred.email.toLowerCase() === lowerEmail && cred.passwordHash === hashedPassword) {
     setStorage(STORAGE_KEYS.currentAdmin, { email: lowerEmail, loggedInAt: new Date().toISOString() })
     return { role: 'admin', email: lowerEmail }
   }
 
-  // 2. Check trainer
+  // 2. Check trainer (case-insensitive email comparison)
   const trainerAccounts = getAllTrainerAccounts()
-  const trainerAcc = trainerAccounts.find(a => a.email === lowerEmail)
-  if (trainerAcc && trainerAcc.passwordHash === hashPassword(password)) {
+  const trainerAcc = trainerAccounts.find(a => a.email.toLowerCase() === lowerEmail)
+  if (trainerAcc && trainerAcc.passwordHash === hashedPassword) {
     const idx = trainerAccounts.indexOf(trainerAcc)
     trainerAccounts[idx] = { ...trainerAcc, lastLogin: new Date().toISOString() }
     setStorage(STORAGE_KEYS.trainerAccounts, trainerAccounts)
@@ -1442,10 +1544,10 @@ export function loginUnified(email: string, password: string): LoginResult {
     return { role: 'trainer', account: trainerAccounts[idx] }
   }
 
-  // 3. Check participant
+  // 3. Check participant (case-insensitive email comparison)
   const participantAccounts = getStorage<UserAccount[]>(STORAGE_KEYS.userAccounts, [])
-  const participantAcc = participantAccounts.find(a => a.email === lowerEmail)
-  if (participantAcc && participantAcc.passwordHash === hashPassword(password)) {
+  const participantAcc = participantAccounts.find(a => a.email.toLowerCase() === lowerEmail)
+  if (participantAcc && participantAcc.passwordHash === hashedPassword) {
     const idx = participantAccounts.indexOf(participantAcc)
     participantAccounts[idx] = { ...participantAcc, lastLogin: new Date().toISOString() }
     setStorage(STORAGE_KEYS.userAccounts, participantAccounts)
@@ -1480,10 +1582,10 @@ export function getAllTrainerAccounts(): TrainerAccount[] {
   return getStorage<TrainerAccount[]>(STORAGE_KEYS.trainerAccounts, [])
 }
 
-export function createTrainerAccount(trainerId: string, email: string, password: string): TrainerAccount {
+export function createTrainerAccount(trainerId: string, email: string, password: string): TrainerAccount | null {
   const accounts = getAllTrainerAccounts()
   const existing = accounts.find(a => a.email.toLowerCase() === email.toLowerCase())
-  if (existing) return existing
+  if (existing && existing.trainerId !== trainerId) return null
   const account: TrainerAccount = {
     id: uuidv4(),
     trainerId,

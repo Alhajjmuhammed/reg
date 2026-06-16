@@ -13,7 +13,6 @@ const navLinks = [
   { label: 'Trainers', href: '/#trainers' },
   { label: 'Group Discounts', href: '/#group' },
   { label: 'Sponsorship', href: '/sponsorship' },
-  { label: 'My Account', href: '/login' },
 ]
 
 export function Navbar() {
@@ -30,10 +29,11 @@ export function Navbar() {
         {/* Nav Links */}
         <nav className="hidden items-center gap-6 md:flex">
           {navLinks.map((link) => {
+            const basePath = link.href.split('#')[0]
             const isActive =
-              link.href === '/'
+              basePath === '/'
                 ? pathname === '/'
-                : pathname.startsWith(link.href.split('#')[0]) && link.href.split('#')[0] !== '/'
+                : pathname.startsWith(basePath)
             return (
               <Link
                 key={link.href}

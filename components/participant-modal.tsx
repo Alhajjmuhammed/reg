@@ -186,6 +186,17 @@ export function ParticipantModal({
     }
   }
 
+  const handleApprovePayment = () => {
+    if (!participant) return
+    updateParticipant(participant.id, {
+      paymentStatus: 'paid',
+      amountPaid: participant.totalAmount,
+      status: 'confirmed',
+    })
+    onSave?.()
+    onClose()
+  }
+
   const selectedPkg = PACKAGES.find((p) => p.id === formData.selectedPackage)
 
   const statusColors: Record<ParticipantStatus, string> = {
@@ -373,6 +384,25 @@ export function ParticipantModal({
                   </div>
                 )}
               </dl>
+
+              {participant.paymentSlipUrl && (
+                <div className="mt-4 border-t border-border pt-4">
+                  <p className="mb-2 text-sm text-muted-foreground">Payment Receipt / Screenshot</p>
+                  <a href={participant.paymentSlipUrl} target="_blank" rel="noopener noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={participant.paymentSlipUrl}
+                      alt="Payment receipt"
+                      className="max-h-56 w-auto rounded-lg border border-border object-contain"
+                    />
+                  </a>
+                  {participant.paymentStatus !== 'paid' && (
+                    <Button size="sm" className="mt-3 gap-2" onClick={handleApprovePayment}>
+                      Approve Payment
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Registration Info */}

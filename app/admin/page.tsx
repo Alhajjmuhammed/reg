@@ -6,7 +6,7 @@ import { Users, Ticket, BarChart3, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export const metadata = {
-  title: 'Admin Dashboard - Executive Masterclass',
+  title: 'Admin Dashboard - Masterclass',
   description: 'Manage participant registrations and view statistics',
 }
 

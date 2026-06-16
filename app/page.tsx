@@ -6,18 +6,11 @@ import { TrainersShowcase } from '@/components/trainers-showcase'
 import { WhatsAppChatbot } from '@/components/whatsapp-chatbot'
 import { Navbar } from '@/components/navbar'
 import { SiteFooter } from '@/components/site-footer'
-import { Check, Gift, CreditCard, Smartphone, Shield, ArrowRight } from 'lucide-react'
-import { GROUP_PRICING_TIERS, PACKAGES } from '@/lib/types'
-import { Button } from '@/components/ui/button'
+import { CreditCard, Smartphone, Shield, Gift } from 'lucide-react'
+import { PricingCards } from '@/components/pricing-cards'
+import { GroupPricingCards } from '@/components/group-pricing-cards'
 
 export default function HomePage() {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-TZ', {
-      style: 'decimal',
-      minimumFractionDigits: 0,
-    }).format(amount)
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -43,50 +36,7 @@ export default function HomePage() {
               Select the package that best fits your learning goals and budget
             </p>
           </div>
-          <div className="grid gap-6 lg:grid-cols-3">
-            {PACKAGES.map((pkg) => (
-              <div
-                key={pkg.id}
-                className={`relative rounded-lg border p-6 transition-all duration-200 hover:shadow-lg ${
-                  pkg.popular
-                    ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
-                    : 'border-border bg-card hover:border-primary/50'
-                }`}
-              >
-                {pkg.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-                <h3 className="mb-2 text-xl font-semibold text-foreground">{pkg.name}</h3>
-                <div className="mb-4 flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-primary">
-                    TZS {formatCurrency(pkg.price)}
-                  </span>
-                  {pkg.originalPrice && (
-                    <span className="text-sm text-muted-foreground line-through">
-                      {formatCurrency(pkg.originalPrice)}
-                    </span>
-                  )}
-                </div>
-                <ul className="mb-6 space-y-2">
-                  {pkg.features.map((feature, index) => (
-                    <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button className="w-full" variant={pkg.popular ? 'default' : 'outline'} asChild>
-                  <a href="#register">
-                    Select Package <ArrowRight className="ml-2 h-4 w-4" />
-                  </a>
-                </Button>
-              </div>
-            ))}
-          </div>
+          <PricingCards />
         </div>
       </section>
 
@@ -103,38 +53,7 @@ export default function HomePage() {
               Bring your team and enjoy significant savings with our group booking offers
             </p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {GROUP_PRICING_TIERS.map((tier) => (
-              <div
-                key={tier.minSeats}
-                className="rounded-lg border border-border bg-card p-5 transition-all hover:border-primary/50 hover:shadow-lg"
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-2xl font-bold text-foreground">
-                    {tier.minSeats === tier.maxSeats ? tier.minSeats : `${tier.minSeats}-${tier.maxSeats}`}
-                  </span>
-                  <span className="rounded-full bg-green-500/10 px-2 py-1 text-sm font-medium text-green-500">
-                    {tier.discountPercent}% OFF
-                  </span>
-                </div>
-                <p className="mb-2 text-sm text-muted-foreground">Seats</p>
-                <p className="mb-4 text-lg font-semibold text-primary">
-                  TZS {formatCurrency(tier.perSeatPrice)}<span className="text-sm font-normal text-muted-foreground">/seat</span>
-                </p>
-                <ul className="space-y-1">
-                  {tier.bonuses.slice(0, 3).map((bonus, index) => (
-                    <li key={index} className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Check className="h-3 w-3 text-primary shrink-0" />
-                      {bonus}
-                    </li>
-                  ))}
-                  {tier.bonuses.length > 3 && (
-                    <li className="text-xs text-primary">+{tier.bonuses.length - 3} more bonuses</li>
-                  )}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <GroupPricingCards />
           <p className="mt-6 text-center text-sm text-muted-foreground">
             For groups of 10+ seats, contact us for custom corporate packages with additional benefits
           </p>

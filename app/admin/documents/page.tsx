@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AdminLayout } from '@/components/admin-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,9 +40,14 @@ import {
   BookOpen,
   CheckCircle,
   AlertCircle,
+  Upload,
+  Link as LinkIcon,
+  X,
+  AlertTriangle,
+  Download,
 } from 'lucide-react'
-import { getAllDocuments, createDocument, updateDocument, deleteDocument } from '@/lib/store'
-import type { EventDocument, DocumentType, PackageType } from '@/lib/types'
+import { getAllDocuments, createDocument, updateDocument, deleteDocument, getAllPackages } from '@/lib/store'
+import type { EventDocument, DocumentType, PackageType, Package } from '@/lib/types'
 
 const DOC_TYPES: { value: DocumentType; label: string }[] = [
   { value: 'timetable', label: 'Timetable' },
@@ -50,13 +55,6 @@ const DOC_TYPES: { value: DocumentType; label: string }[] = [
   { value: 'certificate', label: 'Certificate' },
   { value: 'announcement', label: 'Announcement' },
   { value: 'other', label: 'Other' },
-]
-
-const AVAILABLE_TO_OPTIONS: { value: string; label: string }[] = [
-  { value: 'all', label: 'All Participants' },
-  { value: 'early-bird', label: 'Early Bird only' },
-  { value: 'standard', label: 'Standard only' },
-  { value: 'vip', label: 'VIP only' },
 ]
 
 const DOC_TYPE_ICON: Record<string, React.ElementType> = {
@@ -67,30 +65,49 @@ const DOC_TYPE_ICON: Record<string, React.ElementType> = {
   other: FileText,
 }
 
-const emptyForm = {
-  title: '',
-  description: '',
-  fileUrl: '',
-  type: 'material' as DocumentType,
-  availableTo: 'all' as 'all' | PackageType,
-  active: true,
+const MAX_FILE_BYTES = 4 * 1024 * 1024 // 4 MB limit for localStorage safety
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
+function isDataUrl(url: string) {
+  return url.startsWith('data:')
+}
+
+const emptyForm = {
+  title: '',
+  description: '',
+  fileUrl: '',
+  fileName: '',
+  fileSize: 0,
+  sourceType: 'url' as 'url' | 'file',
+  type: 'material' as DocumentType,
+  availableTo: 'all' as 'all' | PackageType,
+  active: true,
+}
+
 export default function AdminDocumentsPage() {
   const [docs, setDocs] = useState<EventDocument[]>([])
+  const [packages, setPackages] = useState<Package[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingDoc, setEditingDoc] = useState<EventDocument | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
+  const [fileError, setFileError] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setIsMounted(true)
     setDocs(getAllDocuments())
+    setPackages(getAllPackages().filter(p => p.active))
   }, [])
 
   const refresh = () => setDocs(getAllDocuments())
@@ -98,6 +115,7 @@ export default function AdminDocumentsPage() {
   const openAdd = () => {
     setEditingDoc(null)
     setForm({ ...emptyForm })
+    setFileError('')
     setDialogOpen(true)
   }
 
@@ -107,34 +125,61 @@ export default function AdminDocumentsPage() {
       title: doc.title,
       description: doc.description,
       fileUrl: doc.fileUrl,
+      fileName: doc.fileName || '',
+      fileSize: doc.fileSize || 0,
+      sourceType: isDataUrl(doc.fileUrl) ? 'file' : 'url',
       type: doc.type,
       availableTo: doc.availableTo,
       active: doc.active,
     })
+    setFileError('')
     setDialogOpen(true)
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setFileError('')
+    if (file.size > MAX_FILE_BYTES) {
+      setFileError(`File too large (${formatBytes(file.size)}). Max allowed is ${formatBytes(MAX_FILE_BYTES)}. Use a URL for large files.`)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      setForm(f => ({
+        ...f,
+        fileUrl: ev.target?.result as string,
+        fileName: file.name,
+        fileSize: file.size,
+      }))
+    }
+    reader.onerror = () => setFileError('Failed to read file. Please try again.')
+    reader.readAsDataURL(file)
+  }
+
+  const clearFile = () => {
+    setForm(f => ({ ...f, fileUrl: '', fileName: '', fileSize: 0 }))
+    setFileError('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleSave = () => {
     if (!form.title.trim() || !form.fileUrl.trim()) return
+    const docData = {
+      title: form.title.trim(),
+      description: form.description.trim(),
+      fileUrl: form.fileUrl,
+      fileName: form.fileName || undefined,
+      fileSize: form.fileSize || undefined,
+      type: form.type,
+      availableTo: form.availableTo,
+      active: form.active,
+    }
     if (editingDoc) {
-      updateDocument(editingDoc.id, {
-        title: form.title,
-        description: form.description,
-        fileUrl: form.fileUrl,
-        type: form.type,
-        availableTo: form.availableTo,
-        active: form.active,
-      })
+      updateDocument(editingDoc.id, docData)
     } else {
-      createDocument({
-        title: form.title,
-        description: form.description,
-        fileUrl: form.fileUrl,
-        type: form.type,
-        availableTo: form.availableTo,
-        active: form.active,
-        uploadedAt: new Date().toISOString(),
-      })
+      createDocument({ ...docData, uploadedAt: new Date().toISOString() })
     }
     setDialogOpen(false)
     refresh()
@@ -149,6 +194,12 @@ export default function AdminDocumentsPage() {
   const toggleActive = (doc: EventDocument) => {
     updateDocument(doc.id, { active: !doc.active })
     refresh()
+  }
+
+  const availableToLabel = (val: string) => {
+    if (val === 'all') return 'All Participants'
+    const pkg = packages.find(p => p.id === val)
+    return pkg ? `${pkg.name} only` : val
   }
 
   if (!isMounted) return null
@@ -194,6 +245,7 @@ export default function AdminDocumentsPage() {
                 docs.map((doc) => {
                   const DocIcon = DOC_TYPE_ICON[doc.type] || FileText
                   const typeMeta = DOC_TYPES.find(t => t.value === doc.type)
+                  const dataFile = isDataUrl(doc.fileUrl)
                   return (
                     <TableRow key={doc.id} className={!doc.active ? 'opacity-50' : ''}>
                       <TableCell>
@@ -204,14 +256,28 @@ export default function AdminDocumentsPage() {
                             {doc.description && (
                               <p className="text-xs text-muted-foreground line-clamp-1">{doc.description}</p>
                             )}
-                            <a
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
-                            >
-                              Open link <ExternalLink className="h-2.5 w-2.5" />
-                            </a>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <a
+                                href={doc.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                              >
+                                <ExternalLink className="h-2.5 w-2.5" />
+                                View
+                              </a>
+                              {dataFile && (
+                                <a
+                                  href={doc.fileUrl}
+                                  download={doc.fileName || doc.title}
+                                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
+                                >
+                                  <Download className="h-2.5 w-2.5" />
+                                  {doc.fileName || 'Download'}
+                                  {doc.fileSize ? ` (${formatBytes(doc.fileSize)})` : ''}
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
@@ -221,7 +287,7 @@ export default function AdminDocumentsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {AVAILABLE_TO_OPTIONS.find(o => o.value === doc.availableTo)?.label || doc.availableTo}
+                        {availableToLabel(doc.availableTo)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDate(doc.uploadedAt)}</TableCell>
                       <TableCell>
@@ -267,6 +333,7 @@ export default function AdminDocumentsPage() {
             <DialogTitle>{editingDoc ? 'Edit Document' : 'Add Document'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="doc-title">Title <span className="text-destructive">*</span></Label>
               <Input
@@ -276,6 +343,8 @@ export default function AdminDocumentsPage() {
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               />
             </div>
+
+            {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="doc-description">Description</Label>
               <Textarea
@@ -286,17 +355,101 @@ export default function AdminDocumentsPage() {
                 rows={2}
               />
             </div>
+
+            {/* Source toggle */}
             <div className="space-y-2">
-              <Label htmlFor="doc-url">File URL <span className="text-destructive">*</span></Label>
-              <Input
-                id="doc-url"
-                type="url"
-                placeholder="https://drive.google.com/file/..."
-                value={form.fileUrl}
-                onChange={e => setForm(f => ({ ...f, fileUrl: e.target.value }))}
-              />
-              <p className="text-xs text-muted-foreground">Paste a Google Drive, Dropbox, or any direct file link.</p>
+              <Label>File Source <span className="text-destructive">*</span></Label>
+              <div className="flex rounded-lg border border-border overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => { setForm(f => ({ ...f, sourceType: 'url', fileUrl: '', fileName: '', fileSize: 0 })); setFileError('') }}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
+                    form.sourceType === 'url'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-card text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  <LinkIcon className="h-4 w-4" />
+                  Paste URL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setForm(f => ({ ...f, sourceType: 'file', fileUrl: '', fileName: '', fileSize: 0 })); setFileError('') }}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
+                    form.sourceType === 'file'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-card text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload File
+                </button>
+              </div>
             </div>
+
+            {/* URL input */}
+            {form.sourceType === 'url' && (
+              <div className="space-y-1.5">
+                <Input
+                  id="doc-url"
+                  type="url"
+                  placeholder="https://drive.google.com/file/..."
+                  value={form.fileUrl}
+                  onChange={e => setForm(f => ({ ...f, fileUrl: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Paste a Google Drive, Dropbox, OneDrive, or any direct file link.
+                </p>
+              </div>
+            )}
+
+            {/* File upload */}
+            {form.sourceType === 'file' && (
+              <div className="space-y-2">
+                {form.fileUrl && form.fileName ? (
+                  <div className="flex items-center gap-3 rounded-lg border border-green-500/30 bg-green-500/5 px-4 py-3">
+                    <FileText className="h-5 w-5 text-green-600 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{form.fileName}</p>
+                      {form.fileSize ? (
+                        <p className="text-xs text-muted-foreground">{formatBytes(form.fileSize)}</p>
+                      ) : null}
+                    </div>
+                    <button type="button" onClick={clearFile} className="text-muted-foreground hover:text-foreground shrink-0">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="doc-file"
+                    className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/30 px-6 py-8 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                  >
+                    <Upload className="h-8 w-8 mb-2 text-muted-foreground" />
+                    <p className="text-sm font-medium text-foreground">Click to select a file</p>
+                    <p className="text-xs text-muted-foreground mt-1">PDF, Word, Excel, images — max 4 MB</p>
+                    <input
+                      id="doc-file"
+                      ref={fileInputRef}
+                      type="file"
+                      className="sr-only"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.txt"
+                      onChange={handleFileChange}
+                    />
+                  </label>
+                )}
+                {fileError && (
+                  <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                    <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    {fileError}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Files are stored in the browser. For files larger than 4 MB, use the URL option instead (Google Drive, Dropbox).
+                </p>
+              </div>
+            )}
+
+            {/* Type & Available To */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Type</Label>
@@ -318,13 +471,16 @@ export default function AdminDocumentsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {AVAILABLE_TO_OPTIONS.map(o => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    <SelectItem value="all">All Participants</SelectItem>
+                    {packages.map(pkg => (
+                      <SelectItem key={pkg.id} value={pkg.id}>{pkg.name} only</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
+
+            {/* Active toggle */}
             <div className="flex items-center gap-3">
               <Switch
                 id="doc-active"
@@ -334,9 +490,13 @@ export default function AdminDocumentsPage() {
               <Label htmlFor="doc-active" className="cursor-pointer">Active (visible to participants)</Label>
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={!form.title.trim() || !form.fileUrl.trim()}>
+            <Button
+              onClick={handleSave}
+              disabled={!form.title.trim() || !form.fileUrl.trim()}
+            >
               {editingDoc ? 'Save changes' : 'Add document'}
             </Button>
           </DialogFooter>

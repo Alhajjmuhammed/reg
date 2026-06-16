@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react'
 import { Users, Minus, Plus, Gift, Check, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { GROUP_PRICING_TIERS, getGroupPricing, PACKAGES, type PackageType } from '@/lib/types'
+import { type PackageType } from '@/lib/types'
+import { getAllPackages, getGroupPricingTiers, computeGroupPricing } from '@/lib/store'
+import type { Package, GroupPricingTier } from '@/lib/types'
 
 interface GroupBookingSelectorProps {
   selectedSeats: number
@@ -13,14 +15,28 @@ interface GroupBookingSelectorProps {
   onPackageChange: (pkg: PackageType) => void
 }
 
+type PricingResult = ReturnType<typeof computeGroupPricing>
+
 export function GroupBookingSelector({
   selectedSeats,
   onSeatsChange,
   basePackage,
   onPackageChange,
 }: GroupBookingSelectorProps) {
-  const pricing = getGroupPricing(selectedSeats, basePackage)
-  const basePkg = PACKAGES.find(p => p.id === basePackage)
+  const [packages, setPackages] = useState<Package[]>([])
+  const [tiers, setTiers] = useState<GroupPricingTier[]>([])
+  const [pricing, setPricing] = useState<PricingResult | null>(null)
+
+  useEffect(() => {
+    setPackages(getAllPackages().filter(p => p.active))
+    setTiers(getGroupPricingTiers())
+  }, [])
+
+  useEffect(() => {
+    setPricing(computeGroupPricing(selectedSeats, basePackage))
+  }, [selectedSeats, basePackage, tiers])
+
+  const basePkg = packages.find(p => p.id === basePackage)
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-TZ', {
@@ -35,7 +51,7 @@ export function GroupBookingSelector({
       <div className="rounded-lg border border-border bg-card p-4">
         <h4 className="mb-3 font-medium text-foreground">Base Package for Group</h4>
         <div className="grid gap-2 sm:grid-cols-3">
-          {PACKAGES.map((pkg) => (
+          {packages.map((pkg) => (
             <button
               key={pkg.id}
               type="button"
@@ -73,8 +89,8 @@ export function GroupBookingSelector({
               type="button"
               variant="outline"
               size="icon"
-              onClick={() => onSeatsChange(Math.max(1, selectedSeats - 1))}
-              disabled={selectedSeats <= 1}
+              onClick={() => onSeatsChange(Math.max(2, selectedSeats - 1))}
+              disabled={selectedSeats <= 2}
             >
               <Minus className="h-4 w-4" />
             </Button>
@@ -96,11 +112,11 @@ export function GroupBookingSelector({
 
       {/* Pricing Tiers */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {GROUP_PRICING_TIERS.map((tier) => {
+        {tiers.map((tier, idx) => {
           const isActive = selectedSeats >= tier.minSeats && selectedSeats <= tier.maxSeats
           return (
             <button
-              key={tier.minSeats}
+              key={`${tier.minSeats}-${tier.maxSeats}-${idx}`}
               type="button"
               onClick={() => onSeatsChange(tier.minSeats)}
               className={cn(
@@ -130,7 +146,7 @@ export function GroupBookingSelector({
       </div>
 
       {/* Pricing Summary */}
-      {selectedSeats >= 2 && pricing.tier && (
+      {selectedSeats >= 2 && pricing?.tier && (
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
           <div className="mb-4 flex items-center gap-2">
             <Gift className="h-5 w-5 text-primary" />
@@ -140,19 +156,19 @@ export function GroupBookingSelector({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Original Price ({selectedSeats} x TZS {formatCurrency(basePkg?.price || 0)})</span>
-              <span className="text-muted-foreground line-through">TZS {formatCurrency(pricing.originalTotal)}</span>
+              <span className="text-muted-foreground line-through">TZS {formatCurrency(pricing!.originalTotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Group Discount ({pricing.tier.discountPercent}%)</span>
-              <span className="text-green-500">-TZS {formatCurrency(pricing.savings)}</span>
+              <span className="text-muted-foreground">Group Discount ({pricing!.tier!.discountPercent}%)</span>
+              <span className="text-green-500">-TZS {formatCurrency(pricing!.savings)}</span>
             </div>
             <div className="flex justify-between border-t border-border pt-2">
               <span className="font-medium text-foreground">Total Price</span>
-              <span className="text-xl font-bold text-primary">TZS {formatCurrency(pricing.totalPrice)}</span>
+              <span className="text-xl font-bold text-primary">TZS {formatCurrency(pricing!.totalPrice)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Price per seat</span>
-              <span className="text-foreground">TZS {formatCurrency(pricing.perSeatPrice)}</span>
+              <span className="text-foreground">TZS {formatCurrency(pricing!.perSeatPrice)}</span>
             </div>
           </div>
 
@@ -163,7 +179,7 @@ export function GroupBookingSelector({
               Group Bonuses Included:
             </p>
             <ul className="grid gap-1 sm:grid-cols-2">
-              {pricing.tier.bonuses.map((bonus, index) => (
+              {pricing!.tier!.bonuses.map((bonus, index) => (
                 <li key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Check className="h-3 w-3 text-primary shrink-0" />
                   {bonus}

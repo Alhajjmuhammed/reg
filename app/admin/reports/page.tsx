@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { AdminLayout } from '@/components/admin-layout'
-import { getStatistics } from '@/lib/store'
-import { PACKAGES } from '@/lib/types'
+import { getStatistics, getAllPackages } from '@/lib/store'
+import type { Package } from '@/lib/types'
 import {
-  Users, DollarSign, TrendingUp, Package,
+  Users, DollarSign, TrendingUp, Package as PackageIcon,
   CreditCard, Smartphone, Building2, BarChart3,
   PieChart, ArrowUpRight, CheckCircle2, Clock, XCircle,
 } from 'lucide-react'
@@ -51,10 +51,16 @@ function ProgressBar({ label, value, total, color }: {
   )
 }
 
+const PACKAGE_COLORS = ['bg-purple-500', 'bg-blue-500', 'bg-amber-500', 'bg-green-500', 'bg-rose-500', 'bg-cyan-500']
+
 export default function ReportsPage() {
   const [stats, setStats] = useState<Stats | null>(null)
+  const [packages, setPackages] = useState<Package[]>([])
 
-  useEffect(() => { setStats(getStatistics()) }, [])
+  useEffect(() => {
+    setStats(getStatistics())
+    setPackages(getAllPackages())
+  }, [])
 
   if (!stats) {
     return (
@@ -72,11 +78,11 @@ export default function ReportsPage() {
     ? Math.round((stats.totalRevenue / stats.expectedRevenue) * 100)
     : 0
 
-  const packageData = PACKAGES.map(p => ({
+  const packageData = packages.map((p, i) => ({
     name: p.name,
     count: stats.packageDistribution[p.id] || 0,
     revenue: (stats.packageDistribution[p.id] || 0) * p.price,
-    color: p.id === 'early-bird' ? 'bg-amber-500' : p.id === 'standard' ? 'bg-blue-500' : 'bg-purple-500',
+    color: PACKAGE_COLORS[i % PACKAGE_COLORS.length],
   }))
 
   const paymentMethods = [
@@ -193,7 +199,7 @@ export default function ReportsPage() {
           {/* Package Distribution */}
           <div className="rounded-xl border border-border bg-card p-6">
             <h2 className="mb-5 flex items-center gap-2 text-base font-semibold text-foreground">
-              <Package className="h-4 w-4 text-primary" />
+              <PackageIcon className="h-4 w-4 text-primary" />
               Package Distribution
             </h2>
             <div className="space-y-4">

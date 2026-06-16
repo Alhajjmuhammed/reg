@@ -61,8 +61,11 @@ import {
   deleteAcademicPartner,
   getAcademicPartnerSettings,
   updateAcademicPartnerSettings,
+  getSponsorshipApplications,
+  updateSponsorshipApplication,
+  deleteSponsorshipApplication,
 } from '@/lib/store'
-import type { SponsorshipTier, Sponsor, SponsorshipPageSettings, SponsorshipTierColor, AcademicPartner, AcademicPartnerSettings } from '@/lib/types'
+import type { SponsorshipTier, Sponsor, SponsorshipPageSettings, SponsorshipTierColor, AcademicPartner, AcademicPartnerSettings, SponsorshipApplication } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { assetUrl } from '@/lib/utils'
 
@@ -131,6 +134,9 @@ export default function AdminSponsorshipPage() {
   const [editingSponsor, setEditingSponsor] = useState<Sponsor | null>(null)
   const [sponsorForm, setSponsorForm] = useState<Omit<Sponsor, 'id'>>({ ...emptySponsor })
 
+  // Sponsorship applications
+  const [applications, setApplications] = useState<SponsorshipApplication[]>([])
+
   // Academic partners
   const [academicPartners, setAcademicPartners] = useState<AcademicPartner[]>([])
   const [academicSettings, setAcademicSettings] = useState<AcademicPartnerSettings>({ sectionTitle: 'Academic Partner', sectionDescription: 'Recognised institution that endorses our curriculum' })
@@ -174,6 +180,7 @@ export default function AdminSponsorshipPage() {
     setSettings(getSponsorshipSettings())
     setAcademicPartners(getAllAcademicPartners())
     setAcademicSettings(getAcademicPartnerSettings())
+    setApplications(getSponsorshipApplications())
   }, [])
 
   const showSave = (msg: string) => { setSaveMsg(msg); setTimeout(() => setSaveMsg(''), 3000) }
@@ -327,6 +334,14 @@ export default function AdminSponsorshipPage() {
             </TabsTrigger>
             <TabsTrigger value="academic" className="gap-1.5">
               <GraduationCap className="h-3.5 w-3.5" /> Academic Partners
+            </TabsTrigger>
+            <TabsTrigger value="applications" className="gap-1.5">
+              <FileText className="h-3.5 w-3.5" /> Applications
+              {applications.length > 0 && (
+                <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {applications.length}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-1.5">
               <Settings2 className="h-3.5 w-3.5" /> Page Settings
@@ -688,6 +703,110 @@ export default function AdminSponsorshipPage() {
             <Button onClick={saveSettings} className="gap-2">
               <Save className="h-4 w-4" /> Save Page Settings
             </Button>
+          </TabsContent>
+
+          {/* ---- APPLICATIONS ---- */}
+          <TabsContent value="applications" className="space-y-4 mt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-foreground">Sponsorship Applications</h3>
+                <p className="text-sm text-muted-foreground">Submitted by companies via the sponsorship page</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setApplications(getSponsorshipApplications())}>
+                Refresh
+              </Button>
+            </div>
+            {applications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground border rounded-xl">
+                <FileText className="h-10 w-10 mb-3 opacity-20" />
+                <p className="font-medium">No applications yet</p>
+                <p className="text-sm">Applications submitted on the sponsorship page will appear here.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {applications.map(app => (
+                  <Card key={app.id} className="overflow-hidden">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-4 flex-wrap">
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-foreground">{app.companyName}</p>
+                            <span className="text-xs text-muted-foreground font-mono">{app.invoiceNumber}</span>
+                            <span className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                              app.status === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
+                              app.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+                              'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                            )}>
+                              {app.status}
+                            </span>
+                            <span className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                              app.paymentStatus === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
+                              'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                            )}>
+                              {app.paymentStatus}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                            <span>{app.contactName} · {app.contactEmail}</span>
+                            <span>{app.contactPhone}</span>
+                            <span className="font-medium text-foreground">{app.tierName} — {new Intl.NumberFormat('en-TZ').format(app.amount)} {app.currency}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                            <span>Payment: {app.paymentMethod.replace('-', ' ')} · Ref: <span className="font-mono">{app.paymentReference}</span></span>
+                            <span>Submitted: {new Date(app.submittedAt).toLocaleDateString()}</span>
+                          </div>
+                          {app.notes && <p className="text-xs text-muted-foreground italic">"{app.notes}"</p>}
+                          {app.receiptUrl && (
+                            <a href={app.receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-1">
+                              <img src={app.receiptUrl} alt="Payment receipt" className="h-16 w-auto rounded border border-border object-contain hover:opacity-80 transition-opacity" />
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <select
+                            className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                            value={app.status}
+                            onChange={e => {
+                              updateSponsorshipApplication(app.id, { status: e.target.value as SponsorshipApplication['status'] })
+                              setApplications(getSponsorshipApplications())
+                            }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                          <select
+                            className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                            value={app.paymentStatus}
+                            onChange={e => {
+                              updateSponsorshipApplication(app.id, { paymentStatus: e.target.value as SponsorshipApplication['paymentStatus'] })
+                              setApplications(getSponsorshipApplications())
+                            }}
+                          >
+                            <option value="unpaid">Unpaid</option>
+                            <option value="paid">Paid</option>
+                          </select>
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              if (confirm(`Delete application from ${app.companyName}?`)) {
+                                deleteSponsorshipApplication(app.id)
+                                setApplications(getSponsorshipApplications())
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

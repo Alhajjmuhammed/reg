@@ -28,6 +28,7 @@ import { getSponsorshipTiers, getSponsors, getSponsorshipSettings } from '@/lib/
 import type { SponsorshipTier, Sponsor, SponsorshipPageSettings } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { assetUrl } from '@/lib/utils'
+import { SponsorshipApplicationModal } from '@/components/sponsorship-application-modal'
 
 // ==================== PARTNERS CAROUSEL ====================
 
@@ -219,6 +220,7 @@ export default function SponsorshipPage() {
   const [sponsors, setSponsors] = useState<Sponsor[]>([])
   const [settings, setSettings] = useState<SponsorshipPageSettings | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [applyTier, setApplyTier] = useState<SponsorshipTier | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -413,14 +415,12 @@ export default function SponsorshipPage() {
                     ))}
                   </ul>
                   <Button
-                    asChild
-                    className={cn('w-full gap-2', tier.highlighted ? '' : 'variant-outline')}
+                    className={cn('w-full gap-2')}
                     variant={tier.highlighted ? 'default' : 'outline'}
+                    onClick={() => setApplyTier(tier)}
                   >
-                    <a href={`mailto:${settings.contactEmail}?subject=Sponsorship Interest — ${tier.name} Package&body=Hello,%0A%0AI am interested in the ${tier.name} sponsorship package for the Executive Masterclass event. Please send me more details.%0A%0AThank you.`}>
-                      Get Started
-                      <ArrowRight className="h-4 w-4" />
-                    </a>
+                    Get Started
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
               )
@@ -489,6 +489,12 @@ export default function SponsorshipPage() {
       </section>
 
       <SiteFooter />
+
+      <SponsorshipApplicationModal
+        tier={applyTier}
+        open={!!applyTier}
+        onClose={() => setApplyTier(null)}
+      />
     </div>
   )
 }

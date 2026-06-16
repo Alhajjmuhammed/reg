@@ -2,7 +2,7 @@ import { AdminLayout } from '@/components/admin-layout'
 import { CouponManagement } from '@/components/coupon-management'
 
 export const metadata = {
-  title: 'Coupons - Executive Masterclass Admin',
+  title: 'Coupons - Masterclass Admin',
   description: 'Manage discount coupon codes',
 }
 

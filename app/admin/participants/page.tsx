@@ -2,7 +2,7 @@ import { AdminLayout } from '@/components/admin-layout'
 import { ParticipantTable } from '@/components/participant-table'
 
 export const metadata = {
-  title: 'Participants - Executive Masterclass Admin',
+  title: 'Participants - Masterclass Admin',
   description: 'Manage all registered participants',
 }
 

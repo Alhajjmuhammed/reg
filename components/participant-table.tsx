@@ -40,8 +40,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { getParticipants, deleteParticipant, exportToCSV } from '@/lib/store'
-import { PACKAGES, type Participant, type ParticipantStatus, type PaymentStatus } from '@/lib/types'
+import { getParticipants, deleteParticipant, exportToCSV, getAllPackages } from '@/lib/store'
+import type { Package, Participant, ParticipantStatus, PaymentStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { ParticipantModal } from './participant-modal'
 
@@ -63,6 +63,7 @@ const paymentStatusColors: Record<PaymentStatus, string> = {
 
 export function ParticipantTable() {
   const [participants, setParticipants] = useState<Participant[]>([])
+  const [packages, setPackages] = useState<Package[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [paymentFilter, setPaymentFilter] = useState('all')
@@ -80,6 +81,7 @@ export function ParticipantTable() {
 
   useEffect(() => {
     loadParticipants()
+    setPackages(getAllPackages())
   }, [])
 
   const filteredParticipants = useMemo(() => {
@@ -147,7 +149,7 @@ export function ParticipantTable() {
   }
 
   const getPackageName = (id: string) => {
-    return PACKAGES.find((p) => p.id === id)?.name || id
+    return packages.find((p) => p.id === id)?.name || id
   }
 
   return (
@@ -203,6 +205,7 @@ export function ParticipantTable() {
                 <SelectItem value="paid">Paid</SelectItem>
                 <SelectItem value="partial">Partial</SelectItem>
                 <SelectItem value="unpaid">Unpaid</SelectItem>
+                <SelectItem value="refunded">Refunded</SelectItem>
               </SelectContent>
             </Select>
 
@@ -218,7 +221,7 @@ export function ParticipantTable() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Packages</SelectItem>
-                {PACKAGES.map((pkg) => (
+                {packages.map((pkg) => (
                   <SelectItem key={pkg.id} value={pkg.id}>
                     {pkg.name}
                   </SelectItem>
@@ -423,6 +426,11 @@ export function ParticipantTable() {
           participant={selectedParticipant}
           isOpen={isViewModalOpen}
           onClose={() => {
+            setIsViewModalOpen(false)
+            setSelectedParticipant(null)
+          }}
+          onSave={() => {
+            loadParticipants()
             setIsViewModalOpen(false)
             setSelectedParticipant(null)
           }}

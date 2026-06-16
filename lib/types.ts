@@ -1,9 +1,9 @@
 export type ParticipantStatus = 'pending' | 'confirmed' | 'cancelled' | 'waitlist'
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid' | 'refunded'
-export type PackageType = 'early-bird' | 'standard' | 'corporate-vip'
+export type PackageType = string
 export type Gender = 'male' | 'female' | 'other' | 'prefer-not-to-say'
 export type BookingType = 'individual' | 'group'
-export type PaymentMethod = 'mpesa' | 'tigopesa' | 'airtel' | 'halopesa' | 'visa' | 'mastercard' | 'bank-transfer' | 'corporate-invoice'
+export type PaymentMethod = 'mpesa' | 'mpesa-mixx' | 'lipa-number' | 'tigopesa' | 'airtel' | 'halopesa' | 'visa' | 'mastercard' | 'bank-transfer' | 'corporate-invoice'
 export type DocumentType = 'timetable' | 'material' | 'certificate' | 'announcement' | 'other'
 
 // ==================== USER ACCOUNT ====================
@@ -83,6 +83,8 @@ export interface EventDocument {
   title: string
   description: string
   fileUrl: string
+  fileName?: string
+  fileSize?: number
   type: DocumentType
   availableTo: 'all' | PackageType
   active: boolean
@@ -139,6 +141,39 @@ export interface SponsorshipPageSettings {
   proposalTitle?: string
   proposalFileName?: string
   proposalFileUrl?: string
+}
+
+export interface SponsorshipApplication {
+  id: string
+  // Company & Contact
+  companyName: string
+  contactName: string
+  contactEmail: string
+  contactPhone: string
+  website?: string
+  industry: string
+  // Billing
+  billingName: string
+  billingEmail: string
+  billingAddress: string
+  billingCity: string
+  billingCountry: string
+  taxId?: string
+  // Tier
+  tierId: string
+  tierName: string
+  amount: number
+  currency: string
+  // Payment
+  paymentMethod: PaymentMethod
+  paymentReference: string
+  receiptUrl?: string
+  paymentStatus: 'unpaid' | 'paid'
+  // Meta
+  status: 'pending' | 'confirmed' | 'cancelled'
+  invoiceNumber: string
+  submittedAt: string
+  notes?: string
 }
 
 export const DEFAULT_SPONSORSHIP_TIERS: SponsorshipTier[] = [
@@ -361,8 +396,8 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   eventName: 'Executive Masterclass',
   eventTagline: 'Transform Your Business with AI & Digital Marketing',
   eventDescription: 'A 3-day professional intensive training program on Social Media Management, Business Automation & AI Agents for entrepreneurs and business professionals.',
-  eventDate: '2024-03-15',
-  eventEndDate: '2024-03-17',
+  eventDate: '2026-09-15',
+  eventEndDate: '2026-09-17',
   eventTime: '08:00 AM - 05:00 PM',
   eventVenue: 'Julius Nyerere International Convention Centre',
   eventAddress: 'Shaaban Robert Street',
@@ -860,6 +895,7 @@ export const TRAINING_INTERESTS: TrainingInterest[] = [
 export interface Package {
   id: PackageType
   name: string
+  description?: string
   price: number
   originalPrice?: number
   currency: string
@@ -872,6 +908,7 @@ export const PACKAGES: Package[] = [
   {
     id: 'early-bird',
     name: 'Early Bird Package',
+    description: 'Perfect for individuals who register early and want essential training at the best price.',
     price: 250000,
     currency: 'TZS',
     features: [
@@ -886,6 +923,7 @@ export const PACKAGES: Package[] = [
   {
     id: 'standard',
     name: 'Standard Professional',
+    description: 'The most popular choice for professionals looking to level up their AI and business skills.',
     price: 380000,
     currency: 'TZS',
     popular: true,
@@ -902,6 +940,7 @@ export const PACKAGES: Package[] = [
   {
     id: 'corporate-vip',
     name: 'Corporate / VIP',
+    description: 'Exclusive VIP experience for executives and corporate teams who want premium access and support.',
     price: 650000,
     originalPrice: 850000,
     currency: 'TZS',
@@ -957,17 +996,24 @@ export const GROUP_PRICING_TIERS: GroupPricingTier[] = [
   },
 ]
 
-export function getGroupPricing(seats: number, basePackage: PackageType = 'standard'): {
+export function getGroupPricing(
+  seats: number,
+  basePackage: PackageType = 'standard',
+  tiers: GroupPricingTier[] = GROUP_PRICING_TIERS,
+  basePrice?: number
+): {
   tier: GroupPricingTier | null
   totalPrice: number
   originalTotal: number
   savings: number
   perSeatPrice: number
 } {
-  const basePkg = PACKAGES.find(p => p.id === basePackage)
-  const basePrice = basePkg?.price || 380000
+  if (basePrice === undefined) {
+    const basePkg = PACKAGES.find(p => p.id === basePackage)
+    basePrice = basePkg?.price || 380000
+  }
   const originalTotal = basePrice * seats
-  
+
   if (seats < 2) {
     return {
       tier: null,
@@ -977,21 +1023,21 @@ export function getGroupPricing(seats: number, basePackage: PackageType = 'stand
       perSeatPrice: basePrice,
     }
   }
-  
-  const tier = GROUP_PRICING_TIERS.find(t => seats >= t.minSeats && seats <= t.maxSeats)
-  
+
+  const tier = tiers.find(t => seats >= t.minSeats && seats <= t.maxSeats)
+
   if (!tier) {
-    const maxTier = GROUP_PRICING_TIERS[GROUP_PRICING_TIERS.length - 1]
+    const maxTier = tiers[tiers.length - 1]
     const perSeatPrice = Math.round(basePrice * 0.75)
     return {
-      tier: { ...maxTier, minSeats: 10, maxSeats: 999, discountPercent: 25, perSeatPrice },
+      tier: { ...maxTier, minSeats: seats, maxSeats: 999, discountPercent: 25, perSeatPrice },
       totalPrice: perSeatPrice * seats,
       originalTotal,
       savings: originalTotal - (perSeatPrice * seats),
       perSeatPrice,
     }
   }
-  
+
   const totalPrice = tier.perSeatPrice * seats
   return {
     tier,
@@ -1003,11 +1049,7 @@ export function getGroupPricing(seats: number, basePackage: PackageType = 'stand
 }
 
 // Seat Management
-export interface PackageSeatAllocation {
-  'early-bird': number
-  'standard': number
-  'corporate-vip': number
-}
+export type PackageSeatAllocation = Record<string, number>
 
 export interface SeatConfiguration {
   totalSeats: number
@@ -1029,9 +1071,9 @@ export const DEFAULT_SEAT_CONFIG: SeatConfiguration = {
   availableSeats: 100,
   waitlistCount: 0,
   packageSeats: {
-    'early-bird': 40,
+    'corporate-vip': 20,  // Front (closest to stage)
     'standard': 40,
-    'corporate-vip': 20,
+    'early-bird': 40,     // Back
   },
 }
 
@@ -1058,6 +1100,28 @@ export const PAYMENT_METHODS_CONFIG: PaymentMethodConfig[] = [
     instructions: 'Enter your M-Pesa registered phone number to receive a payment prompt',
     accountInfo: 'Paybill: 888880, Account: MASTERCLASS',
     processingTime: 'Instant',
+    maxAmount: 3000000,
+    active: true,
+  },
+  {
+    id: 'mpesa-mixx',
+    name: 'Mixx by Yas',
+    type: 'mobile',
+    icon: 'mpesa-mixx',
+    instructions: 'Pay via Mixx by Yas. Enter your registered phone number to receive a payment prompt',
+    accountInfo: 'Paybill: 888880, Account: MASTERCLASS',
+    processingTime: 'Instant',
+    maxAmount: 3000000,
+    active: true,
+  },
+  {
+    id: 'lipa-number',
+    name: 'Lipa Number',
+    type: 'mobile',
+    icon: 'lipa-number',
+    instructions: 'Scan the QR code or use Lipa Number 440625027 (HAMINASS GROUP LTD), then upload your receipt or payment screenshot for approval',
+    accountInfo: 'Lipa Number: 440625027 — HAMINASS GROUP LTD',
+    processingTime: 'Reviewed within 24 hours',
     maxAmount: 3000000,
     active: true,
   },
@@ -1154,7 +1218,7 @@ export const DEFAULT_COUPONS: CouponCode[] = [
     discountValue: 10,
     maxUses: 50,
     usedCount: 12,
-    validUntil: '2024-12-31',
+    validUntil: '2027-12-31',
     description: '10% Early Registration Discount',
   },
   {
@@ -1163,7 +1227,7 @@ export const DEFAULT_COUPONS: CouponCode[] = [
     discountValue: 50000,
     maxUses: 20,
     usedCount: 5,
-    validUntil: '2024-12-31',
+    validUntil: '2027-12-31',
     minPurchase: 500000,
     applicablePackages: ['corporate-vip'],
     description: 'TZS 50,000 off VIP Package',
@@ -1174,7 +1238,7 @@ export const DEFAULT_COUPONS: CouponCode[] = [
     discountValue: 25,
     maxUses: 30,
     usedCount: 8,
-    validUntil: '2024-12-31',
+    validUntil: '2027-12-31',
     applicablePackages: ['early-bird', 'standard'],
     description: '25% Student Discount',
   },
@@ -1184,7 +1248,7 @@ export const DEFAULT_COUPONS: CouponCode[] = [
     discountValue: 15,
     maxUses: 100,
     usedCount: 0,
-    validUntil: '2024-12-31',
+    validUntil: '2027-12-31',
     minPurchase: 700000,
     description: '15% Additional Group Discount',
   },
@@ -1205,6 +1269,12 @@ export interface PaymentTransaction {
   failureReason?: string
 }
 
+export interface GroupMember {
+  name: string
+  email: string
+  phone: string
+}
+
 export interface Participant {
   id: string
   fullName: string
@@ -1222,6 +1292,8 @@ export interface Participant {
   trainingInterests: string[]
   bookingType: BookingType
   groupId?: string
+  groupSeats?: number
+  groupMembers?: GroupMember[]
   seatNumbers?: number[]
   selectedPackage: PackageType
   paymentStatus: PaymentStatus

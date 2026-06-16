@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Check, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { PACKAGES, type PackageType } from '@/lib/types'
+import { getAllPackages } from '@/lib/store'
+import type { Package, PackageType } from '@/lib/types'
 
 interface PackageSelectorProps {
   selectedPackage: PackageType
@@ -11,6 +12,12 @@ interface PackageSelectorProps {
 }
 
 export function PackageSelector({ selectedPackage, onSelect }: PackageSelectorProps) {
+  const [packages, setPackages] = useState<Package[]>([])
+
+  useEffect(() => {
+    setPackages(getAllPackages().filter(p => p.active))
+  }, [])
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-TZ', {
       style: 'decimal',
@@ -20,7 +27,7 @@ export function PackageSelector({ selectedPackage, onSelect }: PackageSelectorPr
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      {PACKAGES.map((pkg) => {
+      {packages.map((pkg) => {
         const isSelected = selectedPackage === pkg.id
         return (
           <button
@@ -44,14 +51,17 @@ export function PackageSelector({ selectedPackage, onSelect }: PackageSelectorPr
               </div>
             )}
 
-            <div className="mb-4 flex items-start justify-between">
+            <div className="mb-3 flex items-start justify-between">
               <div>
                 <h3 className="font-semibold text-foreground">{pkg.name}</h3>
-                <div className="mt-1 flex items-baseline gap-1">
+                {pkg.description && (
+                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{pkg.description}</p>
+                )}
+                <div className="mt-2 flex items-baseline gap-1">
                   <span className="text-2xl font-bold text-primary">
                     {pkg.currency} {formatCurrency(pkg.price)}
                   </span>
-                  {pkg.originalPrice && (
+                  {pkg.originalPrice && pkg.originalPrice > 0 && (
                     <span className="text-sm text-muted-foreground line-through">
                       {formatCurrency(pkg.originalPrice)}
                     </span>
@@ -60,7 +70,7 @@ export function PackageSelector({ selectedPackage, onSelect }: PackageSelectorPr
               </div>
               <div
                 className={cn(
-                  'flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors',
+                  'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
                   isSelected
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'border-muted-foreground/30'
@@ -71,7 +81,7 @@ export function PackageSelector({ selectedPackage, onSelect }: PackageSelectorPr
             </div>
 
             <ul className="flex-1 space-y-2">
-              {pkg.features.map((feature, index) => (
+              {pkg.features.filter(f => f.trim()).map((feature, index) => (
                 <li
                   key={index}
                   className="flex items-start gap-2 text-sm text-muted-foreground"

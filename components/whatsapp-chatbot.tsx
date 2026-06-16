@@ -5,7 +5,7 @@ import { MessageCircle, X, Send, Bot, User, Loader2, MinusCircle, Phone } from '
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { findChatbotResponse, getChatbotQA, getSiteSettings } from '@/lib/store'
+import { findChatbotResponse, getSiteSettings } from '@/lib/store'
 import type { SiteSettings } from '@/lib/types'
 
 interface Message {
@@ -42,6 +42,7 @@ export function WhatsAppChatbot() {
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [settings, setSettings] = useState<SiteSettings | null>(null)
+  const [hasBeenOpened, setHasBeenOpened] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export function WhatsAppChatbot() {
   const openChat = () => {
     setIsOpen(true)
     setIsMinimized(false)
+    setHasBeenOpened(true)
     if (messages.length === 0) {
       // Send greeting message
       setTimeout(() => {
@@ -173,9 +175,11 @@ export function WhatsAppChatbot() {
           aria-label="Open chat"
         >
           <MessageCircle className="h-6 w-6" />
-          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-white">
-            1
-          </span>
+          {!hasBeenOpened && (
+            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-white">
+              1
+            </span>
+          )}
         </button>
       )}
 
@@ -237,7 +241,7 @@ export function WhatsAppChatbot() {
             {/* Messages */}
             {!isMinimized && (
               <>
-                <ScrollArea className="flex-1 bg-[#ECE5DD] p-4">
+                <ScrollArea className="flex-1 bg-[#ECE5DD] dark:bg-[#0d1418] p-4">
                   <div className="space-y-4">
                     {messages.map((message) => (
                       <div key={message.id}>
@@ -249,22 +253,18 @@ export function WhatsAppChatbot() {
                           <div
                             className={`relative max-w-[85%] rounded-lg px-3 py-2 ${
                               message.type === 'user'
-                                ? 'bg-[#DCF8C6] text-foreground'
-                                : 'bg-white text-foreground'
+                                ? 'bg-[#DCF8C6] text-gray-800 dark:bg-[#005c4b] dark:text-gray-100'
+                                : 'bg-white text-gray-800 dark:bg-[#202c33] dark:text-gray-100'
                             }`}
                           >
                             {message.type === 'bot' && (
-                              <div className="mb-1 flex items-center gap-1 text-xs font-medium text-[#075E54]">
+                              <div className="mb-1 flex items-center gap-1 text-xs font-medium text-[#075E54] dark:text-[#25D366]">
                                 <Bot className="h-3 w-3" />
                                 <span>Assistant</span>
                               </div>
                             )}
                             <p className="whitespace-pre-line text-sm">{message.content}</p>
-                            <p
-                              className={`mt-1 text-right text-[10px] ${
-                                message.type === 'user' ? 'text-foreground/60' : 'text-muted-foreground'
-                              }`}
-                            >
+                            <p className="mt-1 text-right text-[10px] text-gray-500 dark:text-gray-400">
                               {formatTime(message.timestamp)}
                             </p>
                           </div>
@@ -277,7 +277,7 @@ export function WhatsAppChatbot() {
                               <button
                                 key={index}
                                 onClick={() => handleSend(option.value)}
-                                className="rounded-full border border-[#25D366] bg-white px-3 py-1 text-xs font-medium text-[#25D366] transition-colors hover:bg-[#25D366] hover:text-white"
+                                className="rounded-full border border-[#25D366] bg-white px-3 py-1 text-xs font-medium text-[#25D366] transition-colors hover:bg-[#25D366] hover:text-white dark:bg-[#202c33] dark:hover:bg-[#25D366]"
                               >
                                 {option.label}
                               </button>
@@ -290,7 +290,7 @@ export function WhatsAppChatbot() {
                     {/* Typing Indicator */}
                     {isTyping && (
                       <div className="flex justify-start">
-                        <div className="rounded-lg bg-white px-4 py-3">
+                        <div className="rounded-lg bg-white px-4 py-3 dark:bg-[#202c33]">
                           <div className="flex gap-1">
                             <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]" />
                             <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]" />
@@ -305,7 +305,7 @@ export function WhatsAppChatbot() {
                 </ScrollArea>
 
                 {/* WhatsApp Button */}
-                <div className="border-t border-border bg-white px-4 py-2">
+                <div className="border-t border-border bg-white px-4 py-2 dark:bg-[#1f2c33]">
                   <button
                     onClick={openWhatsApp}
                     className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] py-2 text-sm font-medium text-white transition-colors hover:bg-[#128C7E]"
@@ -316,7 +316,7 @@ export function WhatsAppChatbot() {
                 </div>
 
                 {/* Input */}
-                <div className="flex items-center gap-2 border-t border-border bg-white p-3">
+                <div className="flex items-center gap-2 border-t border-border bg-white p-3 dark:bg-[#1f2c33]">
                   <Input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -327,7 +327,7 @@ export function WhatsAppChatbot() {
                       }
                     }}
                     placeholder="Type a message..."
-                    className="flex-1 border-none bg-gray-100 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="flex-1 border-none bg-gray-100 text-gray-900 placeholder:text-gray-500 focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-[#2a3942] dark:text-gray-100 dark:placeholder:text-gray-400"
                   />
                   <Button
                     onClick={() => handleSend()}

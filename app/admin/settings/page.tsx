@@ -47,7 +47,6 @@ import {
 import {
   Settings,
   Image as ImageIcon,
-  Users,
   BookOpen,
   HelpCircle,
   MessageSquare,
@@ -63,6 +62,9 @@ import {
   Eye,
   EyeOff,
   RotateCcw,
+  KeyRound,
+  Users,
+  X,
 } from 'lucide-react'
 import {
   getSiteSettings,
@@ -71,10 +73,6 @@ import {
   createHeroSlide,
   updateHeroSlide,
   deleteHeroSlide,
-  getAllTrainers,
-  createTrainer,
-  updateTrainer,
-  deleteTrainer,
   getAllCurriculum,
   createCurriculumModule,
   updateCurriculumModule,
@@ -98,11 +96,17 @@ import {
   getSeatConfiguration,
   updatePackageSeats,
   resetAllData,
+  getAdminCredential,
+  updateAdminCredential,
+  updateAdminEmail,
+  createPackage,
+  deletePackage,
+  getGroupPricingTiers,
+  updateGroupPricingTiers,
 } from '@/lib/store'
 import type {
   SiteSettings,
   HeroSlide,
-  Trainer,
   CurriculumModule,
   FAQ,
   Testimonial,
@@ -110,12 +114,13 @@ import type {
   Package,
   PaymentMethodConfig,
   PackageType,
+  GroupPricingTier,
 } from '@/lib/types'
-import { assetUrl } from '@/lib/utils'
 
 export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState('general')
   const [isSaving, setIsSaving] = useState(false)
+  const [isSavingSeats, setIsSavingSeats] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
   
   // Site Settings
@@ -125,11 +130,6 @@ export default function AdminSettingsPage() {
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([])
   const [editingSlide, setEditingSlide] = useState<HeroSlide | null>(null)
   const [isSlideDialogOpen, setIsSlideDialogOpen] = useState(false)
-  
-  // Trainers
-  const [trainers, setTrainers] = useState<Trainer[]>([])
-  const [editingTrainer, setEditingTrainer] = useState<Trainer | null>(null)
-  const [isTrainerDialogOpen, setIsTrainerDialogOpen] = useState(false)
   
   // Curriculum
   const [curriculum, setCurriculum] = useState<CurriculumModule[]>([])
@@ -158,22 +158,34 @@ export default function AdminSettingsPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodConfig[]>([])
   
   // Seat Configuration
-  const [packageSeats, setPackageSeats] = useState({
-    'early-bird': 40,
-    'standard': 40,
-    'corporate-vip': 20,
-  })
+  const [packageSeats, setPackageSeats] = useState<Record<string, number>>({})
+  const [seatConfig, setSeatConfig] = useState({ confirmedSeats: 0, reservedSeats: 0, waitlistCount: 0 })
+
+  // Group Pricing Tiers
+  const [groupTiers, setGroupTiers] = useState<GroupPricingTier[]>([])
+  const [groupTierSaved, setGroupTierSaved] = useState(false)
+
+  // New Package Dialog
+  const [isAddPackageOpen, setIsAddPackageOpen] = useState(false)
+  const [newPkg, setNewPkg] = useState({ name: '', description: '', price: '', currency: 'TZS', features: '', popular: false })
   
+  // Admin Account
+  const [adminEmail, setAdminEmail] = useState('')
+  const [adminNewPassword, setAdminNewPassword] = useState('')
+  const [adminConfirmPassword, setAdminConfirmPassword] = useState('')
+  const [adminCredMessage, setAdminCredMessage] = useState('')
+  const [adminCredError, setAdminCredError] = useState('')
+  const [showAdminPassword, setShowAdminPassword] = useState(false)
+
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string } | null>(null)
-  
+
   // Reset confirmation
   const [resetConfirm, setResetConfirm] = useState(false)
 
   useEffect(() => {
     setSiteSettings(getSiteSettings())
     setHeroSlides(getHeroSlides())
-    setTrainers(getAllTrainers())
     setCurriculum(getAllCurriculum())
     setFaqs(getAllFAQs())
     setTestimonials(getAllTestimonials())
@@ -182,6 +194,9 @@ export default function AdminSettingsPage() {
     setPaymentMethods(getAllPaymentMethods())
     const seatCfg = getSeatConfiguration()
     setPackageSeats(seatCfg.packageSeats)
+    setSeatConfig({ confirmedSeats: seatCfg.confirmedSeats, reservedSeats: seatCfg.reservedSeats, waitlistCount: seatCfg.waitlistCount })
+    setGroupTiers(getGroupPricingTiers())
+    setAdminEmail(getAdminCredential().email)
   }, [])
 
   const handleSaveSettings = () => {
@@ -196,10 +211,10 @@ export default function AdminSettingsPage() {
   }
 
   const handleSaveSeats = () => {
-    setIsSaving(true)
+    setIsSavingSeats(true)
     updatePackageSeats(packageSeats)
     setTimeout(() => {
-      setIsSaving(false)
+      setIsSavingSeats(false)
       setSaveMessage('Seat configuration updated!')
       setTimeout(() => setSaveMessage(''), 3000)
     }, 500)
@@ -220,18 +235,6 @@ export default function AdminSettingsPage() {
     setHeroSlides(getHeroSlides())
     setIsSlideDialogOpen(false)
     setEditingSlide(null)
-  }
-
-  // Trainer handlers
-  const handleSaveTrainer = (trainer: Partial<Trainer>) => {
-    if (editingTrainer?.id) {
-      updateTrainer(editingTrainer.id, trainer)
-    } else {
-      createTrainer(trainer as Omit<Trainer, 'id'>)
-    }
-    setTrainers(getAllTrainers())
-    setIsTrainerDialogOpen(false)
-    setEditingTrainer(null)
   }
 
   // Curriculum handlers
@@ -291,10 +294,6 @@ export default function AdminSettingsPage() {
         deleteHeroSlide(deleteConfirm.id)
         setHeroSlides(getHeroSlides())
         break
-      case 'trainer':
-        deleteTrainer(deleteConfirm.id)
-        setTrainers(getAllTrainers())
-        break
       case 'module':
         deleteCurriculumModule(deleteConfirm.id)
         setCurriculum(getAllCurriculum())
@@ -311,20 +310,76 @@ export default function AdminSettingsPage() {
         deleteChatbotQA(deleteConfirm.id)
         setChatbotQA(getAllChatbotQA())
         break
+      case 'package': {
+        deletePackage(deleteConfirm.id)
+        setPackages(getAllPackages())
+        const cfgAfterDelete = getSeatConfiguration()
+        setPackageSeats(cfgAfterDelete.packageSeats)
+        setSeatConfig({ confirmedSeats: cfgAfterDelete.confirmedSeats, reservedSeats: cfgAfterDelete.reservedSeats, waitlistCount: cfgAfterDelete.waitlistCount })
+        break
+      }
     }
     setDeleteConfirm(null)
   }
 
-  // Package update handler
+  // Package handlers
   const handleUpdatePackage = (id: PackageType, data: Partial<Package>) => {
     updatePackage(id, data)
     setPackages(getAllPackages())
+  }
+
+  const handleAddPackage = () => {
+    if (!newPkg.name.trim() || !newPkg.price) return
+    createPackage({
+      name: newPkg.name.trim(),
+      description: newPkg.description.trim() || undefined,
+      price: parseInt(newPkg.price) || 0,
+      currency: newPkg.currency.trim() || 'TZS',
+      features: newPkg.features.split('\n').filter(f => f.trim()),
+      popular: newPkg.popular,
+      active: true,
+    })
+    const refreshed = getAllPackages()
+    setPackages(refreshed)
+    const cfgAfterAdd = getSeatConfiguration()
+    setPackageSeats(cfgAfterAdd.packageSeats)
+    setSeatConfig({ confirmedSeats: cfgAfterAdd.confirmedSeats, reservedSeats: cfgAfterAdd.reservedSeats, waitlistCount: cfgAfterAdd.waitlistCount })
+    setNewPkg({ name: '', description: '', price: '', currency: 'TZS', features: '', popular: false })
+    setIsAddPackageOpen(false)
   }
 
   // Payment method update handler
   const handleUpdatePaymentMethod = (id: string, data: Partial<PaymentMethodConfig>) => {
     updatePaymentMethod(id, data)
     setPaymentMethods(getAllPaymentMethods())
+  }
+
+  // Admin credential handler
+  const handleSaveAdminCredential = () => {
+    setAdminCredMessage('')
+    setAdminCredError('')
+    const trimmedEmail = adminEmail.trim()
+    if (!trimmedEmail) {
+      setAdminCredError('Email cannot be empty.')
+      return
+    }
+    if (adminNewPassword || adminConfirmPassword) {
+      if (adminNewPassword.length < 6) {
+        setAdminCredError('New password must be at least 6 characters.')
+        return
+      }
+      if (adminNewPassword !== adminConfirmPassword) {
+        setAdminCredError('Passwords do not match.')
+        return
+      }
+      updateAdminCredential(trimmedEmail, adminNewPassword)
+      setAdminNewPassword('')
+      setAdminConfirmPassword('')
+    } else {
+      updateAdminEmail(trimmedEmail)
+    }
+    setAdminCredMessage('Admin credentials updated successfully!')
+    setTimeout(() => setAdminCredMessage(''), 3000)
   }
 
   if (!siteSettings) {
@@ -357,7 +412,7 @@ export default function AdminSettingsPage() {
 
         {/* Settings Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-10 gap-1 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-11 gap-1 h-auto p-1">
             <TabsTrigger value="general" className="flex items-center gap-1 text-xs">
               <Settings className="h-3 w-3" />
               <span className="hidden sm:inline">General</span>
@@ -365,10 +420,6 @@ export default function AdminSettingsPage() {
             <TabsTrigger value="hero" className="flex items-center gap-1 text-xs">
               <ImageIcon className="h-3 w-3" />
               <span className="hidden sm:inline">Hero</span>
-            </TabsTrigger>
-            <TabsTrigger value="trainers" className="flex items-center gap-1 text-xs">
-              <Users className="h-3 w-3" />
-              <span className="hidden sm:inline">Trainers</span>
             </TabsTrigger>
             <TabsTrigger value="curriculum" className="flex items-center gap-1 text-xs">
               <BookOpen className="h-3 w-3" />
@@ -397,6 +448,14 @@ export default function AdminSettingsPage() {
             <TabsTrigger value="seats" className="flex items-center gap-1 text-xs">
               <Armchair className="h-3 w-3" />
               <span className="hidden sm:inline">Seats</span>
+            </TabsTrigger>
+            <TabsTrigger value="group-pricing" className="flex items-center gap-1 text-xs">
+              <Users className="h-3 w-3" />
+              <span className="hidden sm:inline">Group</span>
+            </TabsTrigger>
+            <TabsTrigger value="admin-account" className="flex items-center gap-1 text-xs">
+              <KeyRound className="h-3 w-3" />
+              <span className="hidden sm:inline">Account</span>
             </TabsTrigger>
           </TabsList>
 
@@ -648,65 +707,6 @@ export default function AdminSettingsPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Trainers Tab */}
-          <TabsContent value="trainers" className="space-y-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Trainers & Speakers</CardTitle>
-                  <CardDescription>Manage trainer profiles and information</CardDescription>
-                </div>
-                <Button onClick={() => { setEditingTrainer(null); setIsTrainerDialogOpen(true); }}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Trainer
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {trainers.map((trainer) => (
-                    <Card key={trainer.id} className="relative">
-                      <CardContent className="pt-6">
-                        <div className="flex items-start gap-4">
-                          <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                            {trainer.photoUrl ? (
-                              <img src={assetUrl(trainer.photoUrl)} alt={trainer.name} className="h-full w-full object-cover" />
-                            ) : (
-                              <Users className="h-8 w-8 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold truncate">{trainer.name}</h4>
-                            <p className="text-sm text-muted-foreground truncate">{trainer.title}</p>
-                            <Badge variant={trainer.active ? 'default' : 'secondary'} className="mt-2">
-                              {trainer.active ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 mt-4 justify-end">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => { setEditingTrainer(trainer); setIsTrainerDialogOpen(true); }}
-                          >
-                            <Pencil className="h-3 w-3 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeleteConfirm({ type: 'trainer', id: trainer.id })}
-                          >
-                            <Trash2 className="h-3 w-3 text-destructive" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -977,52 +977,125 @@ export default function AdminSettingsPage() {
           <TabsContent value="packages" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Pricing Packages</CardTitle>
-                <CardDescription>Configure package prices and features</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Pricing Packages</CardTitle>
+                    <CardDescription>Edit all package details — name, description, pricing, features, and visibility</CardDescription>
+                  </div>
+                  <Button onClick={() => setIsAddPackageOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Package
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-6 md:grid-cols-3">
+                <div className="grid gap-8 md:grid-cols-3">
                   {packages.map((pkg) => (
-                    <Card key={pkg.id} className={pkg.popular ? 'border-primary' : ''}>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">{pkg.name}</CardTitle>
-                          <Switch
-                            checked={pkg.active}
-                            onCheckedChange={(checked) => handleUpdatePackage(pkg.id, { active: checked })}
-                          />
-                        </div>
-                        {pkg.popular && <Badge>Most Popular</Badge>}
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <Label>Price (TZS)</Label>
-                          <Input
-                            type="number"
-                            value={pkg.price}
-                            onChange={(e) => handleUpdatePackage(pkg.id, { price: parseInt(e.target.value) })}
-                          />
-                        </div>
-                        {pkg.originalPrice !== undefined && (
-                          <div className="space-y-2">
-                            <Label>Original Price (TZS)</Label>
-                            <Input
-                              type="number"
-                              value={pkg.originalPrice}
-                              onChange={(e) => handleUpdatePackage(pkg.id, { originalPrice: parseInt(e.target.value) })}
+                    <div key={pkg.id} className={`rounded-xl border-2 p-5 space-y-4 ${pkg.popular ? 'border-primary' : 'border-border'}`}>
+                      {/* Header row */}
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant={pkg.active ? 'default' : 'secondary'}>
+                          {pkg.active ? 'Active' : 'Hidden'}
+                        </Badge>
+                        <div className="flex items-center gap-3">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeleteConfirm({ type: 'package', id: pkg.id })}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground">Popular</span>
+                            <Switch
+                              checked={!!pkg.popular}
+                              onCheckedChange={(checked) => handleUpdatePackage(pkg.id, { popular: checked })}
                             />
                           </div>
-                        )}
-                        <div className="space-y-2">
-                          <Label>Features (one per line)</Label>
-                          <Textarea
-                            rows={5}
-                            value={pkg.features.join('\n')}
-                            onChange={(e) => handleUpdatePackage(pkg.id, { features: e.target.value.split('\n').filter(f => f.trim()) })}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground">Active</span>
+                            <Switch
+                              checked={pkg.active}
+                              onCheckedChange={(checked) => handleUpdatePackage(pkg.id, { active: checked })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Name */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Package Name</Label>
+                        <Input
+                          value={pkg.name}
+                          onChange={(e) => handleUpdatePackage(pkg.id, { name: e.target.value })}
+                          placeholder="Package name"
+                        />
+                      </div>
+
+                      {/* Description */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</Label>
+                        <Textarea
+                          rows={2}
+                          value={pkg.description ?? ''}
+                          onChange={(e) => handleUpdatePackage(pkg.id, { description: e.target.value })}
+                          placeholder="Short description shown to participants"
+                        />
+                      </div>
+
+                      {/* Currency */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Currency</Label>
+                        <Input
+                          value={pkg.currency}
+                          onChange={(e) => handleUpdatePackage(pkg.id, { currency: e.target.value })}
+                          placeholder="TZS"
+                        />
+                      </div>
+
+                      {/* Price */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Price</Label>
+                        <Input
+                          type="number"
+                          value={pkg.price}
+                          onChange={(e) => handleUpdatePackage(pkg.id, { price: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+
+                      {/* Original Price */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Original Price (strikethrough)</Label>
+                          <Switch
+                            checked={pkg.originalPrice !== undefined && pkg.originalPrice > 0}
+                            onCheckedChange={(checked) =>
+                              handleUpdatePackage(pkg.id, { originalPrice: checked ? (pkg.price + 100000) : undefined })
+                            }
                           />
                         </div>
-                      </CardContent>
-                    </Card>
+                        {pkg.originalPrice !== undefined && pkg.originalPrice > 0 && (
+                          <Input
+                            type="number"
+                            value={pkg.originalPrice}
+                            onChange={(e) => handleUpdatePackage(pkg.id, { originalPrice: parseInt(e.target.value) || 0 })}
+                          />
+                        )}
+                      </div>
+
+                      {/* Features */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Features (one per line)</Label>
+                        <Textarea
+                          rows={6}
+                          value={pkg.features.join('\n')}
+                          onChange={(e) => handleUpdatePackage(pkg.id, { features: e.target.value.split('\n') })}
+                          onBlur={(e) => handleUpdatePackage(pkg.id, { features: e.target.value.split('\n').filter(f => f.trim()) })}
+                          placeholder="Each line becomes a feature bullet"
+                        />
+                      </div>
+                    </div>
                   ))}
                 </div>
               </CardContent>
@@ -1078,111 +1151,100 @@ export default function AdminSettingsPage() {
               <CardHeader>
                 <CardTitle>Seat Configuration per Package</CardTitle>
                 <CardDescription>
-                  Set how many seats are allocated to each plan. Registrants can only pick seats from their own plan's zone.
+                  Set how many seats are allocated to each plan. Packages are laid out front-to-back in the order shown below.
+                  New packages added in the Packages tab appear here automatically.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <p className="text-xs text-muted-foreground -mt-2">Seat order in the map: VIP (front) → Standard → Early Bird (back).</p>
-                <div className="grid gap-6 sm:grid-cols-3">
-                  {/* VIP — front rows */}
-                  <div className="rounded-xl border-2 border-purple-200 dark:border-purple-800/50 bg-purple-50/40 dark:bg-purple-950/20 p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full bg-purple-500" />
-                      <span className="font-semibold text-purple-700 dark:text-purple-300 text-sm">Corporate VIP Zone</span>
-                      <span className="text-[10px] bg-purple-200 dark:bg-purple-800 text-purple-700 dark:text-purple-300 rounded px-1.5 py-0.5 font-medium">Front</span>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="seats-vip" className="text-purple-700 dark:text-purple-300">Number of Seats</Label>
-                      <Input
-                        id="seats-vip"
-                        type="number"
-                        min={0}
-                        max={500}
-                        value={packageSeats['corporate-vip']}
-                        onChange={(e) => setPackageSeats(prev => ({ ...prev, 'corporate-vip': Math.max(0, parseInt(e.target.value) || 0) }))}
-                        className="border-purple-300 dark:border-purple-700 focus-visible:ring-purple-400"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Seats 1 – {packageSeats['corporate-vip']}
-                    </p>
-                  </div>
+                {(() => {
+                  // seat zone colors that rotate for any number of packages
+                  const ZONE_STYLES = [
+                    { border: 'border-purple-200 dark:border-purple-800/50', bg: 'bg-purple-50/40 dark:bg-purple-950/20', dot: 'bg-purple-500', text: 'text-purple-700 dark:text-purple-300', inputBorder: 'border-purple-300 dark:border-purple-700 focus-visible:ring-purple-400' },
+                    { border: 'border-blue-200 dark:border-blue-800/50',   bg: 'bg-blue-50/40 dark:bg-blue-950/20',   dot: 'bg-blue-500',   text: 'text-blue-700 dark:text-blue-300',   inputBorder: 'border-blue-300 dark:border-blue-700 focus-visible:ring-blue-400' },
+                    { border: 'border-amber-200 dark:border-amber-800/50', bg: 'bg-amber-50/40 dark:bg-amber-950/20', dot: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-300', inputBorder: 'border-amber-300 dark:border-amber-700 focus-visible:ring-amber-400' },
+                    { border: 'border-green-200 dark:border-green-800/50', bg: 'bg-green-50/40 dark:bg-green-950/20', dot: 'bg-green-500', text: 'text-green-700 dark:text-green-300', inputBorder: 'border-green-300 dark:border-green-700 focus-visible:ring-green-400' },
+                    { border: 'border-rose-200 dark:border-rose-800/50',   bg: 'bg-rose-50/40 dark:bg-rose-950/20',   dot: 'bg-rose-500',   text: 'text-rose-700 dark:text-rose-300',   inputBorder: 'border-rose-300 dark:border-rose-700 focus-visible:ring-rose-400' },
+                    { border: 'border-cyan-200 dark:border-cyan-800/50',   bg: 'bg-cyan-50/40 dark:bg-cyan-950/20',   dot: 'bg-cyan-500',   text: 'text-cyan-700 dark:text-cyan-300',   inputBorder: 'border-cyan-300 dark:border-cyan-700 focus-visible:ring-cyan-400' },
+                  ]
 
-                  {/* Standard */}
-                  <div className="rounded-xl border-2 border-blue-200 dark:border-blue-800/50 bg-blue-50/40 dark:bg-blue-950/20 p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full bg-blue-500" />
-                      <span className="font-semibold text-blue-700 dark:text-blue-300 text-sm">Standard Zone</span>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="seats-st" className="text-blue-700 dark:text-blue-300">Number of Seats</Label>
-                      <Input
-                        id="seats-st"
-                        type="number"
-                        min={0}
-                        max={500}
-                        value={packageSeats['standard']}
-                        onChange={(e) => setPackageSeats(prev => ({ ...prev, 'standard': Math.max(0, parseInt(e.target.value) || 0) }))}
-                        className="border-blue-300 dark:border-blue-700 focus-visible:ring-blue-400"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Seats {packageSeats['corporate-vip'] + 1} – {packageSeats['corporate-vip'] + packageSeats['standard']}
-                    </p>
-                  </div>
+                  // ordered package IDs — same order getSeatRangeForPackage uses (insertion order)
+                  const pkgIds = Object.keys(packageSeats)
+                  let cumulative = 0
 
-                  {/* Early Bird — back rows */}
-                  <div className="rounded-xl border-2 border-amber-200 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-950/20 p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full bg-amber-500" />
-                      <span className="font-semibold text-amber-700 dark:text-amber-300 text-sm">Early Bird Zone</span>
-                      <span className="text-[10px] bg-amber-200 dark:bg-amber-800 text-amber-700 dark:text-amber-300 rounded px-1.5 py-0.5 font-medium">Back</span>
+                  return (
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                      {pkgIds.map((id, idx) => {
+                        const count = packageSeats[id] ?? 0
+                        const start = cumulative + 1
+                        const end = cumulative + count
+                        cumulative += count
+                        const s = ZONE_STYLES[idx % ZONE_STYLES.length]
+                        const pkg = packages.find(p => p.id === id)
+                        const isFirst = idx === 0
+                        const isLast = idx === pkgIds.length - 1
+                        return (
+                          <div key={id} className={`rounded-xl border-2 ${s.border} ${s.bg} p-4 space-y-3`}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className={`h-3 w-3 rounded-full shrink-0 ${s.dot}`} />
+                              <span className={`font-semibold text-sm ${s.text}`}>
+                                {pkg?.name ?? id} Zone
+                              </span>
+                              {isFirst && (
+                                <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${s.text} bg-white/60 dark:bg-white/10`}>Front</span>
+                              )}
+                              {isLast && (
+                                <span className={`text-[10px] rounded px-1.5 py-0.5 font-medium ${s.text} bg-white/60 dark:bg-white/10`}>Back</span>
+                              )}
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor={`seats-${id}`} className={s.text}>Number of Seats</Label>
+                              <Input
+                                id={`seats-${id}`}
+                                type="number"
+                                min={0}
+                                max={500}
+                                value={count}
+                                onChange={(e) => setPackageSeats(prev => ({ ...prev, [id]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                                className={s.inputBorder}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {count > 0 ? `Seats ${start} – ${end}` : 'No seats allocated'}
+                            </p>
+                          </div>
+                        )
+                      })}
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="seats-eb" className="text-amber-700 dark:text-amber-300">Number of Seats</Label>
-                      <Input
-                        id="seats-eb"
-                        type="number"
-                        min={0}
-                        max={500}
-                        value={packageSeats['early-bird']}
-                        onChange={(e) => setPackageSeats(prev => ({ ...prev, 'early-bird': Math.max(0, parseInt(e.target.value) || 0) }))}
-                        className="border-amber-300 dark:border-amber-700 focus-visible:ring-amber-400"
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Seats {packageSeats['corporate-vip'] + packageSeats['standard'] + 1} – {packageSeats['corporate-vip'] + packageSeats['standard'] + packageSeats['early-bird']}
-                    </p>
-                  </div>
-                </div>
+                  )
+                })()}
 
                 {/* Summary row */}
                 <div className="rounded-lg bg-muted/50 border p-4 flex flex-wrap items-center justify-between gap-4">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-foreground">Total Venue Capacity</p>
                     <p className="text-2xl font-bold text-primary">
-                      {packageSeats['early-bird'] + packageSeats['standard'] + packageSeats['corporate-vip']} seats
+                      {Object.values(packageSeats).reduce((sum, n) => sum + n, 0)} seats
                     </p>
                   </div>
                   <div className="flex gap-6 text-sm text-muted-foreground">
                     <div>
                       <p>Confirmed</p>
-                      <p className="font-bold text-foreground">{getSeatConfiguration().confirmedSeats}</p>
+                      <p className="font-bold text-foreground">{seatConfig.confirmedSeats}</p>
                     </div>
                     <div>
                       <p>Pending</p>
-                      <p className="font-bold text-foreground">{getSeatConfiguration().reservedSeats}</p>
+                      <p className="font-bold text-foreground">{seatConfig.reservedSeats}</p>
                     </div>
                     <div>
                       <p>Waitlist</p>
-                      <p className="font-bold text-foreground">{getSeatConfiguration().waitlistCount}</p>
+                      <p className="font-bold text-foreground">{seatConfig.waitlistCount}</p>
                     </div>
                   </div>
                 </div>
 
-                <Button onClick={handleSaveSeats} disabled={isSaving}>
+                <Button onClick={handleSaveSeats} disabled={isSavingSeats}>
                   <Save className="mr-2 h-4 w-4" />
-                  {isSaving ? 'Saving...' : 'Save Seat Configuration'}
+                  {isSavingSeats ? 'Saving...' : 'Save Seat Configuration'}
                 </Button>
               </CardContent>
             </Card>
@@ -1203,6 +1265,253 @@ export default function AdminSettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Group Pricing Tab */}
+          <TabsContent value="group-pricing" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5 text-primary" />
+                      Group Discount Tiers
+                    </CardTitle>
+                    <CardDescription>
+                      Set the discount percentage, per-seat price, and bonuses for each group size tier
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const last = groupTiers[groupTiers.length - 1]
+                      const newMin = last ? last.maxSeats + 1 : 2
+                      setGroupTiers(prev => [...prev, {
+                        minSeats: newMin,
+                        maxSeats: newMin + 1,
+                        discountPercent: 10,
+                        perSeatPrice: 350000,
+                        bonuses: ['Priority Seating'],
+                      }])
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Tier
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {groupTierSaved && (
+                  <div className="rounded-lg bg-green-500/10 border border-green-500/20 px-4 py-3 text-sm text-green-600 dark:text-green-400">
+                    Group pricing saved successfully.
+                  </div>
+                )}
+
+                {groupTiers.map((tier, i) => (
+                  <div key={i} className="rounded-xl border border-border bg-secondary/20 p-5 space-y-4">
+                    {/* Tier header */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-foreground">Tier {i + 1}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                        onClick={() => setGroupTiers(prev => prev.filter((_, idx) => idx !== i))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Seat range + discount + price */}
+                    <div className="grid gap-4 sm:grid-cols-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Min Seats</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={tier.minSeats}
+                          onChange={(e) => setGroupTiers(prev => prev.map((t, idx) =>
+                            idx === i ? { ...t, minSeats: parseInt(e.target.value) || 1 } : t
+                          ))}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Max Seats</Label>
+                        <Input
+                          type="number"
+                          min={tier.minSeats}
+                          value={tier.maxSeats}
+                          onChange={(e) => setGroupTiers(prev => prev.map((t, idx) =>
+                            idx === i ? { ...t, maxSeats: parseInt(e.target.value) || tier.minSeats } : t
+                          ))}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Discount %</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={tier.discountPercent}
+                          onChange={(e) => setGroupTiers(prev => prev.map((t, idx) =>
+                            idx === i ? { ...t, discountPercent: parseInt(e.target.value) || 0 } : t
+                          ))}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Price per Seat (TZS)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={tier.perSeatPrice}
+                          onChange={(e) => setGroupTiers(prev => prev.map((t, idx) =>
+                            idx === i ? { ...t, perSeatPrice: parseInt(e.target.value) || 0 } : t
+                          ))}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bonuses */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Bonuses (one per line)</Label>
+                        <span className="text-xs text-muted-foreground">{tier.bonuses.length} bonus{tier.bonuses.length !== 1 ? 'es' : ''}</span>
+                      </div>
+                      <Textarea
+                        rows={3}
+                        value={tier.bonuses.join('\n')}
+                        onChange={(e) => setGroupTiers(prev => prev.map((t, idx) =>
+                          idx === i ? { ...t, bonuses: e.target.value.split('\n') } : t
+                        ))}
+                        placeholder="Priority Seating&#10;Team Networking Session&#10;Group Photo Session"
+                      />
+                    </div>
+
+                    {/* Preview badge */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-muted-foreground">Preview:</span>
+                      <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-500">
+                        {tier.discountPercent}% OFF
+                      </span>
+                      <span className="text-xs text-foreground font-medium">
+                        {tier.minSeats === tier.maxSeats ? `${tier.minSeats} seats` : `${tier.minSeats}–${tier.maxSeats} seats`}
+                      </span>
+                      <span className="text-xs text-primary font-semibold">
+                        TZS {new Intl.NumberFormat('en-TZ').format(tier.perSeatPrice)}/seat
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                {groupTiers.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground">
+                    <Users className="h-10 w-10 mb-3 opacity-30" />
+                    <p className="text-sm font-medium">No group pricing tiers</p>
+                    <p className="text-xs mt-1">Click "Add Tier" to create your first group discount.</p>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={() => {
+                      updateGroupPricingTiers(groupTiers.map(t => ({ ...t, bonuses: t.bonuses.filter(b => b.trim()) })))
+                      setGroupTierSaved(true)
+                      setTimeout(() => setGroupTierSaved(false), 3000)
+                    }}
+                    className="gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    Save Group Pricing
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Admin Account Tab */}
+          <TabsContent value="admin-account" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Admin Login Credentials</CardTitle>
+                <CardDescription>
+                  Change the email and password used to log in as administrator.
+                  Leave password fields blank to update only the email.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="adminEmail">Admin Email</Label>
+                  <Input
+                    id="adminEmail"
+                    type="email"
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    placeholder="admin@example.com"
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-foreground">Change Password</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAdminPassword((v) => !v)}
+                      className="h-7 gap-1 text-xs text-muted-foreground"
+                    >
+                      {showAdminPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      {showAdminPassword ? 'Hide' : 'Show'}
+                    </Button>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="adminNewPassword">New Password</Label>
+                      <Input
+                        id="adminNewPassword"
+                        type={showAdminPassword ? 'text' : 'password'}
+                        value={adminNewPassword}
+                        onChange={(e) => setAdminNewPassword(e.target.value)}
+                        placeholder="Leave blank to keep current"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="adminConfirmPassword">Confirm New Password</Label>
+                      <Input
+                        id="adminConfirmPassword"
+                        type={showAdminPassword ? 'text' : 'password'}
+                        value={adminConfirmPassword}
+                        onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                        placeholder="Repeat new password"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {adminCredError && (
+                  <p className="text-sm font-medium text-destructive">{adminCredError}</p>
+                )}
+                {adminCredMessage && (
+                  <p className="text-sm font-medium text-green-600 dark:text-green-400">{adminCredMessage}</p>
+                )}
+
+                <Button onClick={handleSaveAdminCredential}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Credentials
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-muted/30">
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Default Credentials</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-1">
+                <p>Default email: <span className="font-mono text-foreground">admin@masterclass.co.tz</span></p>
+                <p>Default password: <span className="font-mono text-foreground">admin123</span></p>
+                <p className="text-xs pt-1">These are the factory defaults. If you have changed them above, use your new credentials.</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -1212,14 +1521,6 @@ export default function AdminSettingsPage() {
         onOpenChange={setIsSlideDialogOpen}
         slide={editingSlide}
         onSave={handleSaveSlide}
-      />
-
-      {/* Trainer Dialog */}
-      <TrainerDialog
-        open={isTrainerDialogOpen}
-        onOpenChange={setIsTrainerDialogOpen}
-        trainer={editingTrainer}
-        onSave={handleSaveTrainer}
       />
 
       {/* Module Dialog */}
@@ -1253,6 +1554,51 @@ export default function AdminSettingsPage() {
         qa={editingQA}
         onSave={handleSaveQA}
       />
+
+      {/* Add Package Dialog */}
+      <Dialog open={isAddPackageOpen} onOpenChange={setIsAddPackageOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add New Package</DialogTitle>
+            <DialogDescription>Create a new pricing package. It will appear in the registration form and pricing page immediately.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="np-name">Package Name *</Label>
+              <Input id="np-name" value={newPkg.name} onChange={e => setNewPkg(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Premium Plus" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="np-desc">Description</Label>
+              <Textarea id="np-desc" rows={2} value={newPkg.description} onChange={e => setNewPkg(p => ({ ...p, description: e.target.value }))} placeholder="Short description for participants" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="np-price">Price *</Label>
+                <Input id="np-price" type="number" value={newPkg.price} onChange={e => setNewPkg(p => ({ ...p, price: e.target.value }))} placeholder="500000" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="np-currency">Currency</Label>
+                <Input id="np-currency" value={newPkg.currency} onChange={e => setNewPkg(p => ({ ...p, currency: e.target.value }))} placeholder="TZS" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="np-features">Features (one per line)</Label>
+              <Textarea id="np-features" rows={4} value={newPkg.features} onChange={e => setNewPkg(p => ({ ...p, features: e.target.value }))} placeholder={'Full Access\nCertificate\nNetworking'} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={newPkg.popular} onCheckedChange={v => setNewPkg(p => ({ ...p, popular: v }))} id="np-popular" />
+              <Label htmlFor="np-popular">Mark as Most Popular</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddPackageOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddPackage} disabled={!newPkg.name.trim() || !newPkg.price}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Package
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
@@ -1361,107 +1707,6 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
             <div className="space-y-2">
               <Label>CTA Link</Label>
               <Input value={form.ctaLink || ''} onChange={(e) => setForm({ ...form, ctaLink: e.target.value })} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Order</Label>
-              <Input type="number" value={form.order || 1} onChange={(e) => setForm({ ...form, order: parseInt(e.target.value) })} />
-            </div>
-            <div className="flex items-center gap-2 pt-6">
-              <Switch checked={form.active} onCheckedChange={(checked) => setForm({ ...form, active: checked })} />
-              <Label>Active</Label>
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => onSave(form)}>Save</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function TrainerDialog({ open, onOpenChange, trainer, onSave }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  trainer: Trainer | null
-  onSave: (trainer: Partial<Trainer>) => void
-}) {
-  const [form, setForm] = useState<Partial<Trainer>>({
-    name: '',
-    title: '',
-    bio: '',
-    photoUrl: '',
-    expertise: [],
-    stats: { trainees: 0, experience: 0, companies: 0 },
-    order: 1,
-    active: true,
-  })
-
-  useEffect(() => {
-    if (trainer) {
-      setForm(trainer)
-    } else {
-      setForm({
-        name: '',
-        title: '',
-        bio: '',
-        photoUrl: '',
-        expertise: [],
-        stats: { trainees: 0, experience: 0, companies: 0 },
-        order: 1,
-        active: true,
-      })
-    }
-  }, [trainer])
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{trainer ? 'Edit Trainer' : 'Add New Trainer'}</DialogTitle>
-          <DialogDescription>Configure trainer profile information</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Name</Label>
-              <Input value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>Title</Label>
-              <Input value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Bio</Label>
-            <Textarea rows={3} value={form.bio || ''} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
-          </div>
-          <div className="space-y-2">
-            <Label>Photo URL</Label>
-            <Input value={form.photoUrl || ''} onChange={(e) => setForm({ ...form, photoUrl: e.target.value })} placeholder="/images/trainer-1.jpg" />
-          </div>
-          <div className="space-y-2">
-            <Label>Expertise (comma separated)</Label>
-            <Input 
-              value={(form.expertise || []).join(', ')} 
-              onChange={(e) => setForm({ ...form, expertise: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} 
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Trainees</Label>
-              <Input type="number" value={form.stats?.trainees || 0} onChange={(e) => setForm({ ...form, stats: { ...form.stats!, trainees: parseInt(e.target.value) } })} />
-            </div>
-            <div className="space-y-2">
-              <Label>Experience (years)</Label>
-              <Input type="number" value={form.stats?.experience || 0} onChange={(e) => setForm({ ...form, stats: { ...form.stats!, experience: parseInt(e.target.value) } })} />
-            </div>
-            <div className="space-y-2">
-              <Label>Companies</Label>
-              <Input type="number" value={form.stats?.companies || 0} onChange={(e) => setForm({ ...form, stats: { ...form.stats!, companies: parseInt(e.target.value) } })} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

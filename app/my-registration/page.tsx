@@ -1,18 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Search, CheckCircle2, Clock, XCircle, Users,
-  CreditCard, Package, MapPin, Mail, Phone, Calendar,
+  CreditCard, Package as PackageIcon, MapPin, Mail, Phone, Calendar,
   ArrowLeft, Download, Share2, Receipt,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { getParticipants } from '@/lib/store'
-import { PACKAGES, type Participant, type ParticipantStatus, type PaymentStatus } from '@/lib/types'
+import { getParticipants, getAllPackages } from '@/lib/store'
+import type { Package, Participant, ParticipantStatus, PaymentStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const statusConfig: Record<ParticipantStatus, { label: string; icon: React.ElementType; color: string; bg: string; border: string; desc: string }> = {
@@ -53,6 +53,11 @@ export default function MyRegistrationPage() {
   const [query, setQuery] = useState('')
   const [result, setResult] = useState<Participant | null | undefined>(undefined)
   const [searched, setSearched] = useState(false)
+  const [packages, setPackages] = useState<Package[]>([])
+
+  useEffect(() => {
+    setPackages(getAllPackages())
+  }, [])
 
   const handleSearch = () => {
     const q = query.trim().toLowerCase()
@@ -68,7 +73,7 @@ export default function MyRegistrationPage() {
     setSearched(true)
   }
 
-  const pkg = result ? PACKAGES.find(p => p.id === result.selectedPackage) : null
+  const pkg = result ? packages.find(p => p.id === result.selectedPackage) : null
   const status = result ? statusConfig[result.status] : null
   const payment = result ? paymentConfig[result.paymentStatus] : null
 
@@ -147,7 +152,7 @@ export default function MyRegistrationPage() {
         )}
 
         {/* Result */}
-        {result && status && payment && pkg && (
+        {result && status && payment && (
           <div className="mt-6 space-y-4">
             {/* Status Banner */}
             <div className={cn('rounded-xl border p-5 flex items-start gap-4', status.bg, status.border)}>
@@ -216,9 +221,9 @@ export default function MyRegistrationPage() {
                   <dl className="grid gap-3 sm:grid-cols-2 text-sm">
                     <div>
                       <dt className="text-muted-foreground flex items-center gap-1.5 mb-0.5">
-                        <Package className="h-3.5 w-3.5" /> Package
+                        <PackageIcon className="h-3.5 w-3.5" /> Package
                       </dt>
-                      <dd className="font-semibold text-foreground">{pkg.name}</dd>
+                      <dd className="font-semibold text-foreground">{pkg?.name ?? result.selectedPackage}</dd>
                     </div>
                     <div>
                       <dt className="text-muted-foreground flex items-center gap-1.5 mb-0.5">
@@ -256,6 +261,35 @@ export default function MyRegistrationPage() {
                     )}
                   </dl>
                 </div>
+
+                {/* Group Members */}
+                {result.bookingType === 'group' && result.groupMembers && result.groupMembers.length > 0 && (
+                  <div className="border-t border-border pt-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                      Group Members
+                      {result.groupSeats && <span className="ml-1 normal-case font-normal">({result.groupSeats} seats)</span>}
+                    </h3>
+                    <div className="divide-y divide-border rounded-lg border border-border overflow-hidden text-sm">
+                      {result.groupMembers.map((member, i) => (
+                        <div key={i} className="flex items-center gap-3 px-3 py-2.5 bg-card">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 shrink-0 text-xs font-bold text-primary">
+                            {i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground truncate">{member.name}</p>
+                            <div className="flex gap-3 mt-0.5">
+                              {member.email && <p className="text-xs text-muted-foreground">{member.email}</p>}
+                              {member.phone && <p className="text-xs text-muted-foreground">{member.phone}</p>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      You can update member details in your <a href="/account/dashboard" className="text-primary underline-offset-4 hover:underline">account dashboard</a>.
+                    </p>
+                  </div>
+                )}
 
                 {/* Payment */}
                 <div className="border-t border-border pt-4">
@@ -322,7 +356,7 @@ export default function MyRegistrationPage() {
                 variant="outline"
                 className="flex-1"
                 onClick={() => {
-                  const text = `My Executive Masterclass Registration\n\nName: ${result.fullName}\nReceipt: ${result.receiptNumber || 'N/A'}\nPackage: ${pkg.name}\nStatus: ${status.label}\nAmount: TZS ${formatCurrency(result.totalAmount)}`
+                  const text = `My Executive Masterclass Registration\n\nName: ${result.fullName}\nReceipt: ${result.receiptNumber || 'N/A'}\nPackage: ${pkg?.name ?? result.selectedPackage}\nStatus: ${status.label}\nAmount: TZS ${formatCurrency(result.totalAmount)}`
                   navigator.clipboard.writeText(text)
                 }}
               >

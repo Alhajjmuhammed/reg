@@ -2,20 +2,20 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  Check, 
-  Sparkles, 
-  User, 
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Sparkles,
+  User,
   Users,
   CreditCard,
   FileText,
-  Download,
   Share2,
   Printer,
   Eye,
   EyeOff,
+  Lock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,16 +36,17 @@ import { GroupBookingSelector } from './group-booking-selector'
 import { PaymentGateway } from './payment-gateway'
 import { CouponInput } from './coupon-input'
 import { SeatMap } from './seat-map'
-import { createParticipant, getSeatConfiguration, useCoupon, createUserAccount } from '@/lib/store'
+import { createParticipant, getSeatConfiguration, useCoupon, createUserAccount, computeGroupPricing, getAllPackages, getSiteSettings } from '@/lib/store'
 import {
   type PackageType,
   type Gender,
   type BookingType,
   type PaymentMethod,
+  type GroupMember,
+  type Package,
+  type SiteSettings,
   BUSINESS_TYPES,
   OCCUPATIONS,
-  PACKAGES,
-  getGroupPricing,
 } from '@/lib/types'
 
 const STEPS = [
@@ -68,11 +69,14 @@ const COUNTRIES = [
   'India', 'China', 'Japan', 'Brazil', 'Other',
 ]
 
+const emptyMember = (): GroupMember => ({ name: '', email: '', phone: '' })
+
 interface FormData {
   // Booking Type
   bookingType: BookingType
   groupSeats: number
   groupBasePackage: PackageType
+  groupMembers: GroupMember[]
   // Personal
   fullName: string
   phoneNumber: string
@@ -104,6 +108,7 @@ const initialFormData: FormData = {
   bookingType: 'individual',
   groupSeats: 2,
   groupBasePackage: 'standard',
+  groupMembers: [emptyMember(), emptyMember()],
   fullName: '',
   phoneNumber: '',
   whatsappNumber: '',
@@ -133,6 +138,7 @@ interface RegistrationResult {
   selectedPackage: PackageType
   totalAmount: number
   paymentReference: string
+  pendingApproval?: boolean
 }
 
 export function RegistrationForm() {
@@ -146,15 +152,41 @@ export function RegistrationForm() {
   const [isMounted, setIsMounted] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  
+  const [packages, setPackages] = useState<Package[]>([])
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null)
+
   useEffect(() => {
     setIsMounted(true)
     setSeatConfig(getSeatConfiguration())
+    const settings = getSiteSettings()
+    setSiteSettings(settings)
+    const activePackages = getAllPackages().filter(p => p.active)
+    setPackages(activePackages)
+    // Ensure default package IDs are valid
+    if (activePackages.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        selectedPackage: activePackages.find(p => p.id === prev.selectedPackage) ? prev.selectedPackage : activePackages[0].id,
+        groupBasePackage: activePackages.find(p => p.id === prev.groupBasePackage) ? prev.groupBasePackage : activePackages[0].id,
+      }))
+    }
   }, [])
 
   const updateField = useCallback(
     <K extends keyof FormData>(field: K, value: FormData[K]) => {
-      setFormData((prev) => ({ ...prev, [field]: value }))
+      setFormData((prev) => {
+        // When groupSeats changes, resize groupMembers to match
+        if (field === 'groupSeats') {
+          const newCount = value as number
+          const current = prev.groupMembers
+          const resized =
+            newCount > current.length
+              ? [...current, ...Array.from({ length: newCount - current.length }, emptyMember)]
+              : current.slice(0, newCount)
+          return { ...prev, [field]: value, groupMembers: resized }
+        }
+        return { ...prev, [field]: value }
+      })
       if (errors[field]) {
         setErrors((prev) => ({ ...prev, [field]: undefined }))
       }
@@ -162,21 +194,30 @@ export function RegistrationForm() {
     [errors]
   )
 
+  const updateGroupMember = (index: number, field: keyof GroupMember, value: string) => {
+    setFormData((prev) => {
+      const updated = prev.groupMembers.map((m, i) =>
+        i === index ? { ...m, [field]: value } : m
+      )
+      return { ...prev, groupMembers: updated }
+    })
+  }
+
   const calculateTotal = () => {
     if (formData.bookingType === 'group') {
-      const pricing = getGroupPricing(formData.groupSeats, formData.groupBasePackage)
-      return pricing.totalPrice - formData.couponDiscount
+      const pricing = computeGroupPricing(formData.groupSeats, formData.groupBasePackage)
+      return Math.max(0, pricing.totalPrice - formData.couponDiscount)
     }
-    const pkg = PACKAGES.find(p => p.id === formData.selectedPackage)
-    return (pkg?.price || 0) - formData.couponDiscount
+    const pkg = packages.find(p => p.id === formData.selectedPackage)
+    return Math.max(0, (pkg?.price || 0) - formData.couponDiscount)
   }
 
   const getBaseAmount = () => {
     if (formData.bookingType === 'group') {
-      const pricing = getGroupPricing(formData.groupSeats, formData.groupBasePackage)
+      const pricing = computeGroupPricing(formData.groupSeats, formData.groupBasePackage)
       return pricing.totalPrice
     }
-    const pkg = PACKAGES.find(p => p.id === formData.selectedPackage)
+    const pkg = packages.find(p => p.id === formData.selectedPackage)
     return pkg?.price || 0
   }
 
@@ -222,11 +263,12 @@ export function RegistrationForm() {
     setCurrentStep((prev) => Math.max(prev - 1, 1))
   }
 
-  const handlePaymentComplete = (reference: string, method: PaymentMethod) => {
+  const handlePaymentComplete = (reference: string, method: PaymentMethod, receiptUrl?: string) => {
     const totalAmount = calculateTotal()
-    const selectedPkg = formData.bookingType === 'group' 
-      ? formData.groupBasePackage 
+    const selectedPkg = formData.bookingType === 'group'
+      ? formData.groupBasePackage
       : formData.selectedPackage
+    const pendingApproval = method === 'lipa-number'
 
     // Use coupon if applied
     if (formData.couponCode) {
@@ -249,16 +291,20 @@ export function RegistrationForm() {
         : undefined,
       trainingInterests: formData.trainingInterests,
       bookingType: formData.bookingType,
+      groupSeats: formData.bookingType === 'group' ? formData.groupSeats : undefined,
+      groupMembers: formData.bookingType === 'group' ? formData.groupMembers.filter(m => m.name.trim()) : undefined,
       selectedPackage: selectedPkg,
-      paymentStatus: 'paid',
-      amountPaid: totalAmount,
+      paymentStatus: pendingApproval ? 'unpaid' : 'paid',
+      amountPaid: pendingApproval ? 0 : totalAmount,
       totalAmount: totalAmount,
       paymentMethod: method,
       paymentReference: reference,
+      paymentSlipUrl: pendingApproval ? receiptUrl : undefined,
       couponCode: formData.couponCode || undefined,
       discountApplied: formData.couponDiscount || undefined,
-      status: 'confirmed',
+      status: pendingApproval ? 'pending' : 'confirmed',
       notes: formData.notes || undefined,
+      preferredSeats: formData.selectedSeats.length > 0 ? formData.selectedSeats : undefined,
     })
 
     setRegistrationResult({
@@ -269,6 +315,7 @@ export function RegistrationForm() {
       selectedPackage: selectedPkg,
       totalAmount,
       paymentReference: reference,
+      pendingApproval,
     })
 
     // Create user account so participant can log in
@@ -288,9 +335,26 @@ export function RegistrationForm() {
     }).format(amount)
   }
 
+  // Registration closed screen
+  if (isMounted && siteSettings && !siteSettings.registrationOpen) {
+    return (
+      <div className="mx-auto max-w-xl rounded-lg border border-border bg-card p-10 text-center">
+        <Lock className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+        <h2 className="mb-2 text-xl font-bold text-foreground">Registration is Currently Closed</h2>
+        <p className="text-sm text-muted-foreground">
+          {siteSettings.registrationDeadline
+            ? `Registration closed on ${new Date(siteSettings.registrationDeadline).toLocaleDateString()}.`
+            : 'Registration is not open at this time.'}
+          {' '}Please check back soon or contact us for more information.
+        </p>
+      </div>
+    )
+  }
+
   // Success Screen
   if (registrationResult) {
-    const pkg = PACKAGES.find(p => p.id === registrationResult.selectedPackage)
+    const pkg = packages.find(p => p.id === registrationResult.selectedPackage)
+    const eventName = siteSettings?.eventName || 'Executive Masterclass'
     
     return (
       <div className="mx-auto max-w-2xl rounded-lg border border-border bg-card p-8">
@@ -299,9 +363,13 @@ export function RegistrationForm() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10">
             <Check className="h-8 w-8 text-green-500" />
           </div>
-          <h2 className="mb-2 text-2xl font-bold text-foreground">Registration Successful!</h2>
+          <h2 className="mb-2 text-2xl font-bold text-foreground">
+            {registrationResult.pendingApproval ? 'Registration Submitted!' : 'Registration Successful!'}
+          </h2>
           <p className="text-muted-foreground">
-            Your seat has been confirmed. A confirmation email has been sent to {registrationResult.email}
+            {registrationResult.pendingApproval
+              ? 'Your receipt has been submitted and is pending payment approval. Your seat will be confirmed once an admin reviews and approves your payment.'
+              : 'Your seat has been confirmed. Please save your receipt number below.'}
           </p>
         </div>
 
@@ -310,7 +378,7 @@ export function RegistrationForm() {
           <div className="mb-4 flex items-center justify-between border-b border-border pb-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold text-foreground">Executive Masterclass</span>
+              <span className="text-lg font-bold text-foreground">{eventName}</span>
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground">Receipt Number</p>
@@ -325,14 +393,16 @@ export function RegistrationForm() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Package</dt>
-              <dd className="font-medium text-foreground">{pkg?.name}</dd>
+              <dd className="font-medium text-foreground">{pkg?.name ?? registrationResult?.selectedPackage}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Payment Reference</dt>
               <dd className="font-mono text-foreground">{registrationResult.paymentReference}</dd>
             </div>
             <div className="flex justify-between border-t border-border pt-3">
-              <dt className="font-medium text-foreground">Total Paid</dt>
+              <dt className="font-medium text-foreground">
+                {registrationResult.pendingApproval ? 'Total Amount (Pending Approval)' : 'Total Paid'}
+              </dt>
               <dd className="text-xl font-bold text-primary">
                 TZS {formatCurrency(registrationResult.totalAmount)}
               </dd>
@@ -359,7 +429,7 @@ export function RegistrationForm() {
           <Button
             variant="outline"
             onClick={() => {
-              const receiptText = `Executive Masterclass Receipt\n\nReceipt #: ${registrationResult.receiptNumber}\nParticipant: ${registrationResult.fullName}\nPackage: ${pkg?.name}\nAmount: TZS ${formatCurrency(registrationResult.totalAmount)}\nReference: ${registrationResult.paymentReference}`
+              const receiptText = `${eventName} Receipt\n\nReceipt #: ${registrationResult.receiptNumber}\nParticipant: ${registrationResult.fullName}\nPackage: ${pkg?.name ?? registrationResult?.selectedPackage}\nAmount: TZS ${formatCurrency(registrationResult.totalAmount)}\nReference: ${registrationResult.paymentReference}`
               navigator.clipboard.writeText(receiptText)
             }}
             className="flex-1"
@@ -388,7 +458,7 @@ export function RegistrationForm() {
     )
   }
 
-  const selectedPkg = PACKAGES.find((p) => p.id === formData.selectedPackage)
+  const selectedPkg = packages.find((p) => p.id === formData.selectedPackage)
   const totalAmount = calculateTotal()
 
   return (
@@ -474,6 +544,56 @@ export function RegistrationForm() {
                     maxSeats={formData.groupSeats}
                     currentPackage={formData.groupBasePackage}
                   />
+                </div>
+
+                {/* Group Member Details */}
+                <div className="rounded-lg border border-border bg-secondary/20 p-5 space-y-4">
+                  <div>
+                    <h3 className="font-medium text-foreground flex items-center gap-2">
+                      <Users className="h-4 w-4 text-primary" />
+                      Group Member Details
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Enter each member's information. You can update this later from your account.
+                    </p>
+                  </div>
+                  <div className="space-y-4">
+                    {formData.groupMembers.map((member, i) => (
+                      <div key={i} className="rounded-lg border border-border bg-card p-4 space-y-3">
+                        <p className="text-sm font-medium text-foreground">
+                          Member {i + 1}
+                          {i === 0 && <span className="ml-2 text-xs text-muted-foreground font-normal">(Group lead / contact person)</span>}
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Full Name <span className="text-destructive">*</span></Label>
+                            <Input
+                              placeholder="Full name"
+                              value={member.name}
+                              onChange={(e) => updateGroupMember(i, 'name', e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Email</Label>
+                            <Input
+                              type="email"
+                              placeholder="email@example.com"
+                              value={member.email}
+                              onChange={(e) => updateGroupMember(i, 'email', e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Phone</Label>
+                            <Input
+                              placeholder="+255 7XX XXX XXX"
+                              value={member.phone}
+                              onChange={(e) => updateGroupMember(i, 'phone', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </TabsContent>
             </Tabs>
@@ -575,7 +695,7 @@ export function RegistrationForm() {
               </div>
 
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="city">
+                <Label htmlFor="country">
                   Country <span className="text-destructive">*</span>
                 </Label>
                 <Select
@@ -794,7 +914,7 @@ export function RegistrationForm() {
                   <dt className="text-muted-foreground">Package</dt>
                   <dd className="text-foreground">
                     {formData.bookingType === 'group'
-                      ? `Group (${formData.groupSeats} seats) - ${PACKAGES.find(p => p.id === formData.groupBasePackage)?.name}`
+                      ? `Group (${formData.groupSeats} seats) - ${packages.find(p => p.id === formData.groupBasePackage)?.name ?? formData.groupBasePackage}`
                       : selectedPkg?.name}
                   </dd>
                 </div>
@@ -802,7 +922,7 @@ export function RegistrationForm() {
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Group Discount</dt>
                     <dd className="text-green-500">
-                      -{formatCurrency(getGroupPricing(formData.groupSeats, formData.groupBasePackage).savings)} TZS
+                      -{formatCurrency(computeGroupPricing(formData.groupSeats, formData.groupBasePackage).savings)} TZS
                     </dd>
                   </div>
                 )}

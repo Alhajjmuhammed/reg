@@ -38,12 +38,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { getCoupons, createCoupon, updateCoupon, deleteCoupon } from '@/lib/store'
-import { type CouponCode, type PackageType, PACKAGES } from '@/lib/types'
+import { getCoupons, createCoupon, updateCoupon, deleteCoupon, getAllPackages } from '@/lib/store'
+import type { CouponCode, Package, PackageType } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 export function CouponManagement() {
   const [coupons, setCoupons] = useState<CouponCode[]>([])
+  const [packages, setPackages] = useState<Package[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingCoupon, setEditingCoupon] = useState<CouponCode | null>(null)
   const [formData, setFormData] = useState({
@@ -59,6 +60,7 @@ export function CouponManagement() {
 
   useEffect(() => {
     setCoupons(getCoupons())
+    setPackages(getAllPackages())
   }, [])
 
   const formatCurrency = (amount: number) => {
@@ -242,7 +244,7 @@ export function CouponManagement() {
               <div className="grid gap-2">
                 <Label>Applicable Packages (Optional)</Label>
                 <div className="flex flex-wrap gap-2">
-                  {PACKAGES.map((pkg) => (
+                  {packages.map((pkg) => (
                     <button
                       key={pkg.id}
                       type="button"

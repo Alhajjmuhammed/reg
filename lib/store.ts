@@ -1788,16 +1788,7 @@ export function upsertAttendance(trainerId: string, participantId: string, sessi
 
 // ==================== AUTH ====================
 
-function hashPassword(password: string): string {
-  // Simple deterministic hash for localStorage-based auth
-  let hash = 5381
-  const str = password + ':em_salt_v1'
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash) ^ str.charCodeAt(i)
-    hash = hash & hash
-  }
-  return Math.abs(hash).toString(36)
-}
+import { hashPassword } from './crypto'
 
 export function createUserAccount(email: string, password: string, participantId: string): UserAccount {
   const accounts = getStorage<UserAccount[]>(STORAGE_KEYS.userAccounts, [])

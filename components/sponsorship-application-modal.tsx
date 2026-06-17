@@ -175,7 +175,7 @@ function InvoiceDoc({
                 <td className="border border-gray-400 px-2 py-0.5">141 – 008 – 897</td>
               </tr>
               <tr>
-                <td className="border border-gray-400 px-2 py-0.5 font-semibold bg-gray-50">ZRB:</td>
+                <td className="border border-gray-400 px-2 py-0.5 font-semibold bg-gray-50">ZRA:</td>
                 <td className="border border-gray-400 px-2 py-0.5">Z025674759</td>
               </tr>
             </tbody>

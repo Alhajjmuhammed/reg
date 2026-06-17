@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { QRCodeCanvas } from 'qrcode.react'
 import { AdminLayout } from '@/components/admin-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -65,6 +66,10 @@ import {
   KeyRound,
   Users,
   X,
+  Download,
+  Copy,
+  Share2,
+  Upload,
 } from 'lucide-react'
 import {
   getSiteSettings,
@@ -637,6 +642,17 @@ export default function AdminSettingsPage() {
                     />
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Registration QR Code */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Registration QR Code</CardTitle>
+                <CardDescription>Share this QR code so participants can scan and register directly</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RegistrationQRCode />
               </CardContent>
             </Card>
 
@@ -1640,6 +1656,74 @@ export default function AdminSettingsPage() {
   )
 }
 
+// ── Registration QR Code ─────────────────────────────────────────────────────
+function RegistrationQRCode() {
+  const [url, setUrl] = useState('')
+  const qrRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setUrl(window.location.origin)
+  }, [])
+
+  const registrationUrl = `${url}/#register`
+
+  const downloadQR = useCallback(() => {
+    const canvas = qrRef.current?.querySelector('canvas')
+    if (!canvas) return
+    const link = document.createElement('a')
+    link.download = 'registration-qr.png'
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  }, [])
+
+  const copyLink = useCallback(() => {
+    navigator.clipboard.writeText(registrationUrl)
+  }, [registrationUrl])
+
+  const shareLink = useCallback(async () => {
+    if (navigator.share) {
+      await navigator.share({ title: 'Register Now', url: registrationUrl })
+    } else {
+      navigator.clipboard.writeText(registrationUrl)
+    }
+  }, [registrationUrl])
+
+  if (!url) return null
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center gap-6">
+      <div ref={qrRef} className="rounded-xl border border-border bg-white p-4 shrink-0">
+        <QRCodeCanvas
+          value={registrationUrl}
+          size={180}
+          bgColor="#ffffff"
+          fgColor="#000000"
+          level="H"
+          includeMargin={false}
+        />
+      </div>
+      <div className="space-y-3 flex-1">
+        <div>
+          <p className="text-sm font-medium text-foreground mb-1">Registration Link</p>
+          <p className="text-xs font-mono text-muted-foreground break-all bg-muted/50 rounded px-2 py-1">{registrationUrl}</p>
+        </div>
+        <p className="text-xs text-muted-foreground">Participants scan this QR code to go directly to the registration page. Download it to use on flyers and posters.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={downloadQR} className="gap-1.5">
+            <Download className="h-3.5 w-3.5" /> Download PNG
+          </Button>
+          <Button size="sm" variant="outline" onClick={copyLink} className="gap-1.5">
+            <Copy className="h-3.5 w-3.5" /> Copy Link
+          </Button>
+          <Button size="sm" variant="outline" onClick={shareLink} className="gap-1.5">
+            <Share2 className="h-3.5 w-3.5" /> Share
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Dialog Components
 function SlideDialog({ open, onOpenChange, slide, onSave }: { 
   open: boolean
@@ -1696,8 +1780,33 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
             <Textarea value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div className="space-y-2">
-            <Label>Image URL</Label>
-            <Input value={form.imageUrl || ''} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="/images/hero-1.jpg" />
+            <Label>Hero Image</Label>
+            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-muted/30 p-4 text-center transition-colors">
+              <Upload className="h-5 w-5 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Click to upload image from your computer</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = () => setForm({ ...form, imageUrl: reader.result as string })
+                  reader.readAsDataURL(file)
+                }}
+              />
+            </label>
+            {form.imageUrl && form.imageUrl.startsWith('data:') && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={form.imageUrl} alt="Preview" className="h-24 w-full rounded-lg object-cover border border-border" />
+            )}
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">or use URL</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            <Input value={form.imageUrl?.startsWith('data:') ? '' : (form.imageUrl || '')} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="/images/hero-1.jpg" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

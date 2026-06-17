@@ -1573,12 +1573,12 @@ export default function AdminSettingsPage() {
 
       {/* Add Package Dialog */}
       <Dialog open={isAddPackageOpen} onOpenChange={setIsAddPackageOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+        <DialogContent className="max-w-lg flex flex-col max-h-[90vh]">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Add New Package</DialogTitle>
             <DialogDescription>Create a new pricing package. It will appear in the registration form and pricing page immediately.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 overflow-y-auto flex-1 pr-1">
             <div className="space-y-2">
               <Label htmlFor="np-name">Package Name *</Label>
               <Input id="np-name" value={newPkg.name} onChange={e => setNewPkg(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Premium Plus" />
@@ -1606,7 +1606,7 @@ export default function AdminSettingsPage() {
               <Label htmlFor="np-popular">Mark as Most Popular</Label>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 pt-2 border-t border-border">
             <Button variant="outline" onClick={() => setIsAddPackageOpen(false)}>Cancel</Button>
             <Button onClick={handleAddPackage} disabled={!newPkg.name.trim() || !newPkg.price}>
               <Plus className="mr-2 h-4 w-4" />
@@ -1761,12 +1761,12 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-w-lg flex flex-col max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{slide ? 'Edit Slide' : 'Add New Slide'}</DialogTitle>
           <DialogDescription>Configure the hero slideshow content</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
           <div className="space-y-2">
             <Label>Title</Label>
             <Input value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} />
@@ -1829,7 +1829,7 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
             </div>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0 pt-2 border-t border-border">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={() => onSave(form)}>Save</Button>
         </DialogFooter>
@@ -1876,12 +1876,12 @@ function ModuleDialog({ open, onOpenChange, module, onSave }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-lg flex flex-col max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{module ? 'Edit Module' : 'Add New Module'}</DialogTitle>
           <DialogDescription>Configure curriculum module details</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
           <div className="space-y-2">
             <Label>Title</Label>
             <Input value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} />
@@ -1917,7 +1917,7 @@ function ModuleDialog({ open, onOpenChange, module, onSave }: {
             <Label>Active</Label>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0 pt-2 border-t border-border">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={() => onSave(form)}>Save</Button>
         </DialogFooter>
@@ -1956,12 +1956,12 @@ function FAQDialog({ open, onOpenChange, faq, onSave }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-w-lg flex flex-col max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{faq ? 'Edit FAQ' : 'Add New FAQ'}</DialogTitle>
           <DialogDescription>Configure frequently asked question</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
           <div className="space-y-2">
             <Label>Question</Label>
             <Input value={form.question || ''} onChange={(e) => setForm({ ...form, question: e.target.value })} />
@@ -1995,7 +1995,7 @@ function FAQDialog({ open, onOpenChange, faq, onSave }: {
             <Label>Active</Label>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0 pt-2 border-t border-border">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={() => onSave(form)}>Save</Button>
         </DialogFooter>
@@ -2040,12 +2040,12 @@ function TestimonialDialog({ open, onOpenChange, testimonial, onSave }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-w-lg flex flex-col max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{testimonial ? 'Edit Testimonial' : 'Add New Testimonial'}</DialogTitle>
           <DialogDescription>Configure customer testimonial</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Name</Label>
@@ -2085,7 +2085,7 @@ function TestimonialDialog({ open, onOpenChange, testimonial, onSave }: {
             </div>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0 pt-2 border-t border-border">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={() => onSave(form)}>Save</Button>
         </DialogFooter>
@@ -2126,12 +2126,12 @@ function QADialog({ open, onOpenChange, qa, onSave }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-w-lg flex flex-col max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{qa ? 'Edit Q&A' : 'Add New Q&A'}</DialogTitle>
           <DialogDescription>Configure chatbot question and answer</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
           <div className="space-y-2">
             <Label>Keywords (comma separated)</Label>
             <Input 
@@ -2179,7 +2179,7 @@ function QADialog({ open, onOpenChange, qa, onSave }: {
             <Label>Active</Label>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="shrink-0 pt-2 border-t border-border">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={() => onSave(form)}>Save</Button>
         </DialogFooter>

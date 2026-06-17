@@ -1844,6 +1844,15 @@ export function getUserByParticipantId(participantId: string): UserAccount | nul
   return accounts.find(a => a.participantId === participantId) || null
 }
 
+export function resetUserAccountPassword(email: string, newPassword: string): boolean {
+  const accounts = getStorage<UserAccount[]>(STORAGE_KEYS.userAccounts, [])
+  const idx = accounts.findIndex(a => a.email.toLowerCase() === email.toLowerCase())
+  if (idx === -1) return false
+  accounts[idx] = { ...accounts[idx], passwordHash: hashPassword(newPassword) }
+  setStorage(STORAGE_KEYS.userAccounts, accounts)
+  return true
+}
+
 // ==================== EVENT DOCUMENTS ====================
 
 export function getDocuments(): EventDocument[] {

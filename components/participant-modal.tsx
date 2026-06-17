@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { X, User, Briefcase, CreditCard, FileText, Calendar, MapPin, Mail, Phone } from 'lucide-react'
+import { X, User, Briefcase, CreditCard, FileText, Calendar, MapPin, Mail, Phone, KeyRound, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,6 +24,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   createParticipant,
   updateParticipant,
+  resetUserAccountPassword,
+  getUserByParticipantId,
 } from '@/lib/store'
 import {
   type Participant,
@@ -83,6 +85,9 @@ export function ParticipantModal({
 }: ParticipantModalProps) {
   const [formData, setFormData] = useState(initialFormData)
   const [isSaving, setIsSaving] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [showNewPw, setShowNewPw] = useState(false)
+  const [pwMessage, setPwMessage] = useState('')
 
   useEffect(() => {
     if (participant && (mode === 'view' || mode === 'edit')) {
@@ -526,6 +531,57 @@ export function ParticipantModal({
                 </Select>
               </div>
             </div>
+
+            {mode === 'edit' && participant && (
+              <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <KeyRound className="h-4 w-4 text-muted-foreground" />
+                  Reset Participant Portal Password
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {getUserByParticipantId(participant.id)
+                    ? 'Set a new login password for this participant.'
+                    : 'This participant has no portal account yet — they need to register first.'}
+                </p>
+                {getUserByParticipantId(participant.id) && (
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={showNewPw ? 'text' : 'password'}
+                        placeholder="New password (min 6 characters)"
+                        value={newPassword}
+                        onChange={e => { setNewPassword(e.target.value); setPwMessage('') }}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPw(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={newPassword.length < 6}
+                      onClick={() => {
+                        const ok = resetUserAccountPassword(formData.email, newPassword)
+                        if (ok) { setPwMessage('Password updated!'); setNewPassword('') }
+                        else setPwMessage('Account not found — email may have changed.')
+                      }}
+                    >
+                      Update
+                    </Button>
+                  </div>
+                )}
+                {pwMessage && (
+                  <p className={cn('text-xs', pwMessage.startsWith('Password') ? 'text-green-500' : 'text-destructive')}>
+                    {pwMessage}
+                  </p>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="professional" className="space-y-4 pt-4">

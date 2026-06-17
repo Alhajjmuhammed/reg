@@ -78,7 +78,8 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           action: 'SALE',
-          amount: { currencyCode: 'TZS', value: amount },
+          // NGenius uses minor units for TZS (senti): 1 TZS = 100 senti
+          amount: { currencyCode: 'TZS', value: amount * 100 },
           merchantAttributes: {
             redirectUrl: `${SITE_URL}/payment/callback`,
             cancelUrl: `${SITE_URL}/payment/cancelled`,

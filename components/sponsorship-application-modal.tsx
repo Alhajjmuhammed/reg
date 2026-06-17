@@ -66,7 +66,7 @@ function fmtExpiry(raw: string) {
 }
 
 // ── Step bar ──────────────────────────────────────────────────────────────────
-const STEPS = ['Company', 'Billing', 'Payment', 'Review', 'Invoice']
+const STEPS = ['Company', 'Billing', 'Payment', 'Receipt']
 
 function StepBar({ current }: { current: number }) {
   return (
@@ -130,140 +130,158 @@ function SectionHead({ icon: Icon, title, sub }: { icon: React.ElementType; titl
   )
 }
 
-// ── Invoice document ──────────────────────────────────────────────────────────
+// ── Invoice document (Haminass Group format) ─────────────────────────────────
 function InvoiceDoc({
-  form, tier, settings, invoiceNumber, issuedAt,
+  form, tier, invoiceNumber, issuedAt,
 }: {
   form: FormData
   tier: SponsorshipTier
-  settings: SiteSettings | null
   invoiceNumber?: string
   issuedAt?: string
 }) {
-  const eventName   = settings?.eventName   || 'Executive Masterclass'
-  const companyName = settings?.companyName || eventName
-  const dateStr     = issuedAt
-    ? new Date(issuedAt).toLocaleDateString('en-TZ', { day: '2-digit', month: 'long', year: 'numeric' })
-    : new Date().toLocaleDateString('en-TZ', { day: '2-digit', month: 'long', year: 'numeric' })
-
-  const isCard  = form.paymentMethod === 'visa' || form.paymentMethod === 'mastercard'
-  const last4   = isCard ? form.cardNumber.replace(/\s/g, '').slice(-4) : ''
-  const brand   = detectCardBrand(form.cardNumber)
-  const brandLabel = brand && BRAND_META[brand] ? BRAND_META[brand].label : form.paymentMethod.replace('-', ' ')
+  const dateStr = (issuedAt ? new Date(issuedAt) : new Date())
+    .toLocaleDateString('en-TZ', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const amountNum = tier.price
+  const amountWords = (() => {
+    if (amountNum >= 1_000_000) return `${(amountNum / 1_000_000).toFixed(amountNum % 1_000_000 === 0 ? 0 : 1)} Million ${tier.currency} Only`
+    if (amountNum >= 1_000) return `${(amountNum / 1_000).toFixed(amountNum % 1_000 === 0 ? 0 : 1)} Thousand ${tier.currency} Only`
+    return `${amountNum.toLocaleString()} ${tier.currency} Only`
+  })()
 
   return (
-    <div className="bg-white text-gray-900 rounded-xl border border-gray-200 p-6 sm:p-8 text-sm space-y-6 print:border-0 print:rounded-none print:shadow-none">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 border-b border-gray-200 pb-6">
-        <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">
-            {invoiceNumber ? 'Tax Invoice' : 'Invoice Preview'}
-          </p>
-          <p className="text-3xl font-extrabold text-gray-900 tracking-tight">
-            {invoiceNumber || 'PREVIEW'}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Date: {dateStr}</p>
+    <div className="bg-white text-gray-900 text-xs print:border-0 print:shadow-none font-sans" style={{ fontFamily: 'Arial, sans-serif' }}>
+      {/* Header: logo + INVOICE box */}
+      <div className="flex items-start justify-between gap-4 pb-3 border-b-2 border-gray-300">
+        <div className="flex flex-col items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/haminass-logo.png" alt="Haminass Group" className="h-16 w-auto object-contain" />
         </div>
-        <div className="text-right space-y-0.5">
-          <p className="font-bold text-gray-900">{companyName}</p>
-          <p className="text-xs text-gray-500">{settings?.contactEmail}</p>
-          <p className="text-xs text-gray-500">{settings?.contactPhone}</p>
-          <p className="text-xs text-gray-500">{settings?.eventCity}, {settings?.eventCountry}</p>
+        <div className="text-right">
+          <div className="inline-block bg-blue-700 text-white font-extrabold text-lg px-6 py-1 mb-2 tracking-widest">
+            INVOICE
+          </div>
+          <table className="text-xs border border-gray-400 border-collapse ml-auto">
+            <tbody>
+              <tr>
+                <td className="border border-gray-400 px-2 py-0.5 font-semibold bg-gray-50">DATE:</td>
+                <td className="border border-gray-400 px-2 py-0.5">{dateStr}</td>
+              </tr>
+              <tr>
+                <td className="border border-gray-400 px-2 py-0.5 font-semibold bg-gray-50">Invoice No:</td>
+                <td className="border border-gray-400 px-2 py-0.5 font-mono">{invoiceNumber || 'PREVIEW'}</td>
+              </tr>
+              <tr>
+                <td className="border border-gray-400 px-2 py-0.5 font-semibold bg-gray-50">TIN:</td>
+                <td className="border border-gray-400 px-2 py-0.5">141 – 008 – 897</td>
+              </tr>
+              <tr>
+                <td className="border border-gray-400 px-2 py-0.5 font-semibold bg-gray-50">ZRB:</td>
+                <td className="border border-gray-400 px-2 py-0.5">Z025674759</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Bill To / Event */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      {/* To / From */}
+      <div className="grid grid-cols-2 gap-6 py-3 border-b border-gray-300">
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Bill To</p>
-          <p className="font-semibold text-gray-900">{form.billingName}</p>
-          <p className="text-gray-600">{form.companyName}</p>
-          <p className="text-gray-600">{form.billingEmail}</p>
-          <p className="text-gray-600">{form.billingAddress}</p>
-          <p className="text-gray-600">{form.billingCity}, {form.billingCountry}</p>
-          {form.taxId && <p className="text-gray-400 text-xs mt-1">TIN: {form.taxId}</p>}
+          <p className="font-semibold mb-1">To: ………………………………………</p>
+          <p className="font-bold text-sm">{form.billingName || form.companyName}.</p>
+          <p>{form.billingAddress}</p>
+          {form.contactPhone && <p>Tel: {form.contactPhone}</p>}
+          {form.billingCity && <p>{form.billingCity} – {form.billingCountry}.</p>}
+          {form.taxId && <p>TIN: {form.taxId}</p>}
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Event Details</p>
-          <p className="font-semibold text-gray-900">{eventName}</p>
-          {settings?.eventDate && (
-            <p className="text-gray-600">
-              {new Date(settings.eventDate).toLocaleDateString('en-TZ', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-          )}
-          {settings?.eventVenue && <p className="text-gray-600">{settings.eventVenue}</p>}
-          {settings?.eventCity  && <p className="text-gray-600">{settings.eventCity}</p>}
+          <p className="font-semibold mb-1">From: ………………………………………</p>
+          <p className="font-bold text-sm">HAMINASS GROUP LIMITED.</p>
+          <p>Mwanakwerekwe,</p>
+          <p>Mzee Kificho Building, Ground Floor,</p>
+          <p>Zanzibar – Tanzania.</p>
+          <p>Call/WhatsApp +255 763 303 428</p>
+          <p>E – Mail: info@haminass.com</p>
+          <p>Website: http://www.haminass.com</p>
         </div>
       </div>
 
-      {/* Line items */}
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-y border-gray-200 text-[10px] uppercase tracking-wider text-gray-400">
-            <th className="text-left py-2 font-medium">Description</th>
-            <th className="text-right py-2 font-medium">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr className="border-b border-gray-100">
-            <td className="py-4">
-              <p className="font-semibold text-gray-900">{tier.name} Sponsorship Package</p>
-              <p className="text-xs text-gray-500 mt-0.5">{tier.description}</p>
-              <ul className="mt-1.5 space-y-0.5">
-                {tier.benefits.filter(b => b.included).slice(0, 5).map((b, i) => (
-                  <li key={i} className="text-xs text-gray-400">✓ {b.text}</li>
-                ))}
-              </ul>
-            </td>
-            <td className="py-4 text-right font-semibold text-gray-900 whitespace-nowrap align-top">
-              {fmtCurrency(tier.price, tier.currency)}
-            </td>
-          </tr>
-        </tbody>
-        <tfoot>
-          <tr>
-            <td className="pt-4 text-right text-sm font-semibold text-gray-600">Total Due:</td>
-            <td className="pt-4 text-right text-xl font-extrabold text-gray-900 whitespace-nowrap">
-              {fmtCurrency(tier.price, tier.currency)}
-            </td>
-          </tr>
-        </tfoot>
-      </table>
+      {/* Service table */}
+      <div className="py-3">
+        <p className="text-center font-bold text-sm border border-gray-400 py-1 mb-0 bg-gray-100 tracking-widest">SERVICE TYPE: INVOICE</p>
+        <table className="w-full border-collapse border border-gray-400 text-xs">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-gray-400 px-2 py-1 text-center w-8">S/N</th>
+              <th className="border border-gray-400 px-2 py-1 text-left w-32">Service Name:</th>
+              <th className="border border-gray-400 px-2 py-1 text-left">Service Descriptions</th>
+              <th className="border border-gray-400 px-2 py-1 text-center w-16">Qty</th>
+              <th className="border border-gray-400 px-2 py-1 text-right w-28">Total Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-gray-400 px-2 py-3 text-center align-top">1.</td>
+              <td className="border border-gray-400 px-2 py-3 align-top font-semibold">{tier.name} Sponsorship</td>
+              <td className="border border-gray-400 px-2 py-3 align-top">
+                <p>{tier.description}</p>
+                <ul className="mt-1 space-y-0.5">
+                  {tier.benefits.filter(b => b.included).slice(0, 4).map((b, i) => (
+                    <li key={i} className="text-gray-500">✓ {b.text}</li>
+                  ))}
+                </ul>
+              </td>
+              <td className="border border-gray-400 px-2 py-3 text-center align-top">1</td>
+              <td className="border border-gray-400 px-2 py-3 text-right align-top font-semibold whitespace-nowrap">{fmtCurrency(tier.price, tier.currency)}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colSpan={3} className="border border-gray-400 px-2 py-1" />
+              <td className="border border-gray-400 px-2 py-1 text-right font-semibold">Sub Total:</td>
+              <td className="border border-gray-400 px-2 py-1 text-right font-bold">{fmtCurrency(tier.price, tier.currency)}</td>
+            </tr>
+            <tr>
+              <td colSpan={3} className="border border-gray-400 px-2 py-0.5" />
+              <td className="border border-gray-400 px-2 py-0.5 text-right font-semibold">Inclusive:</td>
+              <td className="border border-gray-400 px-2 py-0.5 text-right">–</td>
+            </tr>
+            <tr>
+              <td colSpan={3} className="border border-gray-400 px-2 py-1" />
+              <td className="border border-gray-400 px-2 py-1 text-right font-bold">Net Total:</td>
+              <td className="border border-gray-400 px-2 py-1 text-right font-extrabold">{fmtCurrency(tier.price, tier.currency)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
-      {/* Payment summary */}
-      {form.paymentMethod && (
-        <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 space-y-2">
-          <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Payment Details</p>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-500">Method</span>
-            <span className="font-medium capitalize text-gray-900">
-              {brandLabel}
-              {isCard && last4 && ` ···· ${last4}`}
-            </span>
-          </div>
-          {form.cardName && isCard && (
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500">Cardholder</span>
-              <span className="font-medium text-gray-900">{form.cardName}</span>
-            </div>
-          )}
-          {form.paymentReference && (
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500">Reference</span>
-              <span className="font-mono font-medium text-gray-900">{form.paymentReference}</span>
-            </div>
-          )}
-          <div className="flex justify-between text-xs pt-1 border-t border-gray-200">
-            <span className="text-gray-500">Status</span>
-            <span className="font-semibold text-amber-600">Pending Confirmation</span>
-          </div>
+      {/* Amount in words */}
+      <p className="py-1 text-xs"><span className="font-semibold">Amount in words:</span> {amountWords}</p>
+
+      {/* Payment information */}
+      <div className="py-2 border-t border-gray-300 text-xs space-y-0.5">
+        <p className="font-semibold">Payment information:</p>
+        <p>– We Accept Cash Payment limited to 2,500,000.00 Tzs.</p>
+        <p>– Mobile LIPA Number: 440625027</p>
+        <p>– Name: Haminass Group LTD, (Please add applicable withdrawal charges):</p>
+        <div className="mt-2">
+          <p className="font-semibold">Bank Account Details:</p>
+          <p>Bank Name: NATIONAL BANK OF COMMERCE (NBC),</p>
+          <p>Account name: HAMINASS GROUP LIMITED</p>
+          <p className="font-bold">Tzs. A/C No: 089186010433 | Swift code: NLCBTZTXXXX</p>
         </div>
-      )}
+      </div>
+
+      {/* Thank you note */}
+      <p className="text-[10px] text-gray-500 text-center italic border-t border-gray-200 pt-2">
+        If you have any questions concerning this invoice, please don't hesitate to contact us through Call/WhatsApp Number +255 779 507 985 or Email Us: billings@haminass.com
+      </p>
+      <p className="text-[10px] text-gray-500 text-center font-semibold">THANK YOU FOR GIVING A CHANCE TO DO A BUSINESS WITH YOU AGAIN!</p>
 
       {/* Footer */}
-      <p className="text-xs text-gray-400 text-center border-t border-gray-100 pt-4">
-        Thank you for partnering with {companyName}. Our team will be in touch within 1–2 business days.
-      </p>
+      <div className="border-t-2 border-orange-400 mt-2 pt-1 text-[9px] text-gray-400 text-center">
+        Address: Mwanakwerekwe – Zanzibar – Tanzania | P.O.BOX: 2704 | Tell: +255 658 338 646 | +255 710 967 616<br />
+        Email: info@haminass.com &nbsp; http://www.haminass.com
+      </div>
     </div>
   )
 }
@@ -416,7 +434,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
     })
     setApp(app)
     setSubmitting(false)
-    setStep(4)
+    setStep(3)
   }
 
   if (!open || !tier) return null
@@ -431,7 +449,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-foreground truncate">
-              {step < 4 ? `${tier.name} Sponsorship Application` : 'Application Confirmed'}
+              {step < 3 ? `${tier.name} Sponsorship Application` : 'Application Confirmed'}
             </p>
             <p className="text-xs text-muted-foreground hidden sm:block">{fmtCurrency(tier.price, tier.currency)}</p>
           </div>
@@ -446,7 +464,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
       </div>
 
       {/* ── Step bar ─────────────────────────────────────────────────────── */}
-      {step < 4 && (
+      {step < 3 && (
         <div className="no-print border-b border-border bg-background/90 px-4 sm:px-8 py-4 shrink-0">
           <StepBar current={step} />
         </div>
@@ -512,6 +530,16 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                   <Textarea value={form.notes} onChange={e => patch({ notes: e.target.value })} placeholder="Any special requirements or questions?" rows={2} />
                 </Field>
               </div>
+
+              {/* Invoice preview */}
+              {(form.billingName || form.companyName) && (
+                <div className="mt-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Invoice Preview</p>
+                  <div className="rounded-xl border border-border p-4 bg-white">
+                    <InvoiceDoc form={form} tier={tier} />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -786,129 +814,33 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
             </div>
           )}
 
-          {/* ── Step 3: Review ────────────────────────────────────────────── */}
-          {step === 3 && (
-            <div className="space-y-5">
-              <SectionHead icon={ClipboardList} title="Review Your Application" sub="Please check all details carefully before submitting" />
-
-              {/* Company summary */}
-              <div className="rounded-xl border bg-card p-5 space-y-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Company & Contact</p>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                  {([
-                    ['Company', form.companyName],
-                    ['Industry', form.industry],
-                    ['Contact', form.contactName],
-                    ['Phone', form.contactPhone],
-                    ['Email', form.contactEmail],
-                    ...(form.website ? [['Website', form.website]] : []),
-                  ] as [string, string][]).map(([k, v], i) => (
-                    <div key={i}>
-                      <p className="text-xs text-muted-foreground">{k}</p>
-                      <p className="font-medium text-foreground break-words">{v}</p>
-                    </div>
-                  ))}
+          {/* ── Step 2 continued: Review summary (shown below payment form) ── */}
+          {step === 2 && (form.companyName || form.billingName) && (
+            <div className="mt-6 space-y-4 border-t border-border pt-6">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Review Your Details</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border bg-card p-4 space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Company</p>
+                  {([['Company', form.companyName], ['Contact', form.contactName], ['Email', form.contactEmail], ['Phone', form.contactPhone]] as [string,string][]).map(([k,v]) => v ? (
+                    <div key={k}><p className="text-[10px] text-muted-foreground">{k}</p><p className="text-sm font-medium text-foreground break-words">{v}</p></div>
+                  ) : null)}
+                </div>
+                <div className="rounded-xl border bg-card p-4 space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Billing</p>
+                  {([['Name', form.billingName], ['Email', form.billingEmail], ['Address', form.billingAddress], ['City', form.billingCity]] as [string,string][]).map(([k,v]) => v ? (
+                    <div key={k}><p className="text-[10px] text-muted-foreground">{k}</p><p className="text-sm font-medium text-foreground break-words">{v}</p></div>
+                  ) : null)}
                 </div>
               </div>
-
-              {/* Billing summary */}
-              <div className="rounded-xl border bg-card p-5 space-y-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Billing Information</p>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                  {([
-                    ['Billing Name', form.billingName],
-                    ['Billing Email', form.billingEmail],
-                    ['Address', form.billingAddress],
-                    ['City', form.billingCity],
-                    ['Country', form.billingCountry],
-                    ...(form.taxId ? [['Tax ID', form.taxId]] : []),
-                  ] as [string, string][]).map(([k, v], i) => (
-                    <div key={i}>
-                      <p className="text-xs text-muted-foreground">{k}</p>
-                      <p className="font-medium text-foreground break-words">{v}</p>
-                    </div>
-                  ))}
-                </div>
+              <div className="rounded-xl border bg-card p-4 flex items-center justify-between">
+                <p className="font-bold text-foreground">{tier.name} Sponsorship Package</p>
+                <p className="text-xl font-extrabold text-primary">{fmtCurrency(tier.price, tier.currency)}</p>
               </div>
-
-              {/* Payment summary */}
-              <div className="rounded-xl border bg-card p-5 space-y-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Payment</p>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Method</p>
-                    <p className="font-medium capitalize">{methods.find(m => m.id === form.paymentMethod)?.name || form.paymentMethod.replace('-', ' ')}</p>
-                  </div>
-                  {isCard ? (
-                    <>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Card</p>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium font-mono">···· ···· ···· {form.cardNumber.replace(/\s/g, '').slice(-4)}</p>
-                          {detectedBrand && BRAND_META[detectedBrand] && (
-                            <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-bold', BRAND_META[detectedBrand].color)}>
-                              {BRAND_META[detectedBrand].label}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Name on Card</p>
-                        <p className="font-medium">{form.cardName}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Expiry</p>
-                        <p className="font-medium font-mono">{form.cardExpiry}</p>
-                      </div>
-                    </>
-                  ) : isLipaNumber ? (
-                    <>
-                      {form.paymentReference && (
-                        <div>
-                          <p className="text-xs text-muted-foreground">Reference</p>
-                          <p className="font-medium font-mono">{form.paymentReference}</p>
-                        </div>
-                      )}
-                      <div className="col-span-2">
-                        <p className="text-xs text-muted-foreground mb-1">Receipt / Screenshot</p>
-                        {form.receiptDataUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={form.receiptDataUrl} alt="Receipt preview" className="max-h-32 w-auto rounded-lg border border-border object-contain" />
-                        ) : (
-                          <p className="font-medium text-muted-foreground">No receipt uploaded</p>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Reference</p>
-                      <p className="font-medium font-mono">{form.paymentReference}</p>
-                    </div>
-                  )}
-                  <div className="col-span-2 border-t pt-2 flex items-center justify-between">
-                    <p className="font-bold text-foreground">{tier.name} Package</p>
-                    <p className="text-xl font-extrabold text-primary">{fmtCurrency(tier.price, tier.currency)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Invoice preview */}
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Invoice Preview</p>
-                <InvoiceDoc form={form} tier={tier} settings={settings} />
-              </div>
-
-              {form.notes && (
-                <div className="rounded-xl border bg-card p-4">
-                  <p className="text-xs text-muted-foreground mb-1">Notes</p>
-                  <p className="text-sm text-foreground">{form.notes}</p>
-                </div>
-              )}
             </div>
           )}
 
-          {/* ── Step 4: Success + Invoice ─────────────────────────────────── */}
-          {step === 4 && application && (
+          {/* ── Step 3: Receipt ───────────────────────────────────────────── */}
+          {step === 3 && application && (
             <div className="space-y-5">
               <div className="no-print rounded-xl border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-5 flex items-start gap-4">
                 <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
@@ -917,19 +849,38 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                   <p className="text-sm text-green-700 dark:text-green-400 mt-1">
                     Our sponsorship team will review your application and contact you within 1–2 business days to confirm.
                   </p>
-                  <p className="text-xs text-green-600 dark:text-green-500 mt-2 font-mono">
-                    Invoice No: {application.invoiceNumber}
-                  </p>
                 </div>
               </div>
-              {/* Final invoice with real invoice number */}
-              <InvoiceDoc
-                form={form}
-                tier={tier}
-                settings={settings}
-                invoiceNumber={application.invoiceNumber}
-                issuedAt={application.submittedAt}
-              />
+
+              {/* Payment Receipt */}
+              <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-widest">Payment Receipt</p>
+                    <p className="text-2xl font-extrabold text-foreground font-mono">{application.invoiceNumber}</p>
+                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/images/haminass-logo.png" alt="Haminass Group" className="h-12 w-auto object-contain" />
+                </div>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                  <div><p className="text-xs text-muted-foreground">Date</p><p className="font-medium">{new Date(application.submittedAt).toLocaleDateString('en-TZ', { day: 'numeric', month: 'long', year: 'numeric' })}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Status</p><p className="font-semibold text-amber-600">Pending Confirmation</p></div>
+                  <div><p className="text-xs text-muted-foreground">Company</p><p className="font-medium">{application.companyName}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Contact</p><p className="font-medium">{application.contactName}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Package</p><p className="font-medium">{application.tierName} Sponsorship</p></div>
+                  <div><p className="text-xs text-muted-foreground">Payment Method</p><p className="font-medium capitalize">{methods.find(m => m.id === application.paymentMethod)?.name || application.paymentMethod}</p></div>
+                  {application.paymentReference && (
+                    <div className="col-span-2"><p className="text-xs text-muted-foreground">Payment Reference</p><p className="font-mono font-medium">{application.paymentReference}</p></div>
+                  )}
+                  <div className="col-span-2 border-t pt-3 flex items-center justify-between">
+                    <p className="font-bold text-foreground text-base">Total Amount</p>
+                    <p className="text-2xl font-extrabold text-primary">{fmtCurrency(application.amount, application.currency)}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground text-center pt-2 border-t border-border">
+                  Keep this receipt for your records. Your invoice is available from the billing information you provided.
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -942,23 +893,23 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
           {step === 0 && (
             <Button variant="outline" onClick={onClose}>Cancel</Button>
           )}
-          {step > 0 && step < 4 && (
+          {step > 0 && step < 3 && (
             <Button variant="outline" onClick={() => setStep(s => s - 1)} disabled={submitting}>
               <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
             </Button>
           )}
-          {step === 4 && (
+          {step === 3 && (
             <Button variant="outline" onClick={onClose}>Close</Button>
           )}
 
           {/* Right: Next / Submit / Print */}
           <div className="flex items-center gap-2">
-            {step < 3 && (
+            {step < 2 && (
               <Button onClick={handleNext} size="lg" className="gap-2 px-8">
                 Next <ArrowRight className="h-4 w-4" />
               </Button>
             )}
-            {step === 3 && (
+            {step === 2 && (
               <Button onClick={handleSubmit} disabled={submitting} size="lg" className="gap-2 px-8">
                 {submitting
                   ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</>
@@ -966,9 +917,9 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                 }
               </Button>
             )}
-            {step === 4 && (
+            {step === 3 && (
               <Button onClick={() => window.print()} size="lg" className="gap-2">
-                <Printer className="h-4 w-4" /> Print Invoice
+                <Printer className="h-4 w-4" /> Print Receipt
               </Button>
             )}
           </div>

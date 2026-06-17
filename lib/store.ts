@@ -63,6 +63,47 @@ import {
   DEFAULT_ACADEMIC_PARTNER_SETTINGS,
 } from './types'
 
+// ==================== SUPABASE SYNC ====================
+// Keys stored only in localStorage (device-specific sessions, never synced)
+const SESSION_KEYS = new Set([
+  'masterclass_current_user',
+  'masterclass_current_trainer',
+  'masterclass_current_admin',
+])
+
+// In-memory store — all reads come from here (synchronous, no API latency)
+const memStore: Record<string, unknown> = {}
+
+// Load all data from Supabase into memStore on app start
+export async function initStore(): Promise<void> {
+  if (typeof window === 'undefined') return
+  try {
+    const { supabase } = await import('./supabase')
+    const { data, error } = await supabase.from('app_store').select('key, value')
+    if (error) {
+      console.error('Supabase load error, falling back to localStorage', error.message)
+      return
+    }
+    if (data) {
+      for (const row of data) {
+        memStore[row.key] = row.value
+      }
+    }
+  } catch (e) {
+    console.error('initStore failed, using localStorage fallback', e)
+  }
+}
+
+// Persist a single key to Supabase (fire-and-forget)
+async function syncToSupabase(key: string, value: unknown): Promise<void> {
+  try {
+    const { supabase } = await import('./supabase')
+    await supabase.from('app_store').upsert({ key, value, updated_at: new Date().toISOString() })
+  } catch (e) {
+    console.error('Supabase sync failed for key', key, e)
+  }
+}
+
 // Storage Keys
 const STORAGE_KEYS = {
   participants: 'masterclass_participants',
@@ -107,8 +148,8 @@ const STORAGE_KEYS = {
   academicPartnerSettings: 'masterclass_academic_partner_settings',
 }
 
-// Helper to safely access localStorage
-function getStorage<T>(key: string, defaultValue: T): T {
+// Helper to safely access localStorage (session keys only)
+function getLocalStorage<T>(key: string, defaultValue: T): T {
   if (typeof window === 'undefined') return defaultValue
   try {
     const item = localStorage.getItem(key)
@@ -118,13 +159,28 @@ function getStorage<T>(key: string, defaultValue: T): T {
   }
 }
 
-function setStorage<T>(key: string, value: T): void {
+function setLocalStorage<T>(key: string, value: T): void {
   if (typeof window === 'undefined') return
   try {
     localStorage.setItem(key, JSON.stringify(value))
   } catch {
     console.error('Failed to save to localStorage')
   }
+}
+
+function getStorage<T>(key: string, defaultValue: T): T {
+  if (SESSION_KEYS.has(key)) return getLocalStorage(key, defaultValue)
+  if (key in memStore) return memStore[key] as T
+  return defaultValue
+}
+
+function setStorage<T>(key: string, value: T): void {
+  if (SESSION_KEYS.has(key)) {
+    setLocalStorage(key, value)
+    return
+  }
+  memStore[key] = value
+  syncToSupabase(key, value)
 }
 
 // Generate receipt number

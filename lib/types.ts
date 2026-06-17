@@ -156,6 +156,8 @@ export interface SponsorshipApplication {
   billingName: string
   billingEmail: string
   billingAddress: string
+  location?: string
+  poBox?: string
   billingCity: string
   billingCountry: string
   taxId?: string

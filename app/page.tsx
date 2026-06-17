@@ -1,4 +1,5 @@
 import { RegistrationForm } from '@/components/registration-form'
+import { ShareQRCode } from '@/components/share-qr-code'
 import { HeroSlideshow } from '@/components/hero-slideshow'
 import { WhatYouWillLearn } from '@/components/what-you-will-learn'
 import { AcademicPartnersSection } from '@/components/academic-partners'
@@ -115,6 +116,7 @@ export default function HomePage() {
             </p>
           </div>
           <RegistrationForm />
+          <ShareQRCode />
         </div>
       </section>
 

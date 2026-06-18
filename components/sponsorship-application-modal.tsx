@@ -1050,24 +1050,20 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                   {form.paymentMethod === 'lipa-number' && <CheckCircle2 className="h-4 w-4 text-primary" />}
                 </button>
 
-                {/* Card */}
-                <button
-                  type="button"
-                  onClick={() => { if (!isCard) patch({ paymentMethod: 'visa' }) }}
-                  className={cn(
-                    'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all',
-                    isCard
-                      ? 'border-primary bg-primary/5 shadow-sm'
-                      : 'border-border hover:border-primary/40 hover:bg-muted/30'
-                  )}
-                >
+                {/* Card — coming soon */}
+                <div className="flex flex-col items-start gap-2 rounded-xl border-2 border-dashed border-border p-4 opacity-50 cursor-not-allowed">
                   <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300">
                     Card
                   </span>
                   <p className="text-xs font-semibold text-foreground">Visa / Mastercard</p>
-                  <p className="text-[10px] text-muted-foreground">Auto-detect from number</p>
-                  {isCard && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                </button>
+                  <p className="text-[10px] text-muted-foreground">Coming soon</p>
+                </div>
+              </div>
+
+              {/* Card coming soon notice */}
+              <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                <span className="shrink-0 mt-0.5">ℹ️</span>
+                <span>Card payments (Visa/Mastercard) are coming soon. Please use <strong>M-Pesa</strong>, <strong>Mixx by Yas</strong>, or <strong>Lipa Number</strong> for now.</span>
               </div>
 
               {/* Mobile money — phone number input */}

@@ -8,7 +8,15 @@ const API_URL      = process.env.NGENIUS_API_URL!
 const API_KEY      = process.env.NGENIUS_API_KEY!
 const OUTLET_REF   = process.env.NGENIUS_OUTLET_REF!
 const REALM        = process.env.NGENIUS_REALM!
-const SITE_URL     = process.env.SITE_URL || 'https://e-masterclass.eopsprimax.com'
+
+// Derive base URL from the incoming request so redirects work on both
+// localhost (local dev) and the production domain (VPS).
+function getBaseUrl(req: NextRequest): string {
+  const host  = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'localhost:3000'
+  const proto = req.headers.get('x-forwarded-proto') ||
+                (host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https')
+  return `${proto}://${host}`
+}
 
 async function getNGeniusToken(): Promise<string> {
   const res = await fetch(
@@ -48,12 +56,15 @@ async function writeApps(apps: SponsorshipApplication[]): Promise<void> {
 }
 
 export async function POST(req: NextRequest) {
+  const baseUrl = getBaseUrl(req)
+  console.log('[sponsorship/create-order] baseUrl:', baseUrl)
   try {
     const body = await req.json()
     const { applicationData, tierPrice } = body as {
       applicationData: Omit<SponsorshipApplication, 'id' | 'invoiceNumber' | 'submittedAt' | 'status' | 'paymentStatus'>
       tierPrice: number
     }
+    console.log('[sponsorship/create-order] tierPrice:', tierPrice, 'company:', applicationData.companyName)
 
     const apps = await readApps()
     const seq  = (apps.length + 1).toString().padStart(4, '0')
@@ -90,8 +101,8 @@ export async function POST(req: NextRequest) {
           // TZS minor units (senti): multiply by 100
           amount: { currencyCode: 'TZS', value: totalAmount * 100 },
           merchantAttributes: {
-            redirectUrl: `${SITE_URL}/payment/sponsorship-callback`,
-            cancelUrl:   `${SITE_URL}/sponsorship`,
+            redirectUrl: `${baseUrl}/payment/sponsorship-callback`,
+            cancelUrl:   `${baseUrl}/sponsorship`,
             // Prefix 'spo-' lets the webhook distinguish sponsorship orders
             merchantOrderReference: `spo-${application.id}`,
             skipConfirmationPage: false,
@@ -114,6 +125,7 @@ export async function POST(req: NextRequest) {
     const paymentUrl = order._links?.payment?.href as string
     const orderId    = order.reference as string
 
+    console.log('[sponsorship/create-order] NGenius orderId:', orderId, 'paymentUrl:', paymentUrl)
     if (!paymentUrl) throw new Error('NGenius did not return a payment URL')
 
     // Store the NGenius order reference on the application so verify can match it

@@ -29,6 +29,7 @@ async function getNGeniusToken(): Promise<string> {
 
 export async function GET(req: NextRequest) {
   const ref = req.nextUrl.searchParams.get('ref')
+  console.log('[sponsorship/verify] ref:', ref)
   if (!ref) return NextResponse.json({ error: 'Missing ref' }, { status: 400 })
 
   try {
@@ -48,6 +49,7 @@ export async function GET(req: NextRequest) {
     const order        = await orderRes.json()
     const paymentState = order._embedded?.payment?.[0]?.state || order.status || 'UNKNOWN'
     const merchantRef  = order.merchantAttributes?.merchantOrderReference || ''
+    console.log('[sponsorship/verify] paymentState:', paymentState, 'merchantRef:', merchantRef)
 
     if (!PAID_STATES.has(paymentState)) {
       return NextResponse.json({ success: true, status: paymentState.toLowerCase() })

@@ -382,11 +382,12 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [application, setApp]       = useState<SponsorshipApplication | null>(null)
   const [showCvv, setShowCvv]       = useState(false)
+  const [docTab, setDocTab]         = useState<'receipt' | 'invoice'>('receipt')
   const scrollRef                   = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (open) {
-      setStep(0); setForm(EMPTY); setErrors({}); setApp(null)
+      setStep(0); setForm(EMPTY); setErrors({}); setApp(null); setDocTab('receipt')
       setMethods(getPaymentMethods()); setSettings(getSiteSettings())
     }
   }, [open])
@@ -1226,35 +1227,47 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
 
           {/* ── Step 3: Receipt + Invoice ──────────────────────────────────── */}
           {step === 3 && application && (
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* Success banner */}
-              <div className="rounded-xl border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-5 flex items-start gap-4">
-                <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+              <div className="rounded-xl border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-4 flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-bold text-green-800 dark:text-green-300">Application Submitted Successfully!</p>
-                  <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                  <p className="text-sm text-green-700 dark:text-green-400 mt-0.5">
                     Our sponsorship team will review your application and contact you within 1–2 business days to confirm.
                   </p>
                 </div>
               </div>
 
-              {/* ── Receipt preview ── */}
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Your Receipt</p>
+              {/* ── Tab switcher ── */}
+              <div className="flex rounded-lg border border-border overflow-hidden">
+                <button
+                  onClick={() => setDocTab('receipt')}
+                  className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${docTab === 'receipt' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                >
+                  Receipt
+                </button>
+                <button
+                  onClick={() => setDocTab('invoice')}
+                  className={`flex-1 py-2.5 text-sm font-semibold border-l border-border transition-colors ${docTab === 'invoice' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                >
+                  Invoice
+                </button>
+              </div>
+
+              {/* ── Receipt tab ── */}
+              {docTab === 'receipt' && (
                 <div className="rounded-xl border border-border bg-white overflow-hidden text-[13px]" style={{ fontFamily: 'Arial, sans-serif' }}>
-                  {/* Logos row */}
                   <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/images/haminass-logo.png" alt="Haminass" className="h-10 w-auto object-contain" />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/images/eopsprimax-logo.png" alt="eOpsprimax" className="h-10 w-auto object-contain" />
                   </div>
-                  {/* Title band */}
                   <div className="text-center py-3 px-4" style={{ background: '#1e3a5f', color: '#fff' }}>
                     <p className="font-black text-xl tracking-widest m-0">OFFICIAL RECEIPT</p>
                     <p className="text-xs mt-1 m-0" style={{ opacity: 0.75 }}>Haminass Group Limited — Sponsorship Division</p>
                   </div>
-                  {/* Receipt No + Status + Date */}
                   <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100" style={{ background: '#f8fafc' }}>
                     <div>
                       <p className="text-[10px] text-gray-500 m-0">Receipt Number</p>
@@ -1268,9 +1281,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                       <p className="font-semibold text-sm m-0">{new Date(application.submittedAt).toLocaleDateString('en-TZ', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
                   </div>
-                  {/* Two columns: Sponsor + Billing */}
                   <div className="grid grid-cols-2 gap-4 p-4 border-b border-gray-100">
-                    {/* Sponsor */}
                     <div className="rounded-lg border border-gray-200 p-3">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2 mb-2">Sponsor Details</p>
                       {[
@@ -1287,7 +1298,6 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                         </div>
                       ))}
                     </div>
-                    {/* Billing */}
                     <div className="rounded-lg border border-gray-200 p-3">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2 mb-2">Billing Address</p>
                       <p className="font-bold text-sm text-gray-800 m-0">{application.billingName}</p>
@@ -1297,7 +1307,6 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                       {application.billingCity && <p className="text-[11px] text-gray-600 m-0 mt-0.5">{application.billingCity} – {application.billingCountry}</p>}
                     </div>
                   </div>
-                  {/* Package + Amounts */}
                   <div className="p-4 border-b border-gray-100">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2 mb-3">Sponsorship Package</p>
                     <div className="flex items-start justify-between gap-4">
@@ -1322,7 +1331,6 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                       </div>
                     </div>
                   </div>
-                  {/* Payment details */}
                   <div className="px-4 py-3 border-b border-gray-100" style={{ background: '#f8fafc' }}>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2 mb-2">Payment Details</p>
                     <div className="grid grid-cols-2 gap-3 text-[11px]">
@@ -1336,7 +1344,6 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                       </div>
                     </div>
                   </div>
-                  {/* Thank you + footer */}
                   <div className="text-center px-4 py-4">
                     <p className="font-bold text-base m-0" style={{ color: '#1e3a5f' }}>Thank you for your sponsorship!</p>
                     <p className="text-[11px] text-gray-500 mt-1 m-0">Our team will contact you within 1–2 business days to confirm your application.</p>
@@ -1347,11 +1354,10 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                     Email: info@haminass.com &nbsp; http://www.haminass.com
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* ── Invoice document ── */}
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Your Invoice</p>
+              {/* ── Invoice tab ── */}
+              {docTab === 'invoice' && (
                 <div className="rounded-xl border border-border bg-white p-5 overflow-x-auto">
                   <InvoiceDoc
                     form={form}
@@ -1360,7 +1366,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                     issuedAt={application.submittedAt}
                   />
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -1429,21 +1435,21 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                 </Button>
               )
             })()}
-            {step === 3 && (
-              <>
-                <Button variant="outline" onClick={downloadReceipt} disabled={downloadingReceipt} size="lg" className="gap-2">
-                  {downloadingReceipt
-                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
-                    : <><Download className="h-4 w-4" /> Download Receipt</>
-                  }
-                </Button>
-                <Button onClick={downloadInvoice} disabled={downloading} size="lg" className="gap-2">
-                  {downloading
-                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
-                    : <><Download className="h-4 w-4" /> Download Invoice</>
-                  }
-                </Button>
-              </>
+            {step === 3 && docTab === 'receipt' && (
+              <Button onClick={downloadReceipt} disabled={downloadingReceipt} size="lg" className="gap-2">
+                {downloadingReceipt
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+                  : <><Download className="h-4 w-4" /> Download Receipt</>
+                }
+              </Button>
+            )}
+            {step === 3 && docTab === 'invoice' && (
+              <Button onClick={downloadInvoice} disabled={downloading} size="lg" className="gap-2">
+                {downloading
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+                  : <><Download className="h-4 w-4" /> Download Invoice</>
+                }
+              </Button>
             )}
           </div>
         </div>

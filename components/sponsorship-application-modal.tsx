@@ -438,16 +438,14 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
     }
     if (s === 2) {
       if (!form.paymentMethod) e.paymentMethod = 'Select a payment method'
-      if (isCard) {
-        if (form.cardNumber.replace(/\s/g, '').length < 16) e.cardNumber = 'Enter a valid 16-digit card number'
-        if (form.cardExpiry.length < 5) e.cardExpiry = 'Enter expiry as MM/YY'
-        if (form.cardCvv.length < 3)    e.cardCvv    = 'Enter a valid CVV'
-        if (!form.cardName.trim())       e.cardName   = 'Name on card is required'
-      } else if (isLipaNumber) {
-        if (!form.receiptDataUrl && !form.paymentReference.trim())
-          e.paymentReference = 'Please upload your payment receipt or enter the reference number'
-      } else {
-        if (!form.paymentReference.trim()) e.paymentReference = 'Phone number is required'
+      // Card: NBC handles input on their page — no local field validation needed
+      if (!isCard) {
+        if (isLipaNumber) {
+          if (!form.receiptDataUrl && !form.paymentReference.trim())
+            e.paymentReference = 'Please upload your payment receipt or enter the reference number'
+        } else if (form.paymentMethod) {
+          if (!form.paymentReference.trim()) e.paymentReference = 'Phone number is required'
+        }
       }
     }
     setErrors(e)
@@ -769,12 +767,58 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
     if (!tier) return
     if (!validate(2)) return
     setSubmitting(true)
+
+    // ── Card payment: create NGenius order and redirect to NBC payment page ──
+    if (isCard) {
+      try {
+        const res = await fetch('/api/sponsorship/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            applicationData: {
+              companyName:      form.companyName.trim(),
+              contactName:      form.contactName.trim(),
+              contactEmail:     form.contactEmail.trim(),
+              contactPhone:     form.contactPhone.trim(),
+              website:          form.website.trim() || undefined,
+              industry:         form.industry.trim(),
+              billingName:      form.billingName.trim(),
+              billingEmail:     form.billingEmail.trim(),
+              billingAddress:   form.billingAddress.trim(),
+              location:         form.location.trim() || undefined,
+              poBox:            form.poBox.trim() || undefined,
+              billingCity:      form.billingCity.trim(),
+              billingCountry:   form.billingCountry.trim(),
+              taxId:            form.taxId.trim() || undefined,
+              tierId:           tier.id,
+              tierName:         tier.name,
+              amount:           tier.price,
+              currency:         tier.currency,
+              paymentMethod:    form.paymentMethod as SponsorshipApplication['paymentMethod'],
+              paymentReference: '',
+              notes:            form.notes.trim() || undefined,
+            },
+            tierPrice:    tier.price,
+            tierCurrency: tier.currency,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to create payment order')
+        // Redirect to NBC's payment page — user comes back to /payment/sponsorship-callback
+        window.location.href = data.paymentUrl
+      } catch (err) {
+        console.error('[sponsorship card payment]', err)
+        setErrors({ paymentMethod: err instanceof Error ? err.message : 'Payment initiation failed. Please try again.' })
+        setSubmitting(false)
+      }
+      return
+    }
+
+    // ── Manual payment: save locally and show receipt ────────────────────────
     await new Promise(r => setTimeout(r, 1500))
-    const ref = isCard
-      ? `CARD-${form.cardNumber.replace(/\s/g, '').slice(-4)}-${Date.now().toString(36).toUpperCase()}`
-      : isLipaNumber
-        ? (form.paymentReference.trim() || `LIPA-${Date.now().toString(36).toUpperCase()}`)
-        : form.paymentReference.trim()
+    const ref = isLipaNumber
+      ? (form.paymentReference.trim() || `LIPA-${Date.now().toString(36).toUpperCase()}`)
+      : form.paymentReference.trim()
     const app = createSponsorshipApplication({
       companyName:    form.companyName.trim(),
       contactName:    form.contactName.trim(),
@@ -1117,79 +1161,25 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
 
               {/* Card fields */}
               {isCard && (
-                <div className="rounded-xl border-2 border-primary/20 bg-card p-5 space-y-4">
-                  <p className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-primary" />
-                    Card Details
-                    {detectedBrand && BRAND_META[detectedBrand] && (
-                      <span className={cn('rounded px-2 py-0.5 text-[10px] font-extrabold tracking-wider', BRAND_META[detectedBrand].color)}>
-                        {BRAND_META[detectedBrand].label} detected
-                      </span>
-                    )}
-                  </p>
-                  <Field label="Name on Card" required error={errors.cardName}>
-                    <Input
-                      value={form.cardName}
-                      onChange={e => patch({ cardName: e.target.value.toUpperCase() })}
-                      placeholder="JOHN DOE"
-                      className="uppercase font-medium tracking-wider"
-                    />
-                  </Field>
-                  <Field label="Card Number" required error={errors.cardNumber}>
-                    <div className="relative">
-                      <Input
-                        value={form.cardNumber}
-                        onChange={e => handleCardNumberChange(e.target.value)}
-                        placeholder="1234 5678 9012 3456"
-                        maxLength={19}
-                        className="font-mono text-base tracking-widest pr-24"
-                        inputMode="numeric"
-                      />
-                      {detectedBrand && BRAND_META[detectedBrand] && (
-                        <span className={cn(
-                          'absolute right-2.5 top-1/2 -translate-y-1/2 rounded px-2 py-0.5 text-[10px] font-extrabold tracking-wider transition-all',
-                          BRAND_META[detectedBrand].color
-                        )}>
-                          {BRAND_META[detectedBrand].label}
-                        </span>
-                      )}
+                <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <CreditCard className="h-5 w-5 text-primary" />
                     </div>
-                  </Field>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="Expiry Date" required error={errors.cardExpiry}>
-                      <Input
-                        value={form.cardExpiry}
-                        onChange={e => patch({ cardExpiry: fmtExpiry(e.target.value) })}
-                        placeholder="MM/YY"
-                        maxLength={5}
-                        className="font-mono tracking-widest"
-                        inputMode="numeric"
-                      />
-                    </Field>
-                    <Field label="CVV" required error={errors.cardCvv}>
-                      <div className="relative">
-                        <Input
-                          value={form.cardCvv}
-                          onChange={e => patch({ cardCvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                          placeholder="•••"
-                          type={showCvv ? 'text' : 'password'}
-                          maxLength={4}
-                          className="font-mono pr-9"
-                          inputMode="numeric"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowCvv(v => !v)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        >
-                          {showCvv ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </button>
-                      </div>
-                    </Field>
+                    <div>
+                      <p className="font-bold text-sm text-foreground">
+                        {form.paymentMethod === 'visa' ? 'Visa' : 'Mastercard'} — Secure Payment via NBC
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        You will be redirected to NBC&apos;s secure payment page to enter your card details.
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                    🔒 Your card details are processed securely and never stored.
-                  </p>
+                  <div className="rounded-lg bg-background border border-border p-3 text-xs text-muted-foreground space-y-1">
+                    <p>✅ Card details entered on NBC&apos;s PCI-compliant page — never stored on our server</p>
+                    <p>✅ After payment NBC redirects you back here automatically</p>
+                    <p>✅ Your sponsorship is confirmed instantly once payment succeeds</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -1408,17 +1398,10 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
             {step === 2 && (() => {
               const lipaIncomplete   = isLipaNumber && !form.receiptDataUrl && !form.paymentReference.trim()
               const mobileIncomplete = !isCard && !isLipaNumber && !!form.paymentMethod && !form.paymentReference.trim()
-              const cardIncomplete   = isCard && (
-                form.cardNumber.replace(/\s/g, '').length < 16 ||
-                form.cardExpiry.length < 5 ||
-                form.cardCvv.length < 3 ||
-                !form.cardName.trim()
-              )
-              const blocked = !form.paymentMethod || lipaIncomplete || mobileIncomplete || cardIncomplete
-              const hint = !form.paymentMethod         ? 'Select a payment method'
-                         : lipaIncomplete              ? 'Upload receipt or enter reference number'
-                         : mobileIncomplete            ? 'Enter your phone number'
-                         : cardIncomplete              ? 'Complete your card details'
+              const blocked = !form.paymentMethod || lipaIncomplete || mobileIncomplete
+              const hint = !form.paymentMethod ? 'Select a payment method'
+                         : lipaIncomplete      ? 'Upload receipt or enter reference number'
+                         : mobileIncomplete    ? 'Enter your phone number'
                          : undefined
               return (
                 <Button
@@ -1429,8 +1412,10 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                   title={hint}
                 >
                   {submitting
-                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</>
-                    : <><CheckCircle2 className="h-4 w-4" /> Confirm & Submit</>
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> {isCard ? 'Redirecting…' : 'Submitting…'}</>
+                    : isCard
+                      ? <><CreditCard className="h-4 w-4" /> Pay with {form.paymentMethod === 'visa' ? 'Visa' : 'Mastercard'}</>
+                      : <><CheckCircle2 className="h-4 w-4" /> Confirm & Submit</>
                   }
                 </Button>
               )

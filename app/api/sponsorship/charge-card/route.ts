@@ -111,7 +111,6 @@ export async function POST(req: NextRequest) {
 
       try {
         authResult = await authenticate3DS2(orderRef, paymentId, {
-          notificationUrl:          `${baseUrl}/api/sponsorship/3ds/notify`,
           browserIp,
           browserAcceptHeader:      (browserInfo.acceptHeader   as string) || 'text/html,*/*',
           browserLanguage:          (browserInfo.language        as string) || 'en',

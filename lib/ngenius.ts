@@ -49,7 +49,8 @@ export async function chargeCard(params: {
           merchantAttributes: {
             merchantOrderReference: params.merchantRef,
           },
-          emailAddress: params.email,
+          emailAddress:    params.email,
+          notificationUrl: params.notificationUrl,
         },
         payment: {
           pan:             params.pan,
@@ -79,7 +80,6 @@ export async function authenticate3DS2(
   orderRef:    string,
   paymentId:   string,
   params: {
-    notificationUrl:       string
     browserIp:             string
     browserAcceptHeader:   string
     browserLanguage:       string
@@ -94,10 +94,10 @@ export async function authenticate3DS2(
 ) {
   const token = await getToken()
   const body = {
-    deviceChannel:      'BRW',
-    notifStatus:        'N',
-    threeDSCompInd:     'N',
-    challengeWindowSize:'05',
+    deviceChannel:       'BRW',
+    notifStatus:         'N',
+    threeDSCompInd:      'N',
+    challengeWindowSize: '05',
     ...params,
   }
   console.log('[ngenius authenticate3DS2] body:', JSON.stringify(body))
@@ -118,8 +118,15 @@ export async function authenticate3DS2(
     let message = `Authentication failed (${res.status})`
     try {
       const errJson = JSON.parse(errText)
-      if (errJson.errors?.[0]?.localizedMessage) message = errJson.errors[0].localizedMessage
+      const firstErr = errJson.errors?.[0]
+      const localized = firstErr?.localizedMessage || ''
+      // Use localizedMessage only if it's not an unresolved template like {validation...}
+      if (localized && !localized.startsWith('{')) message = localized
+      else if (firstErr?.message) message = firstErr.message
       else if (errJson.message) message = errJson.message
+      // Append count of additional errors
+      const count = errJson.errors?.length ?? 0
+      if (count > 1) message += ` (and ${count - 1} more field error${count > 2 ? 's' : ''})`
     } catch { /* non-JSON */ }
     console.error('[ngenius 3DS auth]', res.status, errText)
     throw new Error(message)

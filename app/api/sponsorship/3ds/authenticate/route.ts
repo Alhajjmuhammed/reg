@@ -43,11 +43,13 @@ export async function POST(req: NextRequest) {
       req.headers.get('x-real-ip') || '127.0.0.1'
 
     const threeDSCompInd: 'Y' | 'N' = methodCompleted ? 'Y' : 'N'
+    // Try the already-registered payment webhook URL — NBC may require a pre-registered URL
+    const notificationUrl = `${baseUrl}/api/payment/webhook`
 
-    console.log('[authenticate] orderRef:', orderRef, 'compInd:', threeDSCompInd)
+    console.log('[authenticate] orderRef:', orderRef, 'compInd:', threeDSCompInd, 'notifyUrl:', notificationUrl)
 
     const authResult = await authenticate3DS2(orderRef, paymentId, {
-      notificationUrl: '',  // omitted — NGenius uses outlet-configured URL
+      notificationUrl,
       threeDSCompInd,
       browserIp,
       browserAcceptHeader:      (browserInfo.acceptHeader   as string) || 'text/html,*/*',

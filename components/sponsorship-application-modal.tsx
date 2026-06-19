@@ -835,12 +835,17 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
             },
           }),
         })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Payment failed')
+        let data: Record<string, unknown>
+        try { data = await res.json() } catch { data = {} }
+
+        if (!res.ok) {
+          setErrors({ paymentMethod: (data.error as string) || 'Payment failed. Please try again.' })
+          setSubmitting(false)
+          return
+        }
 
         if (data.success) {
-          // Payment confirmed — show receipt
-          const app = await fetchApplication(data.applicationId)
+          const app = await fetchApplication(data.applicationId as string)
           if (app) { setApp(app); setStep(3) }
           else setStep(3)
           setSubmitting(false)
@@ -848,24 +853,24 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
         }
 
         if (data.needs3DSChallenge) {
-          // Show 3DS OTP iframe inside the modal
           setChallenge({
-            orderRef:      data.orderRef,
-            paymentId:     data.paymentId,
-            applicationId: data.applicationId,
-            invoiceNumber: data.invoiceNumber,
-            acsUrl:        data.acsUrl,
-            creq:          data.creq,
-            notifyUrl:     data.notifyUrl,
+            orderRef:      data.orderRef      as string,
+            paymentId:     data.paymentId     as string,
+            applicationId: data.applicationId as string,
+            invoiceNumber: data.invoiceNumber as string,
+            acsUrl:        data.acsUrl        as string,
+            creq:          data.creq          as string,
+            notifyUrl:     data.notifyUrl     as string,
           })
           setSubmitting(false)
           return
         }
 
-        throw new Error(data.error || 'Unexpected payment response')
+        setErrors({ paymentMethod: (data.error as string) || 'Payment failed. Please try again.' })
+        setSubmitting(false)
       } catch (err) {
-        console.error('[card payment]', err)
-        setErrors({ paymentMethod: err instanceof Error ? err.message : 'Payment failed. Please try again.' })
+        const msg = err instanceof Error ? err.message : 'Payment failed. Please try again.'
+        setErrors({ paymentMethod: msg })
         setSubmitting(false)
       }
       return

@@ -61,8 +61,15 @@ export async function chargeCard(params: {
     }
   )
   if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Charge failed (${res.status}): ${err}`)
+    const errText = await res.text()
+    let message = `Payment failed (${res.status})`
+    try {
+      const errJson = JSON.parse(errText)
+      if (errJson.errors?.[0]?.localizedMessage) message = errJson.errors[0].localizedMessage
+      else if (errJson.message) message = errJson.message
+    } catch { /* non-JSON error body */ }
+    console.error('[ngenius chargeCard]', res.status, errText)
+    throw new Error(message)
   }
   return await res.json()
 }
@@ -71,10 +78,29 @@ export async function chargeCard(params: {
 export async function authenticate3DS2(
   orderRef:    string,
   paymentId:   string,
-  browserInfo: Record<string, unknown>,
-  notifStatus: 'Y' | 'N' = 'N'  // 'N' = skip device fingerprinting (simpler)
+  params: {
+    notificationUrl:       string
+    browserIp:             string
+    browserAcceptHeader:   string
+    browserLanguage:       string
+    browserScreenHeight:   string
+    browserScreenWidth:    string
+    browserTz:             string
+    browserColorDepth:     string
+    browserUserAgent:      string
+    browserJavaEnabled:    boolean
+    browserJavascriptEnabled: boolean
+  }
 ) {
   const token = await getToken()
+  const body = {
+    deviceChannel:      'BRW',
+    notifStatus:        'N',
+    threeDSCompInd:     'N',
+    challengeWindowSize:'05',
+    ...params,
+  }
+  console.log('[ngenius authenticate3DS2] body:', JSON.stringify(body))
   const res = await fetch(
     `${API_URL}/transactions/outlets/${OUTLET_REF}/orders/${orderRef}/payments/${paymentId}/card/3ds2/authentications`,
     {
@@ -84,12 +110,19 @@ export async function authenticate3DS2(
         'Content-Type': 'application/vnd.ni-payment.v2+json',
         Accept:         'application/vnd.ni-payment.v2+json',
       },
-      body: JSON.stringify({ notifStatus, browserInfo }),
+      body: JSON.stringify(body),
     }
   )
   if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`3DS auth failed (${res.status}): ${err}`)
+    const errText = await res.text()
+    let message = `Authentication failed (${res.status})`
+    try {
+      const errJson = JSON.parse(errText)
+      if (errJson.errors?.[0]?.localizedMessage) message = errJson.errors[0].localizedMessage
+      else if (errJson.message) message = errJson.message
+    } catch { /* non-JSON */ }
+    console.error('[ngenius 3DS auth]', res.status, errText)
+    throw new Error(message)
   }
   return await res.json()
 }
@@ -114,8 +147,15 @@ export async function complete3DSChallenge(
     }
   )
   if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`3DS complete failed (${res.status}): ${err}`)
+    const errText = await res.text()
+    let message = `Verification failed (${res.status})`
+    try {
+      const errJson = JSON.parse(errText)
+      if (errJson.errors?.[0]?.localizedMessage) message = errJson.errors[0].localizedMessage
+      else if (errJson.message) message = errJson.message
+    } catch { /* non-JSON */ }
+    console.error('[ngenius 3DS complete]', res.status, errText)
+    throw new Error(message)
   }
   return await res.json()
 }

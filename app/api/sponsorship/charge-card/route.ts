@@ -105,9 +105,25 @@ export async function POST(req: NextRequest) {
     if (chargeResult.state === 'AWAIT_3DS') {
       let authResult: Record<string, unknown> | null = null
 
+      const browserIp =
+        req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+        req.headers.get('x-real-ip') || '127.0.0.1'
+
       try {
-        authResult = await authenticate3DS2(orderRef, paymentId, browserInfo, 'N')
-        console.log('[charge-card] 3DS auth state:', authResult?.state)
+        authResult = await authenticate3DS2(orderRef, paymentId, {
+          notificationUrl:          `${baseUrl}/api/sponsorship/3ds/notify`,
+          browserIp,
+          browserAcceptHeader:      (browserInfo.acceptHeader   as string) || 'text/html,*/*',
+          browserLanguage:          (browserInfo.language        as string) || 'en',
+          browserScreenHeight:      String(browserInfo.screenHeight  ?? 768),
+          browserScreenWidth:       String(browserInfo.screenWidth   ?? 1366),
+          browserTz:                String(browserInfo.timeZoneOffset ?? 0),
+          browserColorDepth:        String(browserInfo.colorDepth     ?? 24),
+          browserUserAgent:         (browserInfo.userAgent       as string) || '',
+          browserJavaEnabled:       false,
+          browserJavascriptEnabled: true,
+        })
+        console.log('[charge-card] 3DS auth FULL:', JSON.stringify(authResult, null, 2))
       } catch (e) {
         console.warn('[charge-card] 3DS auth error:', e)
       }
@@ -125,8 +141,21 @@ export async function POST(req: NextRequest) {
 
       // Challenge required — return ACS data for the iframe
       if (authResult && authResult.state === 'AWAIT_3DS') {
-        const links = authResult._links as Record<string, { href: string }> | undefined
+        const links    = authResult._links          as Record<string, { href: string }> | undefined
         const authData = authResult.authenticationData as Record<string, string> | undefined
+        const tds      = authResult['3ds']          as Record<string, string> | undefined
+
+        // Try every known NGenius field path for the ACS URL and creq
+        const acsUrl =
+          tds?.acsUrl          || tds?.acsURL          ||
+          authData?.acsUrl     || authData?.acsURL      ||
+          links?.['cnp:3ds2-challenge']?.href           || ''
+
+        const creq =
+          tds?.creq            ||
+          authData?.creq       || ''
+
+        console.log('[charge-card] 3DS acsUrl:', acsUrl, 'creq len:', creq.length)
 
         return NextResponse.json({
           needs3DSChallenge: true,
@@ -134,11 +163,9 @@ export async function POST(req: NextRequest) {
           invoiceNumber:     application.invoiceNumber,
           orderRef,
           paymentId,
-          // ACS form data — frontend renders an auto-submitting form in an iframe
-          acsUrl:       authData?.acsURL  || links?.['cnp:3ds2-challenge']?.href || '',
-          creq:         authData?.creq    || '',
-          sessionData:  authData?.md      || '',
-          notifyUrl:    `${baseUrl}/api/sponsorship/3ds/notify`,
+          acsUrl,
+          creq,
+          notifyUrl: `${baseUrl}/api/sponsorship/3ds/notify`,
         })
       }
 

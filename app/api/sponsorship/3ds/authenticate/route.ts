@@ -43,12 +43,11 @@ export async function POST(req: NextRequest) {
       req.headers.get('x-real-ip') || '127.0.0.1'
 
     const threeDSCompInd: 'Y' | 'N' = methodCompleted ? 'Y' : 'N'
-    const notificationUrl = `${baseUrl}/api/sponsorship/3ds/method-notify`
 
     console.log('[authenticate] orderRef:', orderRef, 'compInd:', threeDSCompInd)
 
     const authResult = await authenticate3DS2(orderRef, paymentId, {
-      notificationUrl,
+      notificationUrl: '',  // omitted — NGenius uses outlet-configured URL
       threeDSCompInd,
       browserIp,
       browserAcceptHeader:      (browserInfo.acceptHeader   as string) || 'text/html,*/*',

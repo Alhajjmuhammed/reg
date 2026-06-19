@@ -96,14 +96,15 @@ export async function authenticate3DS2(
 ) {
   const token = await getToken()
   const { threeDSCompInd, notificationUrl, ...browserParams } = params
-  const body = {
+  const body: Record<string, unknown> = {
     deviceChannel:       'BRW',
     notifStatus:         threeDSCompInd,
     threeDSCompInd,
-    notificationUrl,
     challengeWindowSize: '05',
     ...browserParams,
   }
+  // Only include notificationUrl when provided (NGenius may reject empty/unregistered URLs)
+  if (notificationUrl) body.notificationUrl = notificationUrl
   console.log('[ngenius authenticate3DS2] body:', JSON.stringify(body))
   const res = await fetch(
     `${API_URL}/transactions/outlets/${OUTLET_REF}/orders/${orderRef}/payments/${paymentId}/card/3ds2/authentications`,

@@ -38,7 +38,7 @@ export function PaymentGateway({
   isProcessing,
   setIsProcessing,
 }: PaymentGatewayProps) {
-  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>('lipa-number')
   const [receiptUrl, setReceiptUrl] = useState('')
   const [receiptName, setReceiptName] = useState('')
   const [lipaReference, setLipaReference] = useState('')
@@ -99,39 +99,7 @@ export function PaymentGateway({
 
       {/* Payment Method Grid */}
       <div className="grid gap-3 sm:grid-cols-4">
-        {/* M-Pesa */}
-        <button
-          type="button"
-          onClick={() => setSelectedMethod('mpesa')}
-          disabled={isProcessing}
-          className={cn(
-            'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all',
-            selectedMethod === 'mpesa' ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/40 hover:bg-muted/30',
-            isProcessing && 'opacity-50 cursor-not-allowed'
-          )}
-        >
-          <Image src={assetUrl('/images/mpesa-logo.png')} alt="M-Pesa" width={72} height={28} className="h-7 w-auto object-contain" />
-          <p className="text-xs font-semibold text-foreground">M-PESA</p>
-          {selectedMethod === 'mpesa' && <Check className="h-4 w-4 text-primary" />}
-        </button>
-
-        {/* Mixx by Yas */}
-        <button
-          type="button"
-          onClick={() => setSelectedMethod('mpesa-mixx')}
-          disabled={isProcessing}
-          className={cn(
-            'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all',
-            selectedMethod === 'mpesa-mixx' ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/40 hover:bg-muted/30',
-            isProcessing && 'opacity-50 cursor-not-allowed'
-          )}
-        >
-          <Image src={assetUrl('/images/mixx-by-yas-logo.png')} alt="Mixx by Yas" width={72} height={28} className="h-7 w-auto object-contain" />
-          <p className="text-xs font-semibold text-foreground">MIXX BY YAS</p>
-          {selectedMethod === 'mpesa-mixx' && <Check className="h-4 w-4 text-primary" />}
-        </button>
-
-        {/* Lipa Number */}
+        {/* Lipa Number — active default */}
         <button
           type="button"
           onClick={() => setSelectedMethod('lipa-number')}
@@ -148,21 +116,26 @@ export function PaymentGateway({
           {selectedMethod === 'lipa-number' && <Check className="h-4 w-4 text-primary" />}
         </button>
 
-        {/* Card */}
-        <button
-          type="button"
-          onClick={() => { if (!isCard) setSelectedMethod('visa') }}
-          disabled={isProcessing}
-          className={cn(
-            'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all',
-            isCard ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:border-primary/40 hover:bg-muted/30',
-            isProcessing && 'opacity-50 cursor-not-allowed'
-          )}
-        >
+        {/* M-Pesa — Coming Soon */}
+        <div className="relative flex flex-col items-start gap-2 rounded-xl border-2 border-border p-4 opacity-50 cursor-not-allowed select-none">
+          <Image src={assetUrl('/images/mpesa-logo.png')} alt="M-Pesa" width={72} height={28} className="h-7 w-auto object-contain" />
+          <p className="text-xs font-semibold text-foreground">M-PESA</p>
+          <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Coming Soon</span>
+        </div>
+
+        {/* Mixx by Yas — Coming Soon */}
+        <div className="relative flex flex-col items-start gap-2 rounded-xl border-2 border-border p-4 opacity-50 cursor-not-allowed select-none">
+          <Image src={assetUrl('/images/mixx-by-yas-logo.png')} alt="Mixx by Yas" width={72} height={28} className="h-7 w-auto object-contain" />
+          <p className="text-xs font-semibold text-foreground">MIXX BY YAS</p>
+          <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Coming Soon</span>
+        </div>
+
+        {/* Card — Coming Soon */}
+        <div className="relative flex flex-col items-start gap-2 rounded-xl border-2 border-border p-4 opacity-50 cursor-not-allowed select-none">
           <CreditCard className="h-7 w-7 text-indigo-500" />
           <p className="text-xs font-semibold text-foreground">Visa / Mastercard</p>
-          {isCard && <Check className="h-4 w-4 text-primary" />}
-        </button>
+          <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Coming Soon</span>
+        </div>
       </div>
 
       {/* Payment Details Area */}

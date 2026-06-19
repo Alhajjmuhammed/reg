@@ -365,7 +365,7 @@ const EMPTY: FormData = {
   billingName: '', billingEmail: '', billingAddress: '',
   location: '', poBox: '',
   billingCity: '', billingCountry: 'Tanzania', taxId: '',
-  paymentMethod: '', paymentReference: '', notes: '',
+  paymentMethod: 'lipa-number', paymentReference: '', notes: '',
   cardNumber: '', cardExpiry: '', cardCvv: '', cardName: '',
   receiptDataUrl: '', receiptName: '',
 }
@@ -1091,41 +1091,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                 </p>
               )}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {/* M-Pesa */}
-                <button
-                  type="button"
-                  onClick={() => patch({ paymentMethod: 'mpesa' })}
-                  className={cn(
-                    'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all',
-                    form.paymentMethod === 'mpesa'
-                      ? 'border-primary bg-primary/5 shadow-sm'
-                      : 'border-border hover:border-primary/40 hover:bg-muted/30'
-                  )}
-                >
-                  <Image src={assetUrl('/images/mpesa-logo.png')} alt="M-Pesa" width={72} height={28} className="h-7 w-auto object-contain" />
-                  <p className="text-xs font-semibold text-foreground">M-PESA</p>
-                  <p className="text-[10px] text-muted-foreground">Enter phone number</p>
-                  {form.paymentMethod === 'mpesa' && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                </button>
-
-                {/* Mixx by Yas */}
-                <button
-                  type="button"
-                  onClick={() => patch({ paymentMethod: 'mpesa-mixx' })}
-                  className={cn(
-                    'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all',
-                    form.paymentMethod === 'mpesa-mixx'
-                      ? 'border-primary bg-primary/5 shadow-sm'
-                      : 'border-border hover:border-primary/40 hover:bg-muted/30'
-                  )}
-                >
-                  <Image src={assetUrl('/images/mixx-by-yas-logo.png')} alt="Mixx by Yas" width={72} height={28} className="h-7 w-auto object-contain" />
-                  <p className="text-xs font-semibold text-foreground">MIXX BY YAS</p>
-                  <p className="text-[10px] text-muted-foreground">Enter phone number</p>
-                  {form.paymentMethod === 'mpesa-mixx' && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                </button>
-
-                {/* Lipa Number */}
+                {/* Lipa Number — active default */}
                 <button
                   type="button"
                   onClick={() => patch({ paymentMethod: 'lipa-number' })}
@@ -1142,24 +1108,26 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                   {form.paymentMethod === 'lipa-number' && <CheckCircle2 className="h-4 w-4 text-primary" />}
                 </button>
 
-                {/* Card */}
-                <button
-                  type="button"
-                  onClick={() => { if (!isCard) patch({ paymentMethod: 'visa' }) }}
-                  className={cn(
-                    'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all',
-                    isCard
-                      ? 'border-primary bg-primary/5 shadow-sm'
-                      : 'border-border hover:border-primary/40 hover:bg-muted/30'
-                  )}
-                >
-                  <span className="inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300">
-                    Card
-                  </span>
+                {/* M-Pesa — Coming Soon */}
+                <div className="flex flex-col items-start gap-2 rounded-xl border-2 border-border p-4 opacity-50 cursor-not-allowed select-none">
+                  <Image src={assetUrl('/images/mpesa-logo.png')} alt="M-Pesa" width={72} height={28} className="h-7 w-auto object-contain" />
+                  <p className="text-xs font-semibold text-foreground">M-PESA</p>
+                  <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Coming Soon</span>
+                </div>
+
+                {/* Mixx by Yas — Coming Soon */}
+                <div className="flex flex-col items-start gap-2 rounded-xl border-2 border-border p-4 opacity-50 cursor-not-allowed select-none">
+                  <Image src={assetUrl('/images/mixx-by-yas-logo.png')} alt="Mixx by Yas" width={72} height={28} className="h-7 w-auto object-contain" />
+                  <p className="text-xs font-semibold text-foreground">MIXX BY YAS</p>
+                  <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Coming Soon</span>
+                </div>
+
+                {/* Card — Coming Soon */}
+                <div className="flex flex-col items-start gap-2 rounded-xl border-2 border-border p-4 opacity-50 cursor-not-allowed select-none">
+                  <CreditCard className="h-7 w-7 text-indigo-500" />
                   <p className="text-xs font-semibold text-foreground">Visa / Mastercard</p>
-                  <p className="text-[10px] text-muted-foreground">Redirected to NBC secure page</p>
-                  {isCard && <CheckCircle2 className="h-4 w-4 text-primary" />}
-                </button>
+                  <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Coming Soon</span>
+                </div>
               </div>
 
               {/* Mobile money — phone number input */}

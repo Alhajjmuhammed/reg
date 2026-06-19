@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       merchantRef:     `spo-${application.id}`,
       notificationUrl: `${baseUrl}/api/sponsorship/3ds/notify`,
     })
-    console.log('[charge-card] NGenius state:', chargeResult.state, 'paymentId:', chargeResult.reference)
+    console.log('[charge-card] NGenius FULL response:', JSON.stringify(chargeResult, null, 2))
 
     const paymentId = chargeResult.reference  as string
     const orderRef  = chargeResult.orderReference as string

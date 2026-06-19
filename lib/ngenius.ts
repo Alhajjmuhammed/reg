@@ -80,25 +80,29 @@ export async function authenticate3DS2(
   orderRef:    string,
   paymentId:   string,
   params: {
-    browserIp:             string
-    browserAcceptHeader:   string
-    browserLanguage:       string
-    browserScreenHeight:   string
-    browserScreenWidth:    string
-    browserTz:             string
-    browserColorDepth:     string
-    browserUserAgent:      string
-    browserJavaEnabled:    boolean
+    notificationUrl:          string   // URL used in the 3DS Method iframe
+    threeDSCompInd:           'Y' | 'N' | 'U'
+    browserIp:                string
+    browserAcceptHeader:      string
+    browserLanguage:          string
+    browserScreenHeight:      string
+    browserScreenWidth:       string
+    browserTz:                string
+    browserColorDepth:        string
+    browserUserAgent:         string
+    browserJavaEnabled:       boolean
     browserJavascriptEnabled: boolean
   }
 ) {
   const token = await getToken()
+  const { threeDSCompInd, notificationUrl, ...browserParams } = params
   const body = {
     deviceChannel:       'BRW',
-    notifStatus:         'N',
-    threeDSCompInd:      'N',
+    notifStatus:         threeDSCompInd,
+    threeDSCompInd,
+    notificationUrl,
     challengeWindowSize: '05',
-    ...params,
+    ...browserParams,
   }
   console.log('[ngenius authenticate3DS2] body:', JSON.stringify(body))
   const res = await fetch(

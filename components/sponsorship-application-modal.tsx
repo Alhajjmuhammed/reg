@@ -383,6 +383,12 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
   const [application, setApp]       = useState<SponsorshipApplication | null>(null)
   const [showCvv, setShowCvv]       = useState(false)
   const [docTab, setDocTab]         = useState<'receipt' | 'invoice'>('receipt')
+  // 3DS method (device fingerprinting) state
+  const [method, setMethod] = useState<{
+    threeDSMethodURL: string; threeDSServerTransID: string; methodNotifyUrl: string
+    orderRef: string; paymentId: string; applicationId: string
+    invoiceNumber: string; browserInfo: Record<string, unknown>
+  } | null>(null)
   // 3DS challenge state
   const [challenge, setChallenge]   = useState<{
     orderRef: string; paymentId: string; applicationId: string
@@ -392,7 +398,8 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
 
   useEffect(() => {
     if (open) {
-      setStep(0); setForm(EMPTY); setErrors({}); setApp(null); setDocTab('receipt'); setChallenge(null)
+      setStep(0); setForm(EMPTY); setErrors({}); setApp(null); setDocTab('receipt')
+      setChallenge(null); setMethod(null)
       setMethods(getPaymentMethods()); setSettings(getSiteSettings())
     }
   }, [open])
@@ -848,6 +855,29 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
           const app = await fetchApplication(data.applicationId as string)
           if (app) { setApp(app); setStep(3) }
           else setStep(3)
+          setSubmitting(false)
+          return
+        }
+
+        if (data.needs3DSMethod) {
+          setMethod({
+            threeDSMethodURL:     data.threeDSMethodURL     as string,
+            threeDSServerTransID: data.threeDSServerTransID as string,
+            methodNotifyUrl:      data.methodNotifyUrl      as string,
+            orderRef:             data.orderRef             as string,
+            paymentId:            data.paymentId            as string,
+            applicationId:        data.applicationId        as string,
+            invoiceNumber:        data.invoiceNumber        as string,
+            browserInfo: {
+              acceptHeader:   'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              colorDepth:     window.screen.colorDepth,
+              language:       navigator.language,
+              screenHeight:   window.screen.height,
+              screenWidth:    window.screen.width,
+              timeZoneOffset: new Date().getTimezoneOffset(),
+              userAgent:      navigator.userAgent,
+            },
+          })
           setSubmitting(false)
           return
         }
@@ -1557,6 +1587,58 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
         </div>
       </div>
 
+      {/* ── 3DS Method overlay (device fingerprinting) ───────────────────── */}
+      {method && (
+        <ThreeDSMethod
+          method={method}
+          onDone={async (methodCompleted) => {
+            const m = method
+            setMethod(null)
+            try {
+              const res = await fetch('/api/sponsorship/3ds/authenticate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  orderRef:      m.orderRef,
+                  paymentId:     m.paymentId,
+                  applicationId: m.applicationId,
+                  invoiceNumber: m.invoiceNumber,
+                  browserInfo:   m.browserInfo,
+                  methodCompleted,
+                }),
+              })
+              let data: Record<string, unknown>
+              try { data = await res.json() } catch { data = {} }
+              if (!res.ok) {
+                setErrors({ paymentMethod: (data.error as string) || 'Verification failed. Please try again.' })
+                return
+              }
+              if (data.success) {
+                const app = await fetchApplication(data.applicationId as string)
+                if (app) setApp(app)
+                setStep(3)
+                return
+              }
+              if (data.needs3DSChallenge) {
+                setChallenge({
+                  orderRef:      data.orderRef      as string,
+                  paymentId:     data.paymentId     as string,
+                  applicationId: data.applicationId as string,
+                  invoiceNumber: data.invoiceNumber as string,
+                  acsUrl:        data.acsUrl        as string,
+                  creq:          data.creq          as string,
+                  notifyUrl:     data.notifyUrl     as string,
+                })
+                return
+              }
+              setErrors({ paymentMethod: (data.error as string) || 'Verification failed. Please try again.' })
+            } catch {
+              setErrors({ paymentMethod: 'Verification failed. Please try again.' })
+            }
+          }}
+        />
+      )}
+
       {/* ── 3DS Challenge overlay ─────────────────────────────────────────── */}
       {challenge && (
         <ThreeDSChallenge
@@ -1573,6 +1655,59 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
           }}
         />
       )}
+    </div>
+  )
+}
+
+// ── 3DS Method component (hidden device fingerprinting iframe) ────────────────
+function ThreeDSMethod({
+  method,
+  onDone,
+}: {
+  method: {
+    threeDSMethodURL: string; threeDSServerTransID: string; methodNotifyUrl: string
+    orderRef: string; paymentId: string; applicationId: string; invoiceNumber: string
+    browserInfo: Record<string, unknown>
+  }
+  onDone: (methodCompleted: boolean) => void
+}) {
+  const done = useRef(false)
+
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === '3ds_method_done' && !done.current) {
+        done.current = true
+        onDone(true)
+      }
+    }
+    window.addEventListener('message', handler)
+    // Timeout: if bank doesn't respond in 10s, proceed anyway with N
+    const timer = setTimeout(() => {
+      if (!done.current) { done.current = true; onDone(false) }
+    }, 10000)
+    return () => { window.removeEventListener('message', handler); clearTimeout(timer) }
+  }, [onDone])
+
+  const methodData = btoa(JSON.stringify({
+    threeDSMethodNotificationURL: method.methodNotifyUrl,
+    threeDSServerTransID: method.threeDSServerTransID,
+  })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+
+  const srcdoc = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body onload="document.getElementById('f').submit()">
+<form id="f" method="POST" action="${method.threeDSMethodURL}">
+  <input type="hidden" name="threeDSMethodData" value="${methodData}"/>
+</form>
+</body></html>`
+
+  return (
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/90 backdrop-blur-sm">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Verifying your card with your bank…</p>
+        <iframe srcDoc={srcdoc} style={{ display: 'none' }} title="3DS Method" sandbox="allow-forms allow-scripts allow-same-origin" />
+      </div>
     </div>
   )
 }

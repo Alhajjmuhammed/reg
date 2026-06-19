@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { chargeCard, authenticate3DS2, PAID_STATES } from '@/lib/ngenius'
+import { chargeCard, PAID_STATES } from '@/lib/ngenius'
 import { v4 as uuidv4 } from 'uuid'
 import type { SponsorshipApplication } from '@/lib/types'
 
@@ -101,88 +101,25 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // ── 5. 3DS required — attempt frictionless authentication ────────────────
+    // ── 5. 3DS required — do device fingerprinting first ────────────────────
     if (chargeResult.state === 'AWAIT_3DS') {
-      let authResult: Record<string, unknown> | null = null
+      const ds2 = chargeResult['3ds2'] as Record<string, string> | undefined
+      const threeDSMethodURL      = ds2?.threeDSMethodURL      || ''
+      const threeDSServerTransID  = ds2?.threeDSServerTransID  || ''
 
-      const browserIp =
-        req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-        req.headers.get('x-real-ip') || '127.0.0.1'
+      console.log('[charge-card] 3DS method URL:', threeDSMethodURL)
 
-      try {
-        authResult = await authenticate3DS2(orderRef, paymentId, {
-          browserIp,
-          browserAcceptHeader:      (browserInfo.acceptHeader   as string) || 'text/html,*/*',
-          browserLanguage:          (browserInfo.language        as string) || 'en',
-          browserScreenHeight:      String(browserInfo.screenHeight  ?? 768),
-          browserScreenWidth:       String(browserInfo.screenWidth   ?? 1366),
-          browserTz:                String(browserInfo.timeZoneOffset ?? 0),
-          browserColorDepth:        String(browserInfo.colorDepth     ?? 24),
-          browserUserAgent:         (browserInfo.userAgent       as string) || '',
-          browserJavaEnabled:       false,
-          browserJavascriptEnabled: true,
-        })
-        console.log('[charge-card] 3DS auth FULL:', JSON.stringify(authResult, null, 2))
-      } catch (e) {
-        console.error('[charge-card] 3DS auth error:', e)
-        return NextResponse.json(
-          { error: e instanceof Error ? e.message : '3DS authentication failed' },
-          { status: 400 }
-        )
-      }
+      return NextResponse.json({
+        needs3DSMethod:      true,
+        applicationId:       application.id,
+        invoiceNumber:       application.invoiceNumber,
+        orderRef,
+        paymentId,
+        threeDSMethodURL,
+        threeDSServerTransID,
+        methodNotifyUrl:     `${baseUrl}/api/sponsorship/3ds/method-notify`,
+      })
 
-      // Frictionless — payment done
-      if (authResult && PAID_STATES.has(authResult.state as string)) {
-        const i = apps.findIndex(a => a.id === application.id)
-        if (i !== -1) { apps[i] = { ...apps[i], status: 'confirmed', paymentStatus: 'paid' }; await writeApps(apps) }
-        return NextResponse.json({
-          success:       true,
-          applicationId: application.id,
-          invoiceNumber: application.invoiceNumber,
-        })
-      }
-
-      // Challenge required — return ACS data for the iframe
-      if (authResult && authResult.state === 'AWAIT_3DS') {
-        const links    = authResult._links          as Record<string, { href: string }> | undefined
-        const authData = authResult.authenticationData as Record<string, string> | undefined
-        const tds      = authResult['3ds']          as Record<string, string> | undefined
-
-        const acsUrl =
-          tds?.acsUrl          || tds?.acsURL          ||
-          authData?.acsUrl     || authData?.acsURL      ||
-          links?.['cnp:3ds2-challenge']?.href           || ''
-
-        const creq = tds?.creq || authData?.creq || ''
-
-        console.log('[charge-card] 3DS acsUrl:', acsUrl, 'creq len:', creq.length)
-
-        if (!acsUrl || !creq) {
-          console.error('[charge-card] 3DS challenge missing acsUrl/creq. Full response:', JSON.stringify(authResult))
-          return NextResponse.json(
-            { error: 'Bank 3DS challenge data missing. Please try again or use a different payment method.' },
-            { status: 400 }
-          )
-        }
-
-        return NextResponse.json({
-          needs3DSChallenge: true,
-          applicationId:     application.id,
-          invoiceNumber:     application.invoiceNumber,
-          orderRef,
-          paymentId,
-          acsUrl,
-          creq,
-          notifyUrl: `${baseUrl}/api/sponsorship/3ds/notify`,
-        })
-      }
-
-      // Unknown 3DS state
-      console.error('[charge-card] unexpected 3DS state:', authResult)
-      return NextResponse.json(
-        { error: 'Unexpected 3DS response. Please try again.' },
-        { status: 400 }
-      )
     }
 
     // ── 6. Payment failed ────────────────────────────────────────────────────

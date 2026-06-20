@@ -20,6 +20,70 @@ export const DEFAULT_ADMIN_CREDENTIAL: AdminCredential = {
   passwordHash: '', // populated by store using hashPassword on first use
 }
 
+// ==================== ADMIN ROLES & PERMISSIONS ====================
+
+export const ADMIN_PERMISSIONS = [
+  { key: 'participants.view',   label: 'View Participants',              category: 'Participants' },
+  { key: 'participants.manage', label: 'Edit / Approve Participants',    category: 'Participants' },
+  { key: 'participants.delete', label: 'Delete Participants',            category: 'Participants' },
+  { key: 'reports.view',        label: 'View Reports & Analytics',       category: 'Reports' },
+  { key: 'coupons.manage',      label: 'Manage Coupons',                 category: 'Coupons' },
+  { key: 'documents.manage',    label: 'Manage Documents',               category: 'Documents' },
+  { key: 'sponsorship.view',    label: 'View Sponsorship Applications',  category: 'Sponsorship' },
+  { key: 'sponsorship.manage',  label: 'Manage Sponsorship',             category: 'Sponsorship' },
+  { key: 'trainers.manage',     label: 'Manage Trainers',                category: 'Trainers' },
+  { key: 'settings.manage',     label: 'Manage Site Settings',           category: 'Settings' },
+  { key: 'terms.manage',        label: 'Manage Terms & Conditions',      category: 'Content' },
+  { key: 'roles.manage',        label: 'Manage Roles & Admin Users',     category: 'Administration' },
+] as const
+
+export type PermissionKey = (typeof ADMIN_PERMISSIONS)[number]['key']
+
+export interface AdminRole {
+  id: string
+  name: string
+  description: string
+  color: string
+  permissions: PermissionKey[]
+  isSystem: boolean
+  createdAt: string
+}
+
+export interface SubAdminUser {
+  id: string
+  name: string
+  email: string
+  passwordHash: string
+  roleId: string
+  active: boolean
+  createdAt: string
+  lastLoginAt?: string
+}
+
+export interface AdminProfile {
+  name: string
+}
+
+export interface AdminSession {
+  email: string
+  name?: string
+  roleId?: string
+  isSuperAdmin?: boolean
+  loggedInAt: string
+}
+
+export const DEFAULT_ADMIN_ROLES: AdminRole[] = [
+  {
+    id: 'super-admin',
+    name: 'Super Admin',
+    description: 'Full unrestricted access to all features and settings',
+    color: '#7c3aed',
+    permissions: ADMIN_PERMISSIONS.map(p => p.key) as PermissionKey[],
+    isSystem: true,
+    createdAt: new Date(0).toISOString(),
+  },
+]
+
 export interface UserAccount {
   id: string
   email: string

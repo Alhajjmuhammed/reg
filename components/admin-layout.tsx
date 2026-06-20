@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { logoutAll, getCurrentAdmin } from '@/lib/store'
+import { logoutAll, getCurrentAdmin, getAdminRoles } from '@/lib/store'
 import { useIdleLogout } from '@/lib/use-idle-logout'
 import { useStoreReady } from '@/components/store-provider'
+import type { AdminSession } from '@/lib/types'
+import { ADMIN_PERMISSIONS } from '@/lib/types'
+import type { PermissionKey } from '@/lib/types'
 import {
   LayoutDashboard,
   Users,
@@ -18,9 +21,10 @@ import {
   LogOut,
   Bell,
   Ticket,
-  MessageSquare,
   GraduationCap,
   ScrollText,
+  ShieldCheck,
+  UserCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,29 +41,55 @@ interface AdminLayoutProps {
   children: React.ReactNode
 }
 
-const navigation = [
-  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { name: 'Participants', href: '/admin/participants', icon: Users },
-  { name: 'Coupons', href: '/admin/coupons', icon: Ticket },
-  { name: 'Reports', href: '/admin/reports', icon: FileText },
-  { name: 'Documents', href: '/admin/documents', icon: FolderOpen },
-  { name: 'Sponsorship', href: '/admin/sponsorship', icon: Handshake },
-  { name: 'Trainers', href: '/admin/trainers', icon: GraduationCap },
-  { name: 'Terms', href: '/admin/terms', icon: ScrollText },
-  { name: 'Settings', href: '/admin/settings', icon: Settings },
+type NavItem = {
+  name: string
+  href: string
+  icon: React.ElementType
+  permission?: PermissionKey
+}
+
+const ALL_NAV: NavItem[] = [
+  { name: 'Dashboard',    href: '/admin',              icon: LayoutDashboard },
+  { name: 'Participants', href: '/admin/participants',  icon: Users,          permission: 'participants.view' },
+  { name: 'Coupons',      href: '/admin/coupons',       icon: Ticket,         permission: 'coupons.manage' },
+  { name: 'Reports',      href: '/admin/reports',       icon: FileText,       permission: 'reports.view' },
+  { name: 'Documents',    href: '/admin/documents',     icon: FolderOpen,     permission: 'documents.manage' },
+  { name: 'Sponsorship',  href: '/admin/sponsorship',   icon: Handshake,      permission: 'sponsorship.view' },
+  { name: 'Trainers',     href: '/admin/trainers',      icon: GraduationCap,  permission: 'trainers.manage' },
+  { name: 'Terms',        href: '/admin/terms',         icon: ScrollText,     permission: 'terms.manage' },
+  { name: 'Roles',        href: '/admin/roles',         icon: ShieldCheck,    permission: 'roles.manage' },
+  { name: 'Settings',     href: '/admin/settings',      icon: Settings,       permission: 'settings.manage' },
 ]
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [session, setSession] = useState<AdminSession | null>(null)
   const storeReady = useStoreReady()
 
   useEffect(() => {
-    if (!getCurrentAdmin()) {
+    const s = getCurrentAdmin()
+    if (!s) {
       window.location.href = '/login'
+      return
     }
-  }, [])
+    setSession(s)
+  }, [storeReady])
 
   useIdleLogout()
+
+  const isSuperAdmin = !session || session.isSuperAdmin !== false
+
+  const navigation: NavItem[] = ALL_NAV.filter(item => {
+    if (!item.permission) return true
+    if (isSuperAdmin) return true
+    const roles = getAdminRoles()
+    const role = roles.find(r => r.id === session?.roleId)
+    return role ? role.permissions.includes(item.permission) : false
+  })
+
+  const displayName = session?.name || 'Admin'
+  const displayEmail = session?.email || ''
+  const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'AD'
 
   return (
     <div className="min-h-screen bg-background">
@@ -91,7 +121,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
           {navigation.map((item) => (
             <Link
               key={item.name}
@@ -110,12 +140,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* User section */}
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground">
-              <span className="text-sm font-medium">AD</span>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground">
+              <span className="text-sm font-medium">{initials}</span>
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-sidebar-foreground">Admin User</p>
-              <p className="text-xs text-muted-foreground">admin@masterclass.co.tz</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-sidebar-foreground">{displayName}</p>
+              <p className="truncate text-xs text-muted-foreground">{displayEmail}</p>
             </div>
           </div>
         </div>
@@ -152,16 +182,27 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <span className="text-sm font-medium">AD</span>
+                    <span className="text-sm font-medium">{initials}</span>
                   </div>
+                  <span className="hidden text-sm font-medium sm:block">{displayName}</span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/profile">
+                    <UserCircle className="mr-2 h-4 w-4" />
+                    My Profile
+                  </Link>
                 </DropdownMenuItem>
+                {isSuperAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin/settings">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => { logoutAll(); window.location.href = '/login' }}>
                   <LogOut className="mr-2 h-4 w-4" />

@@ -39,6 +39,11 @@ import type {
   AcademicPartnerSettings,
   GroupPricingTier,
   TermsContent,
+  AdminRole,
+  SubAdminUser,
+  AdminProfile,
+  AdminSession,
+  PermissionKey,
 } from './types'
 import {
   DEFAULT_SEAT_CONFIG,
@@ -63,6 +68,7 @@ import {
   DEFAULT_ACADEMIC_PARTNERS,
   DEFAULT_ACADEMIC_PARTNER_SETTINGS,
   DEFAULT_TERMS,
+  DEFAULT_ADMIN_ROLES,
 } from './types'
 
 // ==================== SUPABASE SYNC ====================
@@ -175,6 +181,10 @@ const STORAGE_KEYS = {
   academicPartnerSettings: 'masterclass_academic_partner_settings',
   // Terms & Conditions
   termsContent: 'masterclass_terms_content',
+  // Admin roles & users
+  adminRoles: 'masterclass_admin_roles',
+  subAdmins: 'masterclass_sub_admins',
+  adminProfile: 'masterclass_admin_profile',
 }
 
 // Helper to safely access localStorage (session keys only)
@@ -1678,8 +1688,8 @@ export function loginAdmin(email: string, password: string): boolean {
   return true
 }
 
-export function getCurrentAdmin(): { email: string; loggedInAt: string } | null {
-  return getStorage<{ email: string; loggedInAt: string } | null>(STORAGE_KEYS.currentAdmin, null)
+export function getCurrentAdmin(): AdminSession | null {
+  return getStorage<AdminSession | null>(STORAGE_KEYS.currentAdmin, null)
 }
 
 export function logoutAdmin(): void {
@@ -1700,10 +1710,34 @@ export function loginUnified(email: string, password: string): LoginResult {
   const lowerEmail = email.toLowerCase().trim()
   const hashedPassword = hashPassword(password)
 
-  // 1. Check admin (case-insensitive email comparison)
+  // 1. Check primary admin (super admin)
   const cred = getAdminCredential()
   if (cred.email.toLowerCase() === lowerEmail && cred.passwordHash === hashedPassword) {
-    setStorage(STORAGE_KEYS.currentAdmin, { email: lowerEmail, loggedInAt: new Date().toISOString() })
+    const profile = getAdminProfile()
+    const session: AdminSession = {
+      email: lowerEmail,
+      name: profile.name || 'Admin',
+      roleId: 'super-admin',
+      isSuperAdmin: true,
+      loggedInAt: new Date().toISOString(),
+    }
+    setStorage(STORAGE_KEYS.currentAdmin, session)
+    return { role: 'admin', email: lowerEmail }
+  }
+
+  // 1.5. Check sub-admin users
+  const subAdmins = getSubAdmins()
+  const subAdmin = subAdmins.find(u => u.email.toLowerCase() === lowerEmail && u.active)
+  if (subAdmin && subAdmin.passwordHash === hashedPassword) {
+    updateSubAdmin(subAdmin.id, { lastLoginAt: new Date().toISOString() })
+    const session: AdminSession = {
+      email: lowerEmail,
+      name: subAdmin.name,
+      roleId: subAdmin.roleId,
+      isSuperAdmin: false,
+      loggedInAt: new Date().toISOString(),
+    }
+    setStorage(STORAGE_KEYS.currentAdmin, session)
     return { role: 'admin', email: lowerEmail }
   }
 
@@ -2039,6 +2073,101 @@ export function deleteDocument(id: string): boolean {
 
 export function getDocumentsForParticipant(packageType: string): EventDocument[] {
   return getDocuments().filter(d => d.availableTo === 'all' || d.availableTo === packageType)
+}
+
+// ==================== ADMIN PROFILE ====================
+
+export function getAdminProfile(): AdminProfile {
+  return getStorage<AdminProfile>(STORAGE_KEYS.adminProfile, { name: 'Admin' })
+}
+
+export function setAdminProfile(data: Partial<AdminProfile>): void {
+  const current = getAdminProfile()
+  setStorage(STORAGE_KEYS.adminProfile, { ...current, ...data })
+}
+
+// ==================== ADMIN ROLES ====================
+
+export function getAdminRoles(): AdminRole[] {
+  const stored = getStorage<AdminRole[]>(STORAGE_KEYS.adminRoles, [])
+  if (!stored.length) {
+    seedIfReady(STORAGE_KEYS.adminRoles, DEFAULT_ADMIN_ROLES)
+    return DEFAULT_ADMIN_ROLES
+  }
+  // Always ensure super-admin system role exists
+  if (!stored.find(r => r.id === 'super-admin')) {
+    stored.unshift(DEFAULT_ADMIN_ROLES[0])
+    setStorage(STORAGE_KEYS.adminRoles, stored)
+  }
+  return stored
+}
+
+export function createAdminRole(data: Omit<AdminRole, 'id' | 'createdAt'>): AdminRole {
+  const roles = getAdminRoles()
+  const role: AdminRole = { ...data, id: uuidv4(), createdAt: new Date().toISOString() }
+  roles.push(role)
+  setStorage(STORAGE_KEYS.adminRoles, roles)
+  return role
+}
+
+export function updateAdminRole(id: string, data: Partial<Omit<AdminRole, 'id' | 'isSystem' | 'createdAt'>>): AdminRole | null {
+  const roles = getAdminRoles()
+  const idx = roles.findIndex(r => r.id === id)
+  if (idx === -1) return null
+  roles[idx] = { ...roles[idx], ...data }
+  setStorage(STORAGE_KEYS.adminRoles, roles)
+  return roles[idx]
+}
+
+export function deleteAdminRole(id: string): boolean {
+  const roles = getAdminRoles()
+  const role = roles.find(r => r.id === id)
+  if (!role || role.isSystem) return false
+  setStorage(STORAGE_KEYS.adminRoles, roles.filter(r => r.id !== id))
+  return true
+}
+
+// ==================== SUB-ADMIN USERS ====================
+
+export function getSubAdmins(): SubAdminUser[] {
+  return getStorage<SubAdminUser[]>(STORAGE_KEYS.subAdmins, [])
+}
+
+export function createSubAdmin(data: { name: string; email: string; password: string; roleId: string }): SubAdminUser {
+  const users = getSubAdmins()
+  const user: SubAdminUser = {
+    id: uuidv4(),
+    name: data.name,
+    email: data.email.toLowerCase(),
+    passwordHash: hashPassword(data.password),
+    roleId: data.roleId,
+    active: true,
+    createdAt: new Date().toISOString(),
+  }
+  users.push(user)
+  setStorage(STORAGE_KEYS.subAdmins, users)
+  return user
+}
+
+export function updateSubAdmin(id: string, data: { name?: string; email?: string; roleId?: string; active?: boolean; lastLoginAt?: string; password?: string }): SubAdminUser | null {
+  const users = getSubAdmins()
+  const idx = users.findIndex(u => u.id === id)
+  if (idx === -1) return null
+  const { password, ...rest } = data
+  const update: Partial<SubAdminUser> = { ...rest }
+  if (password) update.passwordHash = hashPassword(password)
+  if (rest.email) update.email = rest.email.toLowerCase()
+  users[idx] = { ...users[idx], ...update }
+  setStorage(STORAGE_KEYS.subAdmins, users)
+  return users[idx]
+}
+
+export function deleteSubAdmin(id: string): boolean {
+  const users = getSubAdmins()
+  const filtered = users.filter(u => u.id !== id)
+  if (filtered.length === users.length) return false
+  setStorage(STORAGE_KEYS.subAdmins, filtered)
+  return true
 }
 
 // ==================== TERMS & CONDITIONS ====================

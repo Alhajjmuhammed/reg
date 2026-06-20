@@ -15,6 +15,7 @@ import {
   updateAdminCredential,
   updateSubAdmin,
   getSubAdmins,
+  updateCurrentAdminName,
 } from '@/lib/store'
 import { UserCircle, Lock, Mail, User, Check, AlertCircle } from 'lucide-react'
 
@@ -83,9 +84,12 @@ function ProfileContent() {
         setAdminProfile({ name: name.trim() })
       } else {
         const users = getSubAdmins()
-        const user = users.find(u => u.email.toLowerCase() === session?.email.toLowerCase())
+        const user = users.find(u => u.email.toLowerCase() === session!.email.toLowerCase())
         if (user) updateSubAdmin(user.id, { name: name.trim() })
       }
+      // Update the current session so sidebar reflects the new name immediately
+      updateCurrentAdminName(name.trim())
+      setSession(s => s ? { ...s, name: name.trim() } : s)
       showAlert(setNameAlert, 'success', 'Name updated successfully')
     } catch {
       showAlert(setNameAlert, 'error', 'Failed to update name')
@@ -96,6 +100,8 @@ function ProfileContent() {
 
   function handleSaveEmail(e: React.FormEvent) {
     e.preventDefault()
+    // Guard: only super admin can change email
+    if (!isSuperAdmin) return
     if (!email.trim() || !email.includes('@')) { showAlert(setEmailAlert, 'error', 'Enter a valid email address'); return }
     setSavingEmail(true)
     try {
@@ -128,13 +134,16 @@ function ProfileContent() {
         updateAdminCredential(cred.email, newPassword)
       } else {
         const users = getSubAdmins()
-        const user = users.find(u => u.email.toLowerCase() === session?.email.toLowerCase())
+        const user = users.find(u => u.email.toLowerCase() === session!.email.toLowerCase())
         if (!user) { showAlert(setPasswordAlert, 'error', 'Account not found'); return }
         if (user.passwordHash !== hashedCurrent) {
           showAlert(setPasswordAlert, 'error', 'Current password is incorrect')
           return
         }
         updateSubAdmin(user.id, { password: newPassword })
+        // Flush sub-admin password change to Supabase immediately
+        const { flushSubAdmins } = await import('@/lib/store')
+        await flushSubAdmins()
       }
       setCurrentPassword('')
       setNewPassword('')

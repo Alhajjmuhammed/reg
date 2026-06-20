@@ -1697,6 +1697,12 @@ export function getCurrentAdmin(): AdminSession | null {
   return getStorage<AdminSession | null>(STORAGE_KEYS.currentAdmin, null)
 }
 
+export function updateCurrentAdminName(name: string): void {
+  const session = getCurrentAdmin()
+  if (!session) return
+  setStorage(STORAGE_KEYS.currentAdmin, { ...session, name })
+}
+
 export function logoutAdmin(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(STORAGE_KEYS.currentAdmin)

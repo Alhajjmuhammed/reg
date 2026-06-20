@@ -98,7 +98,7 @@ function RolesContent() {
       </div>
 
       {tab === 'roles' && (
-        <RolesTab roles={roles} onReload={reload} />
+        <RolesTab roles={roles} users={users} onReload={reload} />
       )}
       {tab === 'users' && (
         <UsersTab users={users} roles={roles} onReload={reload} />
@@ -109,7 +109,7 @@ function RolesContent() {
 
 // ==================== ROLES TAB ====================
 
-function RolesTab({ roles, onReload }: { roles: AdminRole[]; onReload: () => void }) {
+function RolesTab({ roles, users, onReload }: { roles: AdminRole[]; users: SubAdminUser[]; onReload: () => void }) {
   const [editingRole, setEditingRole] = useState<AdminRole | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
@@ -117,7 +117,7 @@ function RolesTab({ roles, onReload }: { roles: AdminRole[]; onReload: () => voi
 
   function showAlert(type: 'success' | 'error', message: string) {
     setAlert({ type, message })
-    setTimeout(() => setAlert(null), 4000)
+    setTimeout(() => setAlert(null), 5000)
   }
 
   function handleEdit(role: AdminRole) {
@@ -130,15 +130,22 @@ function RolesTab({ roles, onReload }: { roles: AdminRole[]; onReload: () => voi
     setShowForm(true)
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
+    const assigned = users.filter(u => u.roleId === id)
     const ok = deleteAdminRole(id)
-    if (ok) {
-      showAlert('success', 'Role deleted')
-      setDeleteConfirm(null)
-      onReload()
+    if (!ok) { showAlert('error', 'Cannot delete system roles'); return }
+    // Deactivate any sub-admins whose role was just deleted
+    if (assigned.length > 0) {
+      for (const u of assigned) {
+        updateSubAdmin(u.id, { active: false })
+      }
+      await flushSubAdmins()
+      showAlert('error', `Role deleted. ${assigned.length} admin user${assigned.length > 1 ? 's were' : ' was'} deactivated because they had no role.`)
     } else {
-      showAlert('error', 'Cannot delete system roles')
+      showAlert('success', 'Role deleted')
     }
+    setDeleteConfirm(null)
+    onReload()
   }
 
   function handleSave(data: Omit<AdminRole, 'id' | 'createdAt'>, id?: string) {
@@ -200,13 +207,20 @@ function RolesTab({ roles, onReload }: { roles: AdminRole[]; onReload: () => voi
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   {deleteConfirm === role.id ? (
-                    <div className="flex items-center gap-1">
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(role.id)}>
-                        Confirm
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setDeleteConfirm(null)}>
-                        Cancel
-                      </Button>
+                    <div className="flex flex-col items-end gap-1">
+                      {users.filter(u => u.roleId === role.id).length > 0 && (
+                        <p className="text-xs text-destructive font-medium">
+                          {users.filter(u => u.roleId === role.id).length} user(s) will be deactivated
+                        </p>
+                      )}
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(role.id)}>
+                          Delete
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setDeleteConfirm(null)}>
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirm(role.id)}>
@@ -257,6 +271,7 @@ function RoleForm({
   const [color, setColor] = useState(role?.color ?? ROLE_COLORS[0])
   const [permissions, setPermissions] = useState<PermissionKey[]>(role?.permissions ?? [])
   const [expandedCats, setExpandedCats] = useState<string[]>(PERMISSION_CATEGORIES)
+  const [formError, setFormError] = useState('')
 
   function togglePermission(key: PermissionKey) {
     setPermissions(prev =>
@@ -280,7 +295,8 @@ function RoleForm({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!name.trim()) { setFormError('Role name cannot be empty'); return }
+    setFormError('')
     onSave({ name: name.trim(), description: description.trim(), color, permissions, isSystem: false }, role?.id)
   }
 
@@ -291,10 +307,15 @@ function RoleForm({
         <Button size="sm" variant="ghost" onClick={onCancel}><X className="h-4 w-4" /></Button>
       </div>
       <form onSubmit={handleSubmit} className="space-y-5">
+        {formError && (
+          <div className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />{formError}
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Role Name *</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Content Manager" required maxLength={50} />
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Content Manager" maxLength={50} />
           </div>
           <div className="space-y-2">
             <Label>Description</Label>
@@ -539,10 +560,15 @@ function UserForm({
   const [password, setPassword] = useState('')
   const [roleId, setRoleId] = useState(user?.roleId ?? (roles[0]?.id ?? ''))
   const [showPass, setShowPass] = useState(false)
+  const [formError, setFormError] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!user && password.length < 8) return
+    if (!name.trim()) { setFormError('Full name is required'); return }
+    if (!email.trim() || !email.includes('@')) { setFormError('Enter a valid email address'); return }
+    if (!user && password.length < 8) { setFormError('Password must be at least 8 characters'); return }
+    if (user && password && password.length < 8) { setFormError('New password must be at least 8 characters'); return }
+    setFormError('')
     onSave({ name: name.trim(), email: email.trim(), password, roleId }, user?.id)
   }
 
@@ -553,6 +579,11 @@ function UserForm({
         <Button size="sm" variant="ghost" onClick={onCancel}><X className="h-4 w-4" /></Button>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {formError && (
+          <div className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />{formError}
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Full Name *</Label>

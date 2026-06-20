@@ -181,7 +181,6 @@ export function SeatMap({ selectedSeats, onSeatSelect, maxSeats, disabled, curre
                     const isSelected = selectedSeats.includes(seatNum)
                     const isMyZone = !currentPackage || currentPackage === pkg
                     const isClickable = isMyZone && !disabled && !isTaken
-                    const colNum = (seatNum - ranges[pkg].start) % SEATS_PER_ROW + 1
 
                     const titleText = isTaken
                       ? `Seat ${seatNum} - booked`

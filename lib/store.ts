@@ -1205,16 +1205,12 @@ export function updateParticipant(id: string, data: Partial<Participant>): Parti
   participants[index] = updated
   setStorage(STORAGE_KEYS.participants, participants)
 
-  // When admin approves payment: always create/reset account with a fresh temp password
+  // When admin approves payment: upsert account with a fresh temp password
+  // upsertUserAccount always updates both password and participantId, covering
+  // re-registrations where the same email was used after a prior cancellation.
   if (becamePaid) {
     const loginPassword = generateTempPassword()
-    const existingAccount = getUserByParticipantId(updated.id)
-    if (existingAccount) {
-      // Reset to new temp password so participant can always use what's in the email
-      resetUserAccountPassword(updated.email, loginPassword)
-    } else {
-      createUserAccount(updated.email, loginPassword, updated.id)
-    }
+    upsertUserAccount(updated.email, loginPassword, updated.id)
     sendNotification(updated.email, updated.fullName, 'seat_confirmed', updated.id, {
       selectedPackage: updated.selectedPackage,
       seatNumbers: updated.seatNumbers,
@@ -1968,6 +1964,28 @@ export function deleteUserAccountByParticipantId(participantId: string): boolean
   if (filtered.length === accounts.length) return false
   setStorage(STORAGE_KEYS.userAccounts, filtered)
   return true
+}
+
+// Always produces a working account: updates password AND participantId on existing email,
+// creates fresh if email not found. Avoids the silent no-op in createUserAccount.
+export function upsertUserAccount(email: string, password: string, participantId: string): UserAccount {
+  const accounts = getStorage<UserAccount[]>(STORAGE_KEYS.userAccounts, [])
+  const idx = accounts.findIndex(a => a.email.toLowerCase() === email.toLowerCase())
+  if (idx !== -1) {
+    accounts[idx] = { ...accounts[idx], passwordHash: hashPassword(password), participantId }
+    setStorage(STORAGE_KEYS.userAccounts, accounts)
+    return accounts[idx]
+  }
+  const account: UserAccount = {
+    id: uuidv4(),
+    email: email.toLowerCase(),
+    passwordHash: hashPassword(password),
+    participantId,
+    createdAt: new Date().toISOString(),
+  }
+  accounts.push(account)
+  setStorage(STORAGE_KEYS.userAccounts, accounts)
+  return account
 }
 
 // ==================== EVENT DOCUMENTS ====================

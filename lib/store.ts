@@ -953,7 +953,11 @@ export function processPayment(
           })
           
           if (newPaymentStatus === 'paid') {
-            sendNotification(participant.email, participant.fullName, 'payment_received', participantId)
+            sendNotification(participant.email, participant.fullName, 'payment_received', participantId, {
+              selectedPackage: participant.selectedPackage,
+              totalAmount: participant.totalAmount,
+              paymentMethod: participant.paymentMethod,
+            })
           }
         }
         
@@ -1029,24 +1033,31 @@ export function getNotifications(): EmailNotification[] {
 }
 
 export function sendNotification(
-  email: string, 
-  name: string, 
-  type: NotificationType, 
-  participantId?: string
+  email: string,
+  name: string,
+  type: NotificationType,
+  participantId?: string,
+  emailData?: {
+    selectedPackage?: string
+    seatNumbers?: number[]
+    receiptNumber?: string
+    totalAmount?: number
+    paymentMethod?: string
+  }
 ): EmailNotification {
   const notifications = getNotifications()
-  
+
   const subjects: Record<NotificationType, string> = {
-    registration_confirmation: 'Registration Confirmed - Executive Masterclass',
-    payment_received: 'Payment Received - Executive Masterclass',
-    payment_reminder: 'Payment Reminder - Executive Masterclass',
-    seat_confirmed: 'Your Seat is Confirmed - Executive Masterclass',
-    waitlist_added: 'Added to Waitlist - Executive Masterclass',
-    waitlist_available: 'Seats Available! - Executive Masterclass',
-    event_reminder: 'Event Reminder - Executive Masterclass',
-    receipt: 'Payment Receipt - Executive Masterclass',
+    registration_confirmation: 'Registration Received',
+    payment_received: 'Payment Received',
+    payment_reminder: 'Payment Reminder',
+    seat_confirmed: 'Your Seat is Confirmed',
+    waitlist_added: 'Added to Waitlist',
+    waitlist_available: 'Seat Available for You!',
+    event_reminder: 'Event Reminder',
+    receipt: 'Payment Receipt',
   }
-  
+
   const notification: EmailNotification = {
     id: uuidv4(),
     recipientEmail: email,
@@ -1056,10 +1067,31 @@ export function sendNotification(
     sentAt: new Date().toISOString(),
     participantId,
   }
-  
+
   notifications.push(notification)
   setStorage(STORAGE_KEYS.notifications, notifications)
-  
+
+  // Fire-and-forget: send actual email via server-side API route
+  if (typeof window !== 'undefined') {
+    const settings = getSiteSettings()
+    fetch('/api/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type,
+        to: email,
+        name,
+        eventName: settings.eventName,
+        eventDate: settings.eventDate,
+        eventTime: settings.eventTime,
+        eventVenue: settings.eventVenue,
+        eventAddress: settings.eventAddress,
+        currency: 'TZS',
+        ...emailData,
+      }),
+    }).catch(err => console.error('[sendNotification] email API error:', err))
+  }
+
   return notification
 }
 
@@ -1110,8 +1142,15 @@ export function createParticipant(
   participants.push(newParticipant)
   setStorage(STORAGE_KEYS.participants, participants)
   
-  sendNotification(newParticipant.email, newParticipant.fullName, 'registration_confirmation', newParticipant.id)
-  
+  const notificationType = newParticipant.status === 'waitlist' ? 'waitlist_added' : 'registration_confirmation'
+  sendNotification(newParticipant.email, newParticipant.fullName, notificationType, newParticipant.id, {
+    selectedPackage: newParticipant.selectedPackage,
+    seatNumbers: newParticipant.seatNumbers,
+    receiptNumber: newParticipant.receiptNumber,
+    totalAmount: newParticipant.totalAmount,
+    paymentMethod: newParticipant.paymentMethod,
+  })
+
   return newParticipant
 }
 
@@ -1138,6 +1177,18 @@ export function updateParticipant(id: string, data: Partial<Participant>): Parti
   }
   participants[index] = updated
   setStorage(STORAGE_KEYS.participants, participants)
+
+  // Notify participant when admin approves their payment
+  if (becamePaid) {
+    sendNotification(updated.email, updated.fullName, 'seat_confirmed', updated.id, {
+      selectedPackage: updated.selectedPackage,
+      seatNumbers: updated.seatNumbers,
+      receiptNumber: updated.receiptNumber,
+      totalAmount: updated.totalAmount,
+      paymentMethod: updated.paymentMethod,
+    })
+  }
+
   return updated
 }
 

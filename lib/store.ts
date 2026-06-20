@@ -2193,6 +2193,22 @@ export function deleteSubAdmin(id: string): boolean {
   return true
 }
 
+// Explicitly await the Supabase write for sub-admins (use after create/update/delete
+// to guarantee data is persisted before the admin logs out or navigates away).
+export async function flushSubAdmins(): Promise<void> {
+  const users = getSubAdmins()
+  try {
+    const { supabase } = await import('./supabase')
+    await supabase
+      .from('app_store')
+      .upsert({ key: STORAGE_KEYS.subAdmins, value: users, updated_at: new Date().toISOString() })
+    // Refresh localStorage cache after confirmed Supabase write
+    saveSubAdminsLocal(users)
+  } catch (e) {
+    console.error('flushSubAdmins: Supabase write failed', e)
+  }
+}
+
 // ==================== TERMS & CONDITIONS ====================
 
 export function getTermsContent(): TermsContent {

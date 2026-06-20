@@ -15,6 +15,7 @@ import {
   createSubAdmin,
   updateSubAdmin,
   deleteSubAdmin,
+  flushSubAdmins,
 } from '@/lib/store'
 import { ADMIN_PERMISSIONS } from '@/lib/types'
 import type { AdminRole, SubAdminUser, PermissionKey } from '@/lib/types'
@@ -405,30 +406,33 @@ function UsersTab({ users, roles, onReload }: { users: SubAdminUser[]; roles: Ad
     setTimeout(() => setAlert(null), 4000)
   }
 
-  function handleSave(data: { name: string; email: string; password: string; roleId: string }, id?: string) {
+  async function handleSave(data: { name: string; email: string; password: string; roleId: string }, id?: string) {
     if (id) {
       const update: Parameters<typeof updateSubAdmin>[1] = { name: data.name, email: data.email, roleId: data.roleId }
       if (data.password) update.password = data.password
       updateSubAdmin(id, update)
-      showAlert('success', 'Admin user updated')
     } else {
       const existing = users.find(u => u.email.toLowerCase() === data.email.toLowerCase())
       if (existing) { showAlert('error', 'Email already in use'); return }
       createSubAdmin(data)
-      showAlert('success', 'Admin user created')
     }
+    // Await the Supabase write so data is persisted before the admin logs out
+    await flushSubAdmins()
+    showAlert('success', id ? 'Admin user updated' : 'Admin user created')
     setShowForm(false)
     setEditingUser(null)
     onReload()
   }
 
-  function handleToggleActive(user: SubAdminUser) {
+  async function handleToggleActive(user: SubAdminUser) {
     updateSubAdmin(user.id, { active: !user.active })
+    await flushSubAdmins()
     onReload()
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     deleteSubAdmin(id)
+    await flushSubAdmins()
     setDeleteConfirm(null)
     showAlert('success', 'Admin user deleted')
     onReload()

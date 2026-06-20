@@ -656,8 +656,6 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
     const origin  = window.location.origin
     const dateStr = new Date(application.submittedAt).toLocaleDateString('en-TZ', { day: 'numeric', month: 'long', year: 'numeric' })
     const sub  = tier.price
-    const vat  = Math.round(sub * 0.15)
-    const net  = sub + vat
     const fmt  = (n: number) => new Intl.NumberFormat('en-TZ', { minimumFractionDigits: 0 }).format(n) + ' TZS'
     const methodLabel = application.paymentMethod.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
     const statusColor = application.status === 'confirmed' ? '#16a34a' : '#d97706'
@@ -722,17 +720,9 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
       </div>
       <div style="text-align:right;min-width:140px">
         <table style="border-collapse:collapse;font-size:11px;width:100%">
-          <tr>
-            <td style="color:#64748b;padding:2px 8px;text-align:left">Sub Total</td>
-            <td style="text-align:right;padding:2px 0">${fmt(sub)}</td>
-          </tr>
-          <tr>
-            <td style="color:#64748b;padding:2px 8px;text-align:left">VAT (15%)</td>
-            <td style="text-align:right;padding:2px 0">${fmt(vat)}</td>
-          </tr>
           <tr style="border-top:2px solid #1e3a5f">
             <td style="font-weight:700;padding:6px 8px;text-align:left;color:#1e3a5f;font-size:12px">TOTAL</td>
-            <td style="font-weight:900;font-size:15px;color:#1e3a5f;text-align:right;padding:6px 0">${fmt(net)}</td>
+            <td style="font-weight:900;font-size:15px;color:#1e3a5f;text-align:right;padding:6px 0">${fmt(sub)}</td>
           </tr>
         </table>
       </div>
@@ -791,7 +781,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
       <ul style="margin:0 0 12px;padding-left:16px">
         <li style="margin-bottom:3px">Full payment is due within 14 days of the invoice date.</li>
         <li style="margin-bottom:3px">Accepted methods: bank transfer, Mobile Lipa Number, or as otherwise agreed in writing.</li>
-        <li style="margin-bottom:3px">All quoted prices are inclusive of VAT at the applicable rate (currently 15%).</li>
+        <li style="margin-bottom:3px">All quoted prices are as listed in the invoice.</li>
         <li style="margin-bottom:3px">Payments received after the due date may incur a late-payment fee of 5% per month.</li>
       </ul>
 
@@ -1187,9 +1177,9 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                   <p className="font-bold text-foreground">{tier.name}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Total Amount (incl. 15% VAT)</p>
+                  <p className="text-xs text-muted-foreground">Total Amount</p>
                   <p className="text-2xl font-extrabold text-primary">
-                    {fmtCurrency(Math.round(tier.price * 1.15), tier.currency)}
+                    {fmtCurrency(tier.price, tier.currency)}
                   </p>
                 </div>
               </div>
@@ -1258,7 +1248,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                       <span className="text-muted-foreground">Swift Code</span>
                       <span className="font-mono text-foreground">NLCBTZTXXXX</span>
                       <span className="text-muted-foreground">Amount</span>
-                      <span className="font-bold text-primary">{fmtCurrency(Math.round(tier.price * 1.15), tier.currency)}</span>
+                      <span className="font-bold text-primary">{fmtCurrency(tier.price, tier.currency)}</span>
                     </div>
                   </div>
                   <p className="text-sm text-foreground">
@@ -1503,9 +1493,8 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
               <div className="rounded-xl border bg-card p-4 flex items-center justify-between">
                 <p className="font-bold text-foreground">{tier.name} Sponsorship Package</p>
                 <div className="text-right">
-                  <p className="text-xs text-muted-foreground">incl. 15% VAT</p>
                   <p className="text-xl font-extrabold text-primary">
-                    {fmtCurrency(Math.round(tier.price * 1.15), tier.currency)}
+                    {fmtCurrency(tier.price, tier.currency)}
                   </p>
                 </div>
               </div>
@@ -1602,18 +1591,9 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                         <p className="text-[11px] text-gray-500 mt-1 m-0">{tier.description}</p>
                       </div>
                       <div className="shrink-0 min-w-[150px]">
-                        {[
-                          ['Sub Total', fmtCurrency(tier.price, tier.currency)],
-                          ['VAT (15%)', fmtCurrency(Math.round(tier.price * 0.15), tier.currency)],
-                        ].map(([k, v]) => (
-                          <div key={k} className="flex justify-between gap-4 text-[11px] py-0.5">
-                            <span className="text-gray-500">{k}</span>
-                            <span>{v}</span>
-                          </div>
-                        ))}
                         <div className="flex justify-between gap-4 pt-2 mt-1 border-t-2 font-black" style={{ borderColor: '#1e3a5f' }}>
                           <span style={{ color: '#1e3a5f' }}>TOTAL</span>
-                          <span className="text-base" style={{ color: '#1e3a5f' }}>{fmtCurrency(Math.round(tier.price * 1.15), tier.currency)}</span>
+                          <span className="text-base" style={{ color: '#1e3a5f' }}>{fmtCurrency(tier.price, tier.currency)}</span>
                         </div>
                       </div>
                     </div>

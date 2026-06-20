@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { loginUnified, getCurrentRole } from '@/lib/store'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { cn } from '@/lib/utils'
+import { useStoreReady } from '@/components/store-provider'
 
 const ROLE_DESTINATIONS = {
   admin: '/admin',
@@ -35,6 +36,7 @@ export default function LoginPage() {
 function LoginPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const storeReady = useStoreReady()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -60,8 +62,11 @@ function LoginPageInner() {
       setError('Please enter your email and password.')
       return
     }
+    if (!storeReady) {
+      setError('Still loading — please try again in a moment.')
+      return
+    }
     setIsLoading(true)
-    await new Promise(r => setTimeout(r, 400))
     const result = loginUnified(email.trim(), password)
     setIsLoading(false)
 
@@ -154,8 +159,8 @@ function LoginPageInner() {
                   <p className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">{error}</p>
                 )}
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Signing in…' : 'Sign In'}
+                <Button type="submit" className="w-full" disabled={isLoading || !storeReady}>
+                  {isLoading ? 'Signing in…' : !storeReady ? 'Loading…' : 'Sign In'}
                 </Button>
               </form>
 

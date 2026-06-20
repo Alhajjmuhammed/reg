@@ -429,6 +429,9 @@ function UsersTab({ users, roles, onReload }: { users: SubAdminUser[]; roles: Ad
 
   async function handleSave(data: { name: string; email: string; password: string; roleId: string }, id?: string) {
     if (id) {
+      // Exclude the user being edited from the duplicate check
+      const duplicate = users.find(u => u.id !== id && u.email.toLowerCase() === data.email.toLowerCase())
+      if (duplicate) { showAlert('error', 'Email already in use by another user'); return }
       const update: Parameters<typeof updateSubAdmin>[1] = { name: data.name, email: data.email, roleId: data.roleId }
       if (data.password) update.password = data.password
       updateSubAdmin(id, update)

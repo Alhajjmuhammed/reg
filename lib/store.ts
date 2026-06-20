@@ -2161,6 +2161,9 @@ export function getSubAdmins(): SubAdminUser[] {
 
 export function createSubAdmin(data: { name: string; email: string; password: string; roleId: string }): SubAdminUser {
   const users = getSubAdmins()
+  if (users.some(u => u.email.toLowerCase() === data.email.toLowerCase())) {
+    throw new Error('A user with this email already exists')
+  }
   const user: SubAdminUser = {
     id: uuidv4(),
     name: data.name,

@@ -67,7 +67,7 @@ export default function ReportsPage() {
 
   if (!stats) {
     return (
-      <AdminLayout>
+      <AdminLayout requiredPermission="reports.view">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[...Array(8)].map((_, i) => (
             <div key={i} className="h-28 animate-pulse rounded-xl bg-card" />
@@ -99,7 +99,7 @@ export default function ReportsPage() {
   const totalPaymentTxns = paymentMethods.reduce((s, m) => s + m.value, 0)
 
   return (
-    <AdminLayout>
+    <AdminLayout requiredPermission="reports.view">
       <div className="space-y-8">
 
         {/* Header */}

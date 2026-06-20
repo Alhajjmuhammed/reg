@@ -148,7 +148,7 @@ export default function AdminTrainersPage() {
   if (!mounted) return null
 
   return (
-    <AdminLayout>
+    <AdminLayout requiredPermission="trainers.manage">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

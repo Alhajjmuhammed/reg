@@ -29,7 +29,7 @@ export default function TermsPage() {
   }
 
   return (
-    <AdminLayout>
+    <AdminLayout requiredPermission="terms.manage">
       <div className="space-y-8">
 
         <div className="flex items-center gap-3">

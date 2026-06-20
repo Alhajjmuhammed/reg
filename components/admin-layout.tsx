@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { logoutAll, getCurrentAdmin, getAdminRoles } from '@/lib/store'
 import { useIdleLogout } from '@/lib/use-idle-logout'
@@ -22,6 +22,7 @@ import {
   GraduationCap,
   ScrollText,
   ShieldCheck,
+  ShieldX,
   UserCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -37,6 +38,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 
 interface AdminLayoutProps {
   children: React.ReactNode
+  requiredPermission?: PermissionKey
 }
 
 type NavItem = {
@@ -59,9 +61,13 @@ const ALL_NAV: NavItem[] = [
   { name: 'Settings',     href: '/admin/settings',      icon: Settings,       permission: 'settings.manage' },
 ]
 
-export function AdminLayout({ children }: AdminLayoutProps) {
+export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [session, setSession] = useState<AdminSession | null>(null)
+  // Eagerly initialize from localStorage so the first render already has the correct session —
+  // prevents the nav/Settings flash for sub-admins before useEffect runs.
+  const [session, setSession] = useState<AdminSession | null>(() =>
+    typeof window !== 'undefined' ? getCurrentAdmin() : null
+  )
   const storeReady = useStoreReady()
 
   useEffect(() => {
@@ -77,13 +83,24 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const isSuperAdmin = !session || session.isSuperAdmin !== false
 
-  const navigation: NavItem[] = ALL_NAV.filter(item => {
-    if (!item.permission) return true
-    if (isSuperAdmin) return true
-    const roles = getAdminRoles()
-    const role = roles.find(r => r.id === session?.roleId)
-    return role ? role.permissions.includes(item.permission) : false
-  })
+  // Recompute roles only when the store refreshes, not on every render.
+  const adminRoles = useMemo(() => getAdminRoles(), [storeReady])
+
+  const navigation = useMemo<NavItem[]>(() => {
+    return ALL_NAV.filter(item => {
+      if (!item.permission) return true
+      if (isSuperAdmin) return true
+      const role = adminRoles.find(r => r.id === session?.roleId)
+      return role ? role.permissions.includes(item.permission) : false
+    })
+  }, [isSuperAdmin, session?.roleId, adminRoles])
+
+  const hasPermission = useMemo(() => {
+    if (!storeReady || !session) return true // loading spinner or login redirect handles this
+    if (isSuperAdmin || !requiredPermission) return true
+    const role = adminRoles.find(r => r.id === session.roleId)
+    return role ? role.permissions.includes(requiredPermission) : false
+  }, [storeReady, session, isSuperAdmin, requiredPermission, adminRoles])
 
   const displayName = session?.name || 'Admin'
   const displayEmail = session?.email || ''
@@ -213,14 +230,27 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
         {/* Page content */}
         <main className="p-4 sm:p-6 lg:p-8">
-          {storeReady ? children : (
+          {!storeReady ? (
             <div className="flex items-center justify-center py-24">
               <div className="flex flex-col items-center gap-3">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                 <p className="text-sm text-muted-foreground">Loading data…</p>
               </div>
             </div>
-          )}
+          ) : !hasPermission ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+                <ShieldX className="h-8 w-8 text-destructive" />
+              </div>
+              <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                You don&apos;t have permission to view this page. Ask your administrator to update your role.
+              </p>
+              <Link href="/admin" className="text-sm font-medium text-primary hover:underline">
+                Return to Dashboard
+              </Link>
+            </div>
+          ) : children}
         </main>
       </div>
     </div>

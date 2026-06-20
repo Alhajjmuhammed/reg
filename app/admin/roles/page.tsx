@@ -46,7 +46,7 @@ type AlertState = { type: 'success' | 'error'; message: string } | null
 
 export default function RolesPage() {
   return (
-    <AdminLayout>
+    <AdminLayout requiredPermission="roles.manage">
       <RolesContent />
     </AdminLayout>
   )
@@ -433,9 +433,12 @@ function UsersTab({ users, roles, onReload }: { users: SubAdminUser[]; roles: Ad
       if (data.password) update.password = data.password
       updateSubAdmin(id, update)
     } else {
-      const existing = users.find(u => u.email.toLowerCase() === data.email.toLowerCase())
-      if (existing) { showAlert('error', 'Email already in use'); return }
-      createSubAdmin(data)
+      try {
+        createSubAdmin(data)
+      } catch (err) {
+        showAlert('error', err instanceof Error ? err.message : 'Failed to create user')
+        return
+      }
     }
     // Await the Supabase write so data is persisted before the admin logs out
     await flushSubAdmins()

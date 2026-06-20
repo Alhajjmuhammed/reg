@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function ParticipantsPage() {
   return (
-    <AdminLayout>
+    <AdminLayout requiredPermission="participants.view">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Participants</h1>

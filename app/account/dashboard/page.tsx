@@ -20,6 +20,9 @@ import {
   Pencil,
   Save,
   X,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,10 +33,12 @@ import { Separator } from '@/components/ui/separator'
 import {
   getCurrentUser,
   logoutAll,
+  loginUser,
   getParticipantById,
   getDocumentsForParticipant,
   updateParticipant,
   getAllPackages,
+  resetUserAccountPassword,
 } from '@/lib/store'
 import type { UserAccount, GroupMember, Package } from '@/lib/types'
 import type { Participant, EventDocument } from '@/lib/types'
@@ -130,6 +135,41 @@ export default function AccountDashboard() {
   const handleLogout = () => {
     logoutAll()
     window.location.href = '/login'
+  }
+
+  // Change password state
+  const [showChangePw, setShowChangePw] = useState(false)
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
+  const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false })
+  const [pwError, setPwError] = useState('')
+  const [pwSuccess, setPwSuccess] = useState(false)
+
+  const handleChangePassword = () => {
+    setPwError('')
+    if (!pwForm.current || !pwForm.next || !pwForm.confirm) {
+      setPwError('All fields are required.')
+      return
+    }
+    if (!loginUser(user!.email, pwForm.current)) {
+      setPwError('Current password is incorrect.')
+      return
+    }
+    if (pwForm.next.length < 6) {
+      setPwError('New password must be at least 6 characters.')
+      return
+    }
+    if (pwForm.next !== pwForm.confirm) {
+      setPwError('New passwords do not match.')
+      return
+    }
+    const ok = resetUserAccountPassword(user!.email, pwForm.next)
+    if (!ok) {
+      setPwError('Failed to update password. Please try again.')
+      return
+    }
+    setPwSuccess(true)
+    setPwForm({ current: '', next: '', confirm: '' })
+    setTimeout(() => { setPwSuccess(false); setShowChangePw(false) }, 2500)
   }
 
   if (!isMounted) return null
@@ -476,6 +516,60 @@ export default function AccountDashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* Change Password */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <KeyRound className="h-4 w-4 text-primary" />
+              Account Security
+            </CardTitle>
+            <CardDescription>Update your login password</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!showChangePw ? (
+              <Button variant="outline" size="sm" onClick={() => setShowChangePw(true)} className="gap-2">
+                <KeyRound className="h-4 w-4" />
+                Change Password
+              </Button>
+            ) : (
+              <div className="space-y-3 max-w-sm">
+                {[
+                  { key: 'current', label: 'Current Password', placeholder: 'Your current password' },
+                  { key: 'next', label: 'New Password', placeholder: 'Min 6 characters' },
+                  { key: 'confirm', label: 'Confirm New Password', placeholder: 'Re-enter new password' },
+                ].map(({ key, label, placeholder }) => (
+                  <div key={key} className="space-y-1.5">
+                    <Label className="text-sm">{label}</Label>
+                    <div className="relative">
+                      <Input
+                        type={showPw[key as keyof typeof showPw] ? 'text' : 'password'}
+                        placeholder={placeholder}
+                        value={pwForm[key as keyof typeof pwForm]}
+                        onChange={e => setPwForm(p => ({ ...p, [key]: e.target.value }))}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPw(p => ({ ...p, [key]: !p[key as keyof typeof p] }))}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        tabIndex={-1}
+                      >
+                        {showPw[key as keyof typeof showPw] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {pwError && <p className="text-sm text-destructive">{pwError}</p>}
+                {pwSuccess && <p className="text-sm text-green-600 font-medium">✓ Password updated successfully!</p>}
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" onClick={handleChangePassword}>Save Password</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setShowChangePw(false); setPwError(''); setPwForm({ current: '', next: '', confirm: '' }) }}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Account Info */}
         <div className="text-center text-xs text-muted-foreground pb-4">

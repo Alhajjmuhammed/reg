@@ -13,8 +13,6 @@ import {
   FileText,
   Share2,
   Printer,
-  Eye,
-  EyeOff,
   Lock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -36,7 +34,7 @@ import { GroupBookingSelector } from './group-booking-selector'
 import { PaymentGateway } from './payment-gateway'
 import { CouponInput } from './coupon-input'
 import { SeatMap } from './seat-map'
-import { createParticipant, getSeatConfiguration, useCoupon, createUserAccount, computeGroupPricing, getAllPackages, getSiteSettings, refreshParticipants, getParticipantByEmail } from '@/lib/store'
+import { createParticipant, getSeatConfiguration, useCoupon, computeGroupPricing, getAllPackages, getSiteSettings, refreshParticipants, getParticipantByEmail } from '@/lib/store'
 import { useStoreReady } from '@/components/store-provider'
 import {
   type PackageType,
@@ -96,9 +94,6 @@ interface FormData {
   // Package
   selectedPackage: PackageType
   selectedSeats: number[]
-  // Account
-  password: string
-  confirmPassword: string
   // Payment
   couponCode: string
   couponDiscount: number
@@ -124,8 +119,6 @@ const initialFormData: FormData = {
   trainingInterests: [],
   selectedPackage: 'standard',
   selectedSeats: [],
-  password: '',
-  confirmPassword: '',
   couponCode: '',
   couponDiscount: 0,
   notes: '',
@@ -152,8 +145,6 @@ export function RegistrationForm() {
   const [registrationResult, setRegistrationResult] = useState<RegistrationResult | null>(null)
   const [seatConfig, setSeatConfig] = useState({ totalSeats: 100, availableSeats: 100, reservedSeats: 0 })
   const [isMounted, setIsMounted] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [packages, setPackages] = useState<Package[]>([])
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null)
 
@@ -237,10 +228,6 @@ export function RegistrationForm() {
         newErrors.email = 'Invalid email format'
       if (!formData.country) newErrors.country = 'Country is required'
       if (!formData.city.trim()) newErrors.city = 'City is required'
-      if (!formData.password || formData.password.length < 6)
-        newErrors.password = 'Password must be at least 6 characters'
-      if (formData.confirmPassword !== formData.password)
-        newErrors.confirmPassword = 'Passwords do not match'
     }
 
     if (step === 3) {
@@ -348,10 +335,7 @@ export function RegistrationForm() {
       pendingApproval,
     })
 
-    // Create user account so participant can log in
-    if (formData.password) {
-      createUserAccount(formData.email, formData.password, participant.id)
-    }
+    // Account is created automatically when admin approves payment
   }
 
   const handlePaymentError = (error: string) => {
@@ -369,7 +353,6 @@ export function RegistrationForm() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         amount: totalAmount,
-        password: formData.password,
         participant: {
           fullName: formData.fullName,
           phoneNumber: formData.phoneNumber,
@@ -804,60 +787,10 @@ export function RegistrationForm() {
                 {errors.city && <p className="text-sm text-destructive">{errors.city}</p>}
               </div>
 
-              {/* Account Password */}
-              <div className="space-y-2 sm:col-span-2">
-                <div className="border-t pt-4">
-                  <h3 className="text-base font-medium text-foreground mb-1">Create Account</h3>
-                  <p className="text-sm text-muted-foreground mb-3">Set a password to access your registration dashboard</p>
+              <div className="sm:col-span-2">
+                <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                  🔐 Your login credentials will be emailed to you once your payment is approved by admin.
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">
-                  Password <span className="text-destructive">*</span>
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Min 6 characters"
-                    value={formData.password}
-                    onChange={(e) => updateField('password', e.target.value)}
-                    className={errors.password ? 'border-destructive pr-10' : 'pr-10'}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(p => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">
-                  Confirm Password <span className="text-destructive">*</span>
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    placeholder="Re-enter password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => updateField('confirmPassword', e.target.value)}
-                    className={errors.confirmPassword ? 'border-destructive pr-10' : 'pr-10'}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(p => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    tabIndex={-1}
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
               </div>
             </div>
           </div>

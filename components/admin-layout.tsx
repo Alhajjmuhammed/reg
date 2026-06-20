@@ -5,9 +5,7 @@ import Link from 'next/link'
 import { logoutAll, getCurrentAdmin, getAdminRoles } from '@/lib/store'
 import { useIdleLogout } from '@/lib/use-idle-logout'
 import { useStoreReady } from '@/components/store-provider'
-import type { AdminSession } from '@/lib/types'
-import { ADMIN_PERMISSIONS } from '@/lib/types'
-import type { PermissionKey } from '@/lib/types'
+import type { AdminSession, PermissionKey } from '@/lib/types'
 import {
   LayoutDashboard,
   Users,

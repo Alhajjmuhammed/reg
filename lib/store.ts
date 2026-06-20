@@ -1205,12 +1205,14 @@ export function updateParticipant(id: string, data: Partial<Participant>): Parti
   participants[index] = updated
   setStorage(STORAGE_KEYS.participants, participants)
 
-  // When admin approves payment: create account with auto-generated password and email credentials
+  // When admin approves payment: always create/reset account with a fresh temp password
   if (becamePaid) {
+    const loginPassword = generateTempPassword()
     const existingAccount = getUserByParticipantId(updated.id)
-    let loginPassword: string | undefined
-    if (!existingAccount) {
-      loginPassword = generateTempPassword()
+    if (existingAccount) {
+      // Reset to new temp password so participant can always use what's in the email
+      resetUserAccountPassword(updated.email, loginPassword)
+    } else {
       createUserAccount(updated.email, loginPassword, updated.id)
     }
     sendNotification(updated.email, updated.fullName, 'seat_confirmed', updated.id, {
@@ -1241,6 +1243,8 @@ export function deleteParticipant(id: string): boolean {
   const filtered = participants.filter((p) => p.id !== id)
   if (filtered.length === participants.length) return false
   setStorage(STORAGE_KEYS.participants, filtered)
+  // Clean up linked user account so stale login sessions can't persist
+  deleteUserAccountByParticipantId(id)
   return true
 }
 
@@ -1955,6 +1959,14 @@ export function resetUserAccountPassword(email: string, newPassword: string): bo
   if (idx === -1) return false
   accounts[idx] = { ...accounts[idx], passwordHash: hashPassword(newPassword) }
   setStorage(STORAGE_KEYS.userAccounts, accounts)
+  return true
+}
+
+export function deleteUserAccountByParticipantId(participantId: string): boolean {
+  const accounts = getStorage<UserAccount[]>(STORAGE_KEYS.userAccounts, [])
+  const filtered = accounts.filter(a => a.participantId !== participantId)
+  if (filtered.length === accounts.length) return false
+  setStorage(STORAGE_KEYS.userAccounts, filtered)
   return true
 }
 

@@ -183,27 +183,30 @@ export function SeatMap({ selectedSeats, onSeatSelect, maxSeats, disabled, curre
                     const isClickable = isMyZone && !disabled && !isTaken
                     const colNum = (seatNum - ranges[pkg].start) % SEATS_PER_ROW + 1
 
+                    const titleText = isTaken
+                      ? `Seat ${seatNum} - booked`
+                      : isSelected
+                      ? `Seat ${seatNum} - selected (click to remove)`
+                      : !isMyZone
+                      ? `Seat ${seatNum} - ${cfg.label} only`
+                      : `Seat ${seatNum} - click to select`
+
                     return (
                       <button
                         key={seatNum}
                         type="button"
                         onClick={() => handleSeatClick(seatNum)}
                         disabled={!isClickable}
-                        title={
-                          isTaken   ? `${rowLetter}${colNum} â€” booked` :
-                          isSelected ? `${rowLetter}${colNum} â€” selected (click to remove)` :
-                          !isMyZone  ? `${rowLetter}${colNum} â€” ${cfg.label} only` :
-                          `${rowLetter}${colNum} â€” click to select`
-                        }
+                        title={titleText}
                         className={cn(
-                          'flex h-7 w-7 items-center justify-center rounded text-[10px] font-bold transition-all duration-100',
+                          'flex h-7 w-9 items-center justify-center rounded text-[10px] font-bold transition-all duration-100',
                           isTaken    && cfg.taken,
                           isSelected && cfg.selected,
                           !isTaken && !isSelected && isClickable  && cfg.available,
                           !isTaken && !isSelected && !isClickable && cfg.locked,
                         )}
                       >
-                        {colNum}
+                        {seatNum}
                       </button>
                     )
                   })}
@@ -256,7 +259,7 @@ export function SeatMap({ selectedSeats, onSeatSelect, maxSeats, disabled, curre
             currentPackage === 'early-bird'    && 'text-amber-600 dark:text-amber-400',
             !currentPackage                    && 'text-primary',
           )}>
-            {selectedSeats.sort((a, b) => a - b).map(getSeatLabel).join(', ')}
+            {selectedSeats.sort((a, b) => a - b).join(', ')}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             {selectedSeats.length} of {maxSeats} seat{maxSeats !== 1 ? 's' : ''} selected

@@ -102,6 +102,10 @@ export default function AccountDashboard() {
     if (p) {
       setParticipant(p)
       setDocuments(getDocumentsForParticipant(p.selectedPackage))
+    } else if (storeReady) {
+      // Store is loaded but no matching participant — stale session, clear and redirect
+      logoutAll()
+      router.replace('/login')
     }
   }, [router, storeReady])
 
@@ -172,9 +176,7 @@ export default function AccountDashboard() {
     setTimeout(() => { setPwSuccess(false); setShowChangePw(false) }, 2500)
   }
 
-  if (!isMounted) return null
-
-  if (!user || !participant) {
+  if (!isMounted || !user || !participant) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />

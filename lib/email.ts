@@ -52,6 +52,7 @@ function createTransporter() {
 ───────────────────────────────────────────── */
 function baseTemplate(content: string, eventName: string, accentColor = '#1d4ed8'): string {
   const supportEmail = process.env.GMAIL_USER || ''
+  const siteUrl = process.env.SITE_URL || 'https://e-masterclass.eopsprimax.com'
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -94,8 +95,8 @@ function baseTemplate(content: string, eventName: string, accentColor = '#1d4ed8
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                       <tr>
                         <td>
-                          <p style="margin:0;color:#93c5fd;font-size:11px;letter-spacing:3px;text-transform:uppercase;font-weight:700;">HAMINASS</p>
-                          <h1 style="margin:6px 0 0 0;color:#ffffff;font-size:22px;font-weight:700;line-height:1.35;letter-spacing:-0.3px;">${eventName}</h1>
+                          <img src="${siteUrl}/images/haminass-logo.png" alt="HAMINASS" style="display:block;height:54px;width:auto;object-fit:contain;max-width:210px;margin-bottom:8px;" />
+                          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;line-height:1.35;letter-spacing:-0.3px;">${eventName}</h1>
                         </td>
                         <td align="right" valign="middle">
                           <!-- Decorative circle badge -->
@@ -164,7 +165,7 @@ function detailCard(rows: Array<{ label: string; value: string }>): string {
       <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td style="color:#64748b;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;white-space:nowrap;width:38%;">
+            <td style="color:#64748b;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;white-space:nowrap;width:38%;">
               ${label}
             </td>
             <td style="color:#1e293b;font-size:14px;font-weight:500;text-align:right;">
@@ -215,7 +216,7 @@ function ctaButton(label: string, href: string, color = '#1d4ed8'): string {
 }
 
 function sectionTitle(text: string): string {
-  return `<p style="margin:24px 0 10px 0;color:#0f172a;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">${text}</p>`
+  return `<p style="margin:24px 0 10px 0;color:#0f172a;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">${text}</p>`
 }
 
 function greetingBlock(name: string, headline: string, sub: string): string {

@@ -139,6 +139,7 @@ export function RegistrationForm() {
   const router = useRouter()
   const storeReady = useStoreReady()
   const [currentStep, setCurrentStep] = useState(1)
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [formData, setFormData] = useState<FormData>(initialFormData)
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
   const [isProcessing, setIsProcessing] = useState(false)
@@ -979,14 +980,37 @@ export function RegistrationForm() {
               />
             </div>
 
-            <PaymentGateway
-              amount={totalAmount}
-              onPaymentComplete={handlePaymentComplete}
-              onPaymentError={handlePaymentError}
-              onNGeniusRedirect={handleNGeniusRedirect}
-              isProcessing={isProcessing}
-              setIsProcessing={setIsProcessing}
-            />
+            {/* T&C Checkbox */}
+            <div className="flex items-start gap-3 rounded-lg border border-border bg-secondary/30 p-4">
+              <input
+                type="checkbox"
+                id="registration-terms"
+                checked={agreedToTerms}
+                onChange={e => setAgreedToTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 cursor-pointer accent-primary"
+              />
+              <label htmlFor="registration-terms" className="text-sm text-muted-foreground cursor-pointer leading-relaxed">
+                I have read and agree to the{' '}
+                <a href="/terms/registration" target="_blank" rel="noopener noreferrer" className="text-primary font-semibold underline underline-offset-2">
+                  Terms &amp; Conditions
+                </a>
+              </label>
+            </div>
+
+            {agreedToTerms ? (
+              <PaymentGateway
+                amount={totalAmount}
+                onPaymentComplete={handlePaymentComplete}
+                onPaymentError={handlePaymentError}
+                onNGeniusRedirect={handleNGeniusRedirect}
+                isProcessing={isProcessing}
+                setIsProcessing={setIsProcessing}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                Please agree to the Terms &amp; Conditions above to proceed with payment.
+              </p>
+            )}
           </div>
         )}
 

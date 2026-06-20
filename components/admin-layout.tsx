@@ -20,6 +20,7 @@ import {
   Ticket,
   MessageSquare,
   GraduationCap,
+  ScrollText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,6 +45,7 @@ const navigation = [
   { name: 'Documents', href: '/admin/documents', icon: FolderOpen },
   { name: 'Sponsorship', href: '/admin/sponsorship', icon: Handshake },
   { name: 'Trainers', href: '/admin/trainers', icon: GraduationCap },
+  { name: 'Terms', href: '/admin/terms', icon: ScrollText },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ]
 

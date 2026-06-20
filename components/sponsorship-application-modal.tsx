@@ -183,7 +183,7 @@ function InvoiceDoc({
           <img src="/images/haminass-logo.png" alt="Haminass Group" className="h-16 w-auto object-contain" />
           {/* Right — eOpsprimax logo */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/eopsprimax-logo.png" alt="eOpsprimax" className="h-16 w-auto object-contain" />
+          <img src="/images/eopsprimax-logo.png" alt="eOpsprimax" className="h-10 w-auto object-contain" />
         </div>
         {/* Row 2: INVOICE label + meta table (right-aligned) */}
         <div className="flex justify-end">
@@ -383,6 +383,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
   const [application, setApp]       = useState<SponsorshipApplication | null>(null)
   const [showCvv, setShowCvv]       = useState(false)
   const [docTab, setDocTab]         = useState<'receipt' | 'invoice'>('receipt')
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   // 3DS method (device fingerprinting) state
   const [method, setMethod] = useState<{
     threeDSMethodURL: string; threeDSServerTransID: string; methodNotifyUrl: string
@@ -576,7 +577,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
   <!-- Row 1: Both logos -->
   <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #d1d5db;padding-bottom:12px;margin-bottom:10px">
     <img src="${origin}/images/haminass-logo.png" style="height:60px;width:auto;object-fit:contain" crossorigin="anonymous"/>
-    <img src="${origin}/images/eopsprimax-logo.png" style="height:60px;width:auto;object-fit:contain" crossorigin="anonymous"/>
+    <img src="${origin}/images/eopsprimax-logo.png" style="height:40px;width:auto;object-fit:contain" crossorigin="anonymous"/>
   </div>
   <!-- Row 2: INVOICE label + date table -->
   <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
@@ -686,7 +687,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
   <!-- Header: logos -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
     <img src="${origin}/images/haminass-logo.png" style="height:56px;width:auto;object-fit:contain" crossorigin="anonymous"/>
-    <img src="${origin}/images/eopsprimax-logo.png" style="height:56px;width:auto;object-fit:contain" crossorigin="anonymous"/>
+    <img src="${origin}/images/eopsprimax-logo.png" style="height:36px;width:auto;object-fit:contain" crossorigin="anonymous"/>
   </div>
   <!-- Title band -->
   <div style="background:#1e3a5f;color:#fff;text-align:center;padding:12px 0;margin:16px 0 0">
@@ -1175,6 +1176,23 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                   </div>
                 </div>
               )}
+
+              {/* T&C Checkbox */}
+              <div className="flex items-start gap-3 rounded-lg border border-border bg-secondary/30 p-4">
+                <input
+                  type="checkbox"
+                  id="sponsorship-terms"
+                  checked={agreedToTerms}
+                  onChange={e => setAgreedToTerms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 cursor-pointer accent-primary"
+                />
+                <label htmlFor="sponsorship-terms" className="text-sm text-muted-foreground cursor-pointer leading-relaxed">
+                  I have read and agree to the{' '}
+                  <a href="/terms/sponsorship" target="_blank" rel="noopener noreferrer" className="text-primary font-semibold underline underline-offset-2">
+                    Sponsorship Terms &amp; Conditions
+                  </a>
+                </label>
+              </div>
             </div>
           )}
 
@@ -1551,7 +1569,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/images/haminass-logo.png" alt="Haminass" className="h-10 w-auto object-contain" />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/images/eopsprimax-logo.png" alt="eOpsprimax" className="h-10 w-auto object-contain" />
+                    <img src="/images/eopsprimax-logo.png" alt="eOpsprimax" className="h-7 w-auto object-contain" />
                   </div>
                   <div className="text-center py-3 px-4" style={{ background: '#1e3a5f', color: '#fff' }}>
                     <p className="font-black text-xl tracking-widest m-0">OFFICIAL RECEIPT</p>
@@ -1690,7 +1708,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
               </Button>
             )}
             {step < 2 && (
-              <Button onClick={handleNext} size="lg" className="gap-2 px-8">
+              <Button onClick={handleNext} size="lg" className="gap-2 px-8" disabled={step === 1 && !agreedToTerms}>
                 Next <ArrowRight className="h-4 w-4" />
               </Button>
             )}

@@ -38,6 +38,7 @@ import type {
   AcademicPartner,
   AcademicPartnerSettings,
   GroupPricingTier,
+  TermsContent,
 } from './types'
 import {
   DEFAULT_SEAT_CONFIG,
@@ -61,6 +62,7 @@ import {
   DEFAULT_ADMIN_CREDENTIAL,
   DEFAULT_ACADEMIC_PARTNERS,
   DEFAULT_ACADEMIC_PARTNER_SETTINGS,
+  DEFAULT_TERMS,
 } from './types'
 
 // ==================== SUPABASE SYNC ====================
@@ -171,6 +173,8 @@ const STORAGE_KEYS = {
   // Academic partners
   academicPartners: 'masterclass_academic_partners',
   academicPartnerSettings: 'masterclass_academic_partner_settings',
+  // Terms & Conditions
+  termsContent: 'masterclass_terms_content',
 }
 
 // Helper to safely access localStorage (session keys only)
@@ -2035,4 +2039,17 @@ export function deleteDocument(id: string): boolean {
 
 export function getDocumentsForParticipant(packageType: string): EventDocument[] {
   return getDocuments().filter(d => d.availableTo === 'all' || d.availableTo === packageType)
+}
+
+// ==================== TERMS & CONDITIONS ====================
+
+export function getTermsContent(): TermsContent {
+  return getStorage<TermsContent>(STORAGE_KEYS.termsContent, DEFAULT_TERMS)
+}
+
+export function setTermsContent(data: Partial<TermsContent>): TermsContent {
+  const current = getTermsContent()
+  const updated = { ...current, ...data }
+  setStorage(STORAGE_KEYS.termsContent, updated)
+  return updated
 }

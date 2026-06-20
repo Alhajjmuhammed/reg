@@ -1410,3 +1410,39 @@ export interface EmailNotification {
   sentAt: string
   participantId?: string
 }
+
+// ==================== TERMS & CONDITIONS ====================
+
+export interface TermsContent {
+  registration: string
+  sponsorship: string
+}
+
+export const DEFAULT_TERMS: TermsContent = {
+  registration: `<h2>Terms and Conditions</h2>
+<p>By registering for the Executive Masterclass, you agree to the following terms and conditions:</p>
+<h3>1. Registration &amp; Payment</h3>
+<p>Registration is confirmed upon receipt of full payment. Seats are allocated on a first-come, first-served basis. A temporary login password will be emailed to you upon approval of your registration.</p>
+<h3>2. Cancellation Policy</h3>
+<p>Cancellations made more than 14 days before the event will receive a full refund. Cancellations within 14 days of the event are non-refundable but your seat may be transferred to another participant.</p>
+<h3>3. Event Changes</h3>
+<p>HAMINASS Group Limited reserves the right to change the event venue, date, or program content with prior notice to registered participants.</p>
+<h3>4. Liability</h3>
+<p>HAMINASS Group Limited shall not be liable for any indirect or consequential losses arising from participation in the event.</p>
+<h3>5. Privacy</h3>
+<p>Your personal information will be used solely for registration and event communications. We will not share your data with third parties without your consent.</p>`,
+  sponsorship: `<h2>Sponsorship Terms and Conditions</h2>
+<p>By submitting a sponsorship application, you agree to the following terms:</p>
+<h3>1. Payment</h3>
+<p>Full sponsorship payment is due within 14 days of the invoice date. Sponsorship benefits are activated only upon receipt of full payment.</p>
+<h3>2. Branding &amp; Materials</h3>
+<p>Sponsor logos and marketing materials must be provided in high resolution at least 21 days before the event. HAMINASS Group Limited reserves the right to approve all branding materials.</p>
+<h3>3. Benefits</h3>
+<p>All sponsorship packages and their associated benefits are as described in the invoice. HAMINASS Group Limited reserves the right to make reasonable adjustments to package details where circumstances require, with prior notification to the Sponsor.</p>
+<h3>4. Cancellation</h3>
+<p>Sponsorship cancellations made more than 30 days before the event will receive a 50% refund. No refunds are issued within 30 days of the event.</p>
+<h3>5. Liability</h3>
+<p>HAMINASS Group Limited shall not be liable for any indirect, incidental, special, or consequential losses arising from the sponsorship arrangement. Our total aggregate liability shall not exceed the total amount paid by the Sponsor.</p>
+<h3>6. Entire Agreement</h3>
+<p>These Terms and Conditions, together with the invoice, constitute the entire agreement between the parties and supersede all prior agreements and understandings.</p>`,
+}

@@ -100,6 +100,11 @@ export async function initStore(): Promise<void> {
       for (const row of data) {
         memStore[row.key] = row.value
       }
+      // Keep localStorage sub-admin cache in sync with what Supabase returned
+      const subAdminsRow = data.find(r => r.key === 'masterclass_sub_admins')
+      if (subAdminsRow) {
+        setLocalStorage('masterclass_sub_admins_local', subAdminsRow.value)
+      }
     }
   } catch (e) {
     console.error('initStore failed, using localStorage fallback', e)
@@ -2128,9 +2133,24 @@ export function deleteAdminRole(id: string): boolean {
 }
 
 // ==================== SUB-ADMIN USERS ====================
+// Sub-admin list is kept in both memStore/Supabase (source of truth) AND
+// localStorage (login-cache). The localStorage copy ensures login works even
+// if the page is closed before the async Supabase sync finishes.
+
+const SUB_ADMINS_LOCAL_KEY = 'masterclass_sub_admins_local'
+
+function saveSubAdminsLocal(users: SubAdminUser[]): void {
+  setLocalStorage(SUB_ADMINS_LOCAL_KEY, users)
+}
 
 export function getSubAdmins(): SubAdminUser[] {
-  return getStorage<SubAdminUser[]>(STORAGE_KEYS.subAdmins, [])
+  // memStore is populated from Supabase during initStore(); use it when available
+  if (STORAGE_KEYS.subAdmins in memStore) {
+    return memStore[STORAGE_KEYS.subAdmins] as SubAdminUser[]
+  }
+  // Fall back to localStorage backup (e.g. during login before initStore loads from Supabase,
+  // or if the Supabase sync raced with a logout)
+  return getLocalStorage<SubAdminUser[]>(SUB_ADMINS_LOCAL_KEY, [])
 }
 
 export function createSubAdmin(data: { name: string; email: string; password: string; roleId: string }): SubAdminUser {
@@ -2146,6 +2166,7 @@ export function createSubAdmin(data: { name: string; email: string; password: st
   }
   users.push(user)
   setStorage(STORAGE_KEYS.subAdmins, users)
+  saveSubAdminsLocal(users)
   return user
 }
 
@@ -2159,6 +2180,7 @@ export function updateSubAdmin(id: string, data: { name?: string; email?: string
   if (rest.email) update.email = rest.email.toLowerCase()
   users[idx] = { ...users[idx], ...update }
   setStorage(STORAGE_KEYS.subAdmins, users)
+  saveSubAdminsLocal(users)
   return users[idx]
 }
 
@@ -2167,6 +2189,7 @@ export function deleteSubAdmin(id: string): boolean {
   const filtered = users.filter(u => u.id !== id)
   if (filtered.length === users.length) return false
   setStorage(STORAGE_KEYS.subAdmins, filtered)
+  saveSubAdminsLocal(filtered)
   return true
 }
 

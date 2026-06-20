@@ -166,26 +166,32 @@ function InvoiceDoc({
   const dateStr = (issuedAt ? new Date(issuedAt) : new Date())
     .toLocaleDateString('en-TZ', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
-  const subTotal  = tier.price
-  const vatAmount = Math.round(subTotal * 0.15)
-  const netTotal  = subTotal + vatAmount
-  const amountWords = toWords(netTotal, tier.currency)
+  const subTotal    = tier.price
+  const amountWords = toWords(subTotal, tier.currency)
 
   return (
-    <div className="bg-white text-gray-900 text-xs print:border-0 print:shadow-none font-sans" style={{ fontFamily: 'Arial, sans-serif' }}>
+    <div className="relative bg-white text-gray-900 text-xs print:border-0 print:shadow-none font-sans overflow-hidden" style={{ fontFamily: 'Arial, sans-serif' }}>
+
+      {/* Watermark */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/images/wellonge-watermark.png"
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+        style={{ opacity: 0.05, zIndex: 0 }}
+      />
+
+      <div style={{ position: 'relative', zIndex: 1 }}>
 
       {/* Header: Row 1 — logos; Row 2 — INVOICE + date table */}
       <div className="pb-3 border-b-2 border-gray-300 space-y-3">
-        {/* Row 1: Both logos */}
         <div className="flex items-center justify-between">
-          {/* Left — Haminass logo */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/images/haminass-logo.png" alt="Haminass Group" className="h-16 w-auto object-contain" />
-          {/* Right — eOpsprimax logo */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/images/eopsprimax-logo.png" alt="eOpsprimax" className="h-10 w-auto object-contain" />
         </div>
-        {/* Row 2: INVOICE label + meta table (right-aligned) */}
         <div className="flex justify-end">
           <div className="text-right">
             <div className="inline-block bg-blue-700 text-white font-extrabold text-lg px-6 py-1 mb-2 tracking-widest">
@@ -194,20 +200,20 @@ function InvoiceDoc({
             <table className="text-xs border border-gray-400 border-collapse ml-auto">
               <tbody>
                 <tr>
-                  <td className="border border-gray-400 px-2 py-0.5 font-semibold bg-gray-50">DATE:</td>
-                  <td className="border border-gray-400 px-2 py-0.5">{dateStr}</td>
+                  <td className="border border-gray-400 px-3 py-1 font-semibold bg-gray-50">DATE:</td>
+                  <td className="border border-gray-400 px-3 py-1">{dateStr}</td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-400 px-2 py-0.5 font-semibold bg-gray-50">Invoice No:</td>
-                  <td className="border border-gray-400 px-2 py-0.5 font-mono">{invoiceNumber || 'PREVIEW'}</td>
+                  <td className="border border-gray-400 px-3 py-1 font-semibold bg-gray-50">Invoice No:</td>
+                  <td className="border border-gray-400 px-3 py-1 font-mono">{invoiceNumber || 'PREVIEW'}</td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-400 px-2 py-0.5 font-semibold bg-gray-50">TIN:</td>
-                  <td className="border border-gray-400 px-2 py-0.5">141 – 008 – 897</td>
+                  <td className="border border-gray-400 px-3 py-1 font-semibold bg-gray-50">TIN:</td>
+                  <td className="border border-gray-400 px-3 py-1">141 – 008 – 897</td>
                 </tr>
                 <tr>
-                  <td className="border border-gray-400 px-2 py-0.5 font-semibold bg-gray-50">ZRA:</td>
-                  <td className="border border-gray-400 px-2 py-0.5">Z025674759</td>
+                  <td className="border border-gray-400 px-3 py-1 font-semibold bg-gray-50">ZRA:</td>
+                  <td className="border border-gray-400 px-3 py-1">Z025674759</td>
                 </tr>
               </tbody>
             </table>
@@ -217,15 +223,10 @@ function InvoiceDoc({
 
       {/* To / From */}
       <div className="grid grid-cols-2 gap-6 py-3 border-b border-gray-300">
-        {/* To: — sponsor details */}
         <div>
           <p className="font-semibold mb-1">To: ………………………………………</p>
-          {/* Contact person name first */}
           {form.contactName && <p className="font-bold text-sm">{form.contactName}.</p>}
-          {/* Company name below the contact name */}
-          {form.companyName && (
-            <p className="font-semibold">{form.companyName}.</p>
-          )}
+          {form.companyName && <p className="font-semibold">{form.companyName}.</p>}
           {form.location && <p>{form.location},</p>}
           {form.billingAddress && <p>{form.billingAddress}</p>}
           {form.contactPhone && <p>Tel: {form.contactPhone}</p>}
@@ -233,7 +234,6 @@ function InvoiceDoc({
           {form.billingCity && <p>{form.billingCity} – {form.billingCountry}.</p>}
           {form.taxId && <p>TIN: {form.taxId}</p>}
         </div>
-        {/* From: — Haminass */}
         <div>
           <p className="font-semibold mb-1">From: ………………………………………</p>
           <p className="font-bold text-sm">HAMINASS GROUP LIMITED.</p>
@@ -248,24 +248,24 @@ function InvoiceDoc({
 
       {/* Service table */}
       <div className="py-3">
-        <p className="text-center font-bold text-sm border border-gray-400 py-1 mb-0 bg-gray-100 tracking-widest">
+        <p className="text-center font-bold text-sm border border-gray-400 py-1.5 mb-0 bg-gray-100 tracking-widest">
           SERVICE TYPE: INVOICE
         </p>
         <table className="w-full border-collapse border border-gray-400 text-xs">
           <thead>
             <tr className="bg-gray-100">
-              <th className="border border-gray-400 px-2 py-1 text-center w-8">S/N</th>
-              <th className="border border-gray-400 px-2 py-1 text-left w-32">Service Name:</th>
-              <th className="border border-gray-400 px-2 py-1 text-left">Service Descriptions</th>
-              <th className="border border-gray-400 px-2 py-1 text-center w-12">Qty</th>
-              <th className="border border-gray-400 px-2 py-1 text-right w-28">Total Amount</th>
+              <th className="border border-gray-400 px-3 py-2 text-center w-8">S/N</th>
+              <th className="border border-gray-400 px-3 py-2 text-left w-32">Service Name:</th>
+              <th className="border border-gray-400 px-3 py-2 text-left">Service Descriptions</th>
+              <th className="border border-gray-400 px-3 py-2 text-center w-12">Qty</th>
+              <th className="border border-gray-400 px-3 py-2 text-right w-28">Total Amount</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td className="border border-gray-400 px-2 py-3 text-center align-top">1.</td>
-              <td className="border border-gray-400 px-2 py-3 align-top font-semibold">{tier.name} Sponsorship</td>
-              <td className="border border-gray-400 px-2 py-3 align-top">
+              <td className="border border-gray-400 px-3 py-3 text-center align-top">1.</td>
+              <td className="border border-gray-400 px-3 py-3 align-top font-semibold">{tier.name} Sponsorship</td>
+              <td className="border border-gray-400 px-3 py-3 align-top">
                 <p>{tier.description}</p>
                 <ul className="mt-1 space-y-0.5">
                   {tier.benefits.filter(b => b.included).slice(0, 4).map((b, i) => (
@@ -273,32 +273,17 @@ function InvoiceDoc({
                   ))}
                 </ul>
               </td>
-              <td className="border border-gray-400 px-2 py-3 text-center align-top">1</td>
-              <td className="border border-gray-400 px-2 py-3 text-right align-top font-semibold whitespace-nowrap">
+              <td className="border border-gray-400 px-3 py-3 text-center align-top">1</td>
+              <td className="border border-gray-400 px-3 py-3 text-right align-top font-semibold whitespace-nowrap">
                 {fmtCurrency(subTotal, tier.currency)}
               </td>
             </tr>
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={3} className="border border-gray-400 px-2 py-1" />
-              <td className="border border-gray-400 px-2 py-1 text-right font-semibold bg-gray-50">Sub Total:</td>
-              <td className="border border-gray-400 px-2 py-1 text-right font-bold">
+              <td colSpan={4} className="border border-gray-400 px-3 py-2.5 text-right font-bold bg-gray-50">Total Amount:</td>
+              <td className="border border-gray-400 px-3 py-2.5 text-right font-extrabold whitespace-nowrap">
                 {fmtCurrency(subTotal, tier.currency)}
-              </td>
-            </tr>
-            <tr>
-              <td colSpan={3} className="border border-gray-400 px-2 py-0.5" />
-              <td className="border border-gray-400 px-2 py-0.5 text-right font-semibold bg-gray-50">VAT (15%):</td>
-              <td className="border border-gray-400 px-2 py-0.5 text-right">
-                {fmtCurrency(vatAmount, tier.currency)}
-              </td>
-            </tr>
-            <tr>
-              <td colSpan={3} className="border border-gray-400 px-2 py-1" />
-              <td className="border border-gray-400 px-2 py-1 text-right font-bold bg-gray-100">Net Total:</td>
-              <td className="border border-gray-400 px-2 py-1 text-right font-extrabold">
-                {fmtCurrency(netTotal, tier.currency)}
               </td>
             </tr>
           </tfoot>
@@ -326,17 +311,19 @@ function InvoiceDoc({
 
       {/* Thank you note */}
       <p className="text-[10px] text-gray-500 text-center italic border-t border-gray-200 pt-2">
-        If you have any questions concerning this invoice, please don't hesitate to contact us through
+        If you have any questions concerning this invoice, please don&apos;t hesitate to contact us through
         Call/WhatsApp Number +255 779 507 985 or Email Us: billings@haminass.com
       </p>
       <p className="text-[10px] text-gray-500 text-center font-semibold">
         THANK YOU FOR GIVING A CHANCE TO DO A BUSINESS WITH YOU AGAIN!
       </p>
 
-      {/* Footer — blue text */}
+      {/* Footer */}
       <div className="border-t-2 border-orange-400 mt-2 pt-1 text-[9px] text-blue-600 text-center">
         Address: Mwanakwerekwe – Zanzibar – Tanzania | P.O.BOX: 2704 | Tell: +255 658 338 646 | +255 710 967 616<br />
         Email: info@haminass.com &nbsp; http://www.haminass.com
+      </div>
+
       </div>
     </div>
   )
@@ -555,14 +542,12 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
       ? new Date(application.submittedAt).toLocaleDateString('en-TZ', { day: '2-digit', month: '2-digit', year: 'numeric' })
       : dateStr
     const sub  = tier.price
-    const vat  = Math.round(sub * 0.15)
-    const net  = sub + vat
     const fmt  = (n: number) => new Intl.NumberFormat('en-TZ', { minimumFractionDigits: 0 }).format(n) + ' TZS'
-    const words = net >= 1_000_000
-      ? `${(net / 1_000_000).toFixed(net % 1_000_000 === 0 ? 0 : 1)} Million TZS Only`
-      : net >= 1_000
-        ? `${(net / 1_000).toFixed(net % 1_000 === 0 ? 0 : 1)} Thousand TZS Only`
-        : `${net.toLocaleString()} TZS Only`
+    const words = sub >= 1_000_000
+      ? `${(sub / 1_000_000).toFixed(sub % 1_000_000 === 0 ? 0 : 1)} Million TZS Only`
+      : sub >= 1_000
+        ? `${(sub / 1_000).toFixed(sub % 1_000 === 0 ? 0 : 1)} Thousand TZS Only`
+        : `${sub.toLocaleString()} TZS Only`
     const benefits = tier.benefits.filter(b => b.included).slice(0, 4).map(b => `<li style="color:#6b7280;margin:2px 0">✓ ${b.text}</li>`).join('')
     const toName    = form.contactName   ? `<p style="font-weight:700;font-size:13px;margin:0 0 2px">${form.contactName}.</p>` : ''
     const toCompany = form.companyName   ? `<p style="font-weight:600;margin:0 0 2px">${form.companyName}.</p>` : ''
@@ -573,7 +558,12 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
     const toCity    = form.billingCity   ? `<p style="margin:0 0 2px">${form.billingCity} – ${form.billingCountry}.</p>` : ''
     const toTin     = form.taxId         ? `<p style="margin:0 0 2px">TIN: ${form.taxId}</p>` : ''
     return `
-<div style="padding:24px;background:#fff;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111;line-height:1.5">
+<div style="position:relative;padding:24px;background:#fff;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111;line-height:1.5;overflow:hidden">
+  <!-- Watermark -->
+  <img src="${origin}/images/wellonge-watermark.png" crossorigin="anonymous"
+       style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60%;max-width:400px;opacity:0.05;pointer-events:none;z-index:0" />
+  <!-- Content -->
+  <div style="position:relative;z-index:1">
   <!-- Row 1: Both logos -->
   <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #d1d5db;padding-bottom:12px;margin-bottom:10px">
     <img src="${origin}/images/haminass-logo.png" style="height:60px;width:auto;object-fit:contain" crossorigin="anonymous"/>
@@ -584,10 +574,10 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
     <div style="text-align:right">
       <div style="display:inline-block;background:#1d4ed8;color:#fff;font-weight:900;font-size:18px;padding:4px 24px;margin-bottom:8px;letter-spacing:0.1em">INVOICE</div><br/>
       <table style="border-collapse:collapse;font-size:11px;margin-left:auto">
-        <tr><td style="border:1px solid #9ca3af;padding:2px 8px;font-weight:600;background:#f9fafb">DATE:</td><td style="border:1px solid #9ca3af;padding:2px 8px">${issuedStr}</td></tr>
-        <tr><td style="border:1px solid #9ca3af;padding:2px 8px;font-weight:600;background:#f9fafb">Invoice No:</td><td style="border:1px solid #9ca3af;padding:2px 8px;font-family:monospace">${invNo}</td></tr>
-        <tr><td style="border:1px solid #9ca3af;padding:2px 8px;font-weight:600;background:#f9fafb">TIN:</td><td style="border:1px solid #9ca3af;padding:2px 8px">141 – 008 – 897</td></tr>
-        <tr><td style="border:1px solid #9ca3af;padding:2px 8px;font-weight:600;background:#f9fafb">ZRA:</td><td style="border:1px solid #9ca3af;padding:2px 8px">Z025674759</td></tr>
+        <tr><td style="border:1px solid #9ca3af;padding:5px 10px;font-weight:600;background:#f9fafb">DATE:</td><td style="border:1px solid #9ca3af;padding:5px 10px">${issuedStr}</td></tr>
+        <tr><td style="border:1px solid #9ca3af;padding:5px 10px;font-weight:600;background:#f9fafb">Invoice No:</td><td style="border:1px solid #9ca3af;padding:5px 10px;font-family:monospace">${invNo}</td></tr>
+        <tr><td style="border:1px solid #9ca3af;padding:5px 10px;font-weight:600;background:#f9fafb">TIN:</td><td style="border:1px solid #9ca3af;padding:5px 10px">141 – 008 – 897</td></tr>
+        <tr><td style="border:1px solid #9ca3af;padding:5px 10px;font-weight:600;background:#f9fafb">ZRA:</td><td style="border:1px solid #9ca3af;padding:5px 10px">Z025674759</td></tr>
       </table>
     </div>
   </div>
@@ -609,48 +599,37 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
     </div>
   </div>
   <!-- Service table -->
-  <p style="text-align:center;font-weight:700;font-size:13px;border:1px solid #9ca3af;padding:4px;background:#f3f4f6;letter-spacing:0.08em;margin:0">SERVICE TYPE: INVOICE</p>
+  <p style="text-align:center;font-weight:700;font-size:13px;border:1px solid #9ca3af;padding:6px;background:#f3f4f6;letter-spacing:0.08em;margin:0">SERVICE TYPE: INVOICE</p>
   <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
     <thead>
       <tr style="background:#f3f4f6">
-        <th style="border:1px solid #9ca3af;padding:4px 6px;text-align:center;width:32px">S/N</th>
-        <th style="border:1px solid #9ca3af;padding:4px 6px;text-align:left;width:120px">Service Name:</th>
-        <th style="border:1px solid #9ca3af;padding:4px 6px;text-align:left">Service Descriptions</th>
-        <th style="border:1px solid #9ca3af;padding:4px 6px;text-align:center;width:40px">Qty</th>
-        <th style="border:1px solid #9ca3af;padding:4px 6px;text-align:right;width:110px">Total Amount</th>
+        <th style="border:1px solid #9ca3af;padding:7px 10px;text-align:center;width:32px">S/N</th>
+        <th style="border:1px solid #9ca3af;padding:7px 10px;text-align:left;width:120px">Service Name:</th>
+        <th style="border:1px solid #9ca3af;padding:7px 10px;text-align:left">Service Descriptions</th>
+        <th style="border:1px solid #9ca3af;padding:7px 10px;text-align:center;width:40px">Qty</th>
+        <th style="border:1px solid #9ca3af;padding:7px 10px;text-align:right;width:110px">Total Amount</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td style="border:1px solid #9ca3af;padding:8px 6px;text-align:center;vertical-align:top">1.</td>
-        <td style="border:1px solid #9ca3af;padding:8px 6px;vertical-align:top;font-weight:600">${tier.name} Sponsorship</td>
-        <td style="border:1px solid #9ca3af;padding:8px 6px;vertical-align:top">
-          <p style="margin:0 0 4px">${tier.description}</p>
+        <td style="border:1px solid #9ca3af;padding:10px;text-align:center;vertical-align:top">1.</td>
+        <td style="border:1px solid #9ca3af;padding:10px;vertical-align:top;font-weight:600">${tier.name} Sponsorship</td>
+        <td style="border:1px solid #9ca3af;padding:10px;vertical-align:top">
+          <p style="margin:0 0 6px">${tier.description}</p>
           <ul style="margin:4px 0 0;padding:0;list-style:none">${benefits}</ul>
         </td>
-        <td style="border:1px solid #9ca3af;padding:8px 6px;text-align:center;vertical-align:top">1</td>
-        <td style="border:1px solid #9ca3af;padding:8px 6px;text-align:right;vertical-align:top;font-weight:600;white-space:nowrap">${fmt(sub)}</td>
+        <td style="border:1px solid #9ca3af;padding:10px;text-align:center;vertical-align:top">1</td>
+        <td style="border:1px solid #9ca3af;padding:10px;text-align:right;vertical-align:top;font-weight:600;white-space:nowrap">${fmt(sub)}</td>
       </tr>
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="3" style="border:1px solid #9ca3af;padding:4px 6px"></td>
-        <td style="border:1px solid #9ca3af;padding:4px 6px;text-align:right;font-weight:600;background:#f9fafb">Sub Total:</td>
-        <td style="border:1px solid #9ca3af;padding:4px 6px;text-align:right;font-weight:700">${fmt(sub)}</td>
-      </tr>
-      <tr>
-        <td colspan="3" style="border:1px solid #9ca3af;padding:3px 6px"></td>
-        <td style="border:1px solid #9ca3af;padding:3px 6px;text-align:right;font-weight:600;background:#f9fafb">VAT (15%):</td>
-        <td style="border:1px solid #9ca3af;padding:3px 6px;text-align:right">${fmt(vat)}</td>
-      </tr>
-      <tr>
-        <td colspan="3" style="border:1px solid #9ca3af;padding:4px 6px"></td>
-        <td style="border:1px solid #9ca3af;padding:4px 6px;text-align:right;font-weight:700;background:#f3f4f6">Net Total:</td>
-        <td style="border:1px solid #9ca3af;padding:4px 6px;text-align:right;font-weight:900">${fmt(net)}</td>
+        <td colspan="4" style="border:1px solid #9ca3af;padding:9px 10px;text-align:right;font-weight:700;background:#f9fafb">Total Amount:</td>
+        <td style="border:1px solid #9ca3af;padding:9px 10px;text-align:right;font-weight:900;white-space:nowrap">${fmt(sub)}</td>
       </tr>
     </tfoot>
   </table>
-  <p style="font-size:11px;margin:4px 0"><strong>Amount in words:</strong> ${words}</p>
+  <p style="font-size:11px;margin:6px 0"><strong>Amount in words:</strong> ${words}</p>
   <!-- Payment info -->
   <div style="border-top:1px solid #d1d5db;padding-top:8px;margin-top:8px;font-size:11px">
     <p style="font-weight:700;margin:0 0 4px">Payment information:</p>
@@ -667,6 +646,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
   <div style="border-top:2px solid #fb923c;padding-top:6px;font-size:9px;color:#2563eb;text-align:center">
     Address: Mwanakwerekwe – Zanzibar – Tanzania | P.O.BOX: 2704 | Tell: +255 658 338 646 | +255 710 967 616<br/>
     Email: info@haminass.com &nbsp; http://www.haminass.com
+  </div>
   </div>
 </div>`
   }, [form, tier, application])

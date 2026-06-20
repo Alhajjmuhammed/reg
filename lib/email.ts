@@ -132,7 +132,7 @@ function baseTemplate(content: string, eventName: string, accentColor = '#1d4ed8
                 <a href="mailto:${supportEmail}" style="color:${accentColor};text-decoration:none;font-weight:600;">${supportEmail}</a>
               </p>
               <p style="margin:0 0 12px 0;color:#94a3b8;font-size:12px;line-height:1.5;">
-                HAMINASS &mdash; Empowering East African Business Leaders
+                HAMINASS GROUP &mdash; Empowering East African Business Leaders
               </p>
               <!-- Social / unsubscribe row -->
               <p style="margin:0;color:#cbd5e1;font-size:11px;">
@@ -146,7 +146,7 @@ function baseTemplate(content: string, eventName: string, accentColor = '#1d4ed8
 
         <!-- Below-card note -->
         <p style="margin:16px 0 0 0;color:#94a3b8;font-size:11px;text-align:center;">
-          &copy; ${new Date().getFullYear()} HAMINASS. All rights reserved.
+          &copy; ${new Date().getFullYear()} HAMINASS GROUP. All rights reserved.
         </p>
 
       </td>
@@ -274,7 +274,7 @@ function buildHTML(data: EmailData): string {
           </table>` : ''}
 
         <p style="margin:24px 0 0 0;color:#64748b;font-size:14px;line-height:1.6;">
-          Thank you for choosing HAMINASS. We look forward to welcoming you!
+          Thank you for choosing HAMINASS GROUP. We look forward to welcoming you!
         </p>`
 
       return baseTemplate(content, event)

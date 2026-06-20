@@ -5,6 +5,7 @@ import { Check, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getAllPackages } from '@/lib/store'
 import type { Package, PackageType } from '@/lib/types'
+import { useStoreReady } from '@/components/store-provider'
 
 interface PackageSelectorProps {
   selectedPackage: PackageType
@@ -12,11 +13,13 @@ interface PackageSelectorProps {
 }
 
 export function PackageSelector({ selectedPackage, onSelect }: PackageSelectorProps) {
+  const storeReady = useStoreReady()
   const [packages, setPackages] = useState<Package[]>([])
 
   useEffect(() => {
     setPackages(getAllPackages().filter(p => p.active))
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-TZ', {

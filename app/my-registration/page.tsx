@@ -14,6 +14,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { getParticipants, getAllPackages } from '@/lib/store'
 import type { Package, Participant, ParticipantStatus, PaymentStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { useStoreReady } from '@/components/store-provider'
 
 const statusConfig: Record<ParticipantStatus, { label: string; icon: React.ElementType; color: string; bg: string; border: string; desc: string }> = {
   confirmed: {
@@ -50,6 +51,7 @@ function formatCurrency(amount: number) {
 }
 
 export default function MyRegistrationPage() {
+  const storeReady = useStoreReady()
   const [query, setQuery] = useState('')
   const [result, setResult] = useState<Participant | null | undefined>(undefined)
   const [searched, setSearched] = useState(false)
@@ -57,9 +59,11 @@ export default function MyRegistrationPage() {
 
   useEffect(() => {
     setPackages(getAllPackages())
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   const handleSearch = () => {
+    if (!storeReady) return
     const q = query.trim().toLowerCase()
     if (!q) return
     const participants = getParticipants()
@@ -123,9 +127,9 @@ export default function MyRegistrationPage() {
                   onKeyDown={e => e.key === 'Enter' && handleSearch()}
                   className="flex-1"
                 />
-                <Button onClick={handleSearch} disabled={!query.trim()}>
+                <Button onClick={handleSearch} disabled={!query.trim() || !storeReady}>
                   <Search className="mr-2 h-4 w-4" />
-                  Look up
+                  {storeReady ? 'Look up' : 'Loading…'}
                 </Button>
               </div>
             </div>

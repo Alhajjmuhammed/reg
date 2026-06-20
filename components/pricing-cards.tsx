@@ -5,13 +5,16 @@ import { Check, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getAllPackages } from '@/lib/store'
 import type { Package } from '@/lib/types'
+import { useStoreReady } from '@/components/store-provider'
 
 export function PricingCards() {
+  const storeReady = useStoreReady()
   const [packages, setPackages] = useState<Package[]>([])
 
   useEffect(() => {
     setPackages(getAllPackages().filter(p => p.active))
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-TZ', { style: 'decimal', minimumFractionDigits: 0 }).format(amount)

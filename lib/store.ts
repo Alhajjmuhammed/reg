@@ -1106,10 +1106,24 @@ export function getParticipantById(id: string): Participant | undefined {
   return participants.find((p) => p.id === id)
 }
 
+export function getParticipantByEmail(email: string): Participant | undefined {
+  return getParticipants().find(p => p.email.toLowerCase() === email.toLowerCase())
+}
+
 export function createParticipant(
   data: Omit<Participant, 'id' | 'registrationDate' | 'lastUpdated' | 'receiptNumber' | 'seatNumbers'> & { preferredSeats?: number[] }
 ): Participant {
   const participants = getParticipants()
+
+  // Reject duplicate email — one active registration per email address
+  const emailLower = data.email.toLowerCase()
+  const existingByEmail = participants.find(
+    p => p.email.toLowerCase() === emailLower && p.status !== 'cancelled'
+  )
+  if (existingByEmail) {
+    throw new Error('EMAIL_ALREADY_REGISTERED')
+  }
+
   const config = getSeatConfiguration()
   const now = new Date().toISOString()
 

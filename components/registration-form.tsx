@@ -36,7 +36,7 @@ import { GroupBookingSelector } from './group-booking-selector'
 import { PaymentGateway } from './payment-gateway'
 import { CouponInput } from './coupon-input'
 import { SeatMap } from './seat-map'
-import { createParticipant, getSeatConfiguration, useCoupon, createUserAccount, computeGroupPricing, getAllPackages, getSiteSettings, refreshParticipants } from '@/lib/store'
+import { createParticipant, getSeatConfiguration, useCoupon, createUserAccount, computeGroupPricing, getAllPackages, getSiteSettings, refreshParticipants, getParticipantByEmail } from '@/lib/store'
 import { useStoreReady } from '@/components/store-provider'
 import {
   type PackageType,
@@ -257,10 +257,22 @@ export function RegistrationForm() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(prev + 1, STEPS.length))
+  const handleNext = async () => {
+    if (!validateStep(currentStep)) return
+
+    // On the personal info step, verify the email isn't already registered
+    if (currentStep === 2) {
+      const existing = getParticipantByEmail(formData.email)
+      if (existing && existing.status !== 'cancelled') {
+        setErrors(prev => ({
+          ...prev,
+          email: 'This email is already registered. Please log in to view your registration.',
+        }))
+        return
+      }
     }
+
+    setCurrentStep((prev) => Math.min(prev + 1, STEPS.length))
   }
 
   const handlePrevious = () => {
@@ -283,37 +295,47 @@ export function RegistrationForm() {
       useCoupon(formData.couponCode)
     }
 
-    const participant = createParticipant({
-      fullName: formData.fullName,
-      phoneNumber: formData.phoneNumber,
-      whatsappNumber: formData.whatsappNumber,
-      email: formData.email,
-      gender: formData.gender || undefined,
-      country: formData.country || undefined,
-      city: formData.city,
-      occupation: formData.occupation,
-      organizationName: formData.organizationName || undefined,
-      businessType: formData.businessType,
-      yearsOfExperience: formData.yearsOfExperience
-        ? parseInt(formData.yearsOfExperience)
-        : undefined,
-      trainingInterests: formData.trainingInterests,
-      bookingType: formData.bookingType,
-      groupSeats: formData.bookingType === 'group' ? formData.groupSeats : undefined,
-      groupMembers: formData.bookingType === 'group' ? formData.groupMembers.filter(m => m.name.trim()) : undefined,
-      selectedPackage: selectedPkg,
-      paymentStatus: pendingApproval ? 'unpaid' : 'paid',
-      amountPaid: pendingApproval ? 0 : totalAmount,
-      totalAmount: totalAmount,
-      paymentMethod: method,
-      paymentReference: reference,
-      paymentSlipUrl: pendingApproval ? receiptUrl : undefined,
-      couponCode: formData.couponCode || undefined,
-      discountApplied: formData.couponDiscount || undefined,
-      status: pendingApproval ? 'pending' : 'confirmed',
-      notes: formData.notes || undefined,
-      preferredSeats: formData.selectedSeats.length > 0 ? formData.selectedSeats : undefined,
-    })
+    let participant
+    try {
+      participant = createParticipant({
+        fullName: formData.fullName,
+        phoneNumber: formData.phoneNumber,
+        whatsappNumber: formData.whatsappNumber,
+        email: formData.email,
+        gender: formData.gender || undefined,
+        country: formData.country || undefined,
+        city: formData.city,
+        occupation: formData.occupation,
+        organizationName: formData.organizationName || undefined,
+        businessType: formData.businessType,
+        yearsOfExperience: formData.yearsOfExperience
+          ? parseInt(formData.yearsOfExperience)
+          : undefined,
+        trainingInterests: formData.trainingInterests,
+        bookingType: formData.bookingType,
+        groupSeats: formData.bookingType === 'group' ? formData.groupSeats : undefined,
+        groupMembers: formData.bookingType === 'group' ? formData.groupMembers.filter(m => m.name.trim()) : undefined,
+        selectedPackage: selectedPkg,
+        paymentStatus: pendingApproval ? 'unpaid' : 'paid',
+        amountPaid: pendingApproval ? 0 : totalAmount,
+        totalAmount: totalAmount,
+        paymentMethod: method,
+        paymentReference: reference,
+        paymentSlipUrl: pendingApproval ? receiptUrl : undefined,
+        couponCode: formData.couponCode || undefined,
+        discountApplied: formData.couponDiscount || undefined,
+        status: pendingApproval ? 'pending' : 'confirmed',
+        notes: formData.notes || undefined,
+        preferredSeats: formData.selectedSeats.length > 0 ? formData.selectedSeats : undefined,
+      })
+    } catch (err) {
+      const msg = err instanceof Error && err.message === 'EMAIL_ALREADY_REGISTERED'
+        ? 'This email is already registered. Please log in to view your registration.'
+        : 'Registration failed. Please try again.'
+      setErrors(prev => ({ ...prev, email: msg }))
+      setCurrentStep(2)
+      return
+    }
 
     setRegistrationResult({
       id: participant.id,

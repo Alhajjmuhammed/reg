@@ -16,6 +16,7 @@ import {
   updateSubAdmin,
   getSubAdmins,
   updateCurrentAdminName,
+  flushSubAdmins,
 } from '@/lib/store'
 import { UserCircle, Lock, Mail, User, Check, AlertCircle } from 'lucide-react'
 
@@ -75,7 +76,7 @@ function ProfileContent() {
     setTimeout(() => setter(null), 4000)
   }
 
-  function handleSaveName(e: React.FormEvent) {
+  async function handleSaveName(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) { showAlert(setNameAlert, 'error', 'Name cannot be empty'); return }
     setSavingName(true)
@@ -85,7 +86,10 @@ function ProfileContent() {
       } else {
         const users = getSubAdmins()
         const user = users.find(u => u.email.toLowerCase() === session!.email.toLowerCase())
-        if (user) updateSubAdmin(user.id, { name: name.trim() })
+        if (user) {
+          updateSubAdmin(user.id, { name: name.trim() })
+          await flushSubAdmins()
+        }
       }
       // Update the current session so sidebar reflects the new name immediately
       updateCurrentAdminName(name.trim())
@@ -141,8 +145,6 @@ function ProfileContent() {
           return
         }
         updateSubAdmin(user.id, { password: newPassword })
-        // Flush sub-admin password change to Supabase immediately
-        const { flushSubAdmins } = await import('@/lib/store')
         await flushSubAdmins()
       }
       setCurrentPassword('')

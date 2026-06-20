@@ -131,24 +131,31 @@ function RolesTab({ roles, users, onReload }: { roles: AdminRole[]; users: SubAd
   }
 
   async function handleDelete(id: string) {
-    const assigned = users.filter(u => u.roleId === id)
-    const ok = deleteAdminRole(id)
-    if (!ok) { showAlert('error', 'Cannot delete system roles'); return }
-    // Deactivate any sub-admins whose role was just deleted
-    if (assigned.length > 0) {
-      for (const u of assigned) {
-        updateSubAdmin(u.id, { active: false })
+    const roleToDelete = roles.find(r => r.id === id)
+    if (!roleToDelete || roleToDelete.isSystem) { showAlert('error', 'Cannot delete system roles'); return }
+    try {
+      // Deactivate sub-admins BEFORE deleting the role so they're never left with a dangling roleId in Supabase
+      const assigned = users.filter(u => u.roleId === id)
+      if (assigned.length > 0) {
+        for (const u of assigned) updateSubAdmin(u.id, { active: false })
+        await flushSubAdmins()
       }
-      await flushSubAdmins()
-      showAlert('error', `Role deleted. ${assigned.length} admin user${assigned.length > 1 ? 's were' : ' was'} deactivated because they had no role.`)
-    } else {
-      showAlert('success', 'Role deleted')
+      deleteAdminRole(id)
+      setDeleteConfirm(null)
+      onReload()
+      if (assigned.length > 0) {
+        showAlert('error', `Role deleted. ${assigned.length} admin user${assigned.length > 1 ? 's were' : ' was'} deactivated.`)
+      } else {
+        showAlert('success', 'Role deleted')
+      }
+    } catch {
+      showAlert('error', 'Failed to save changes. Please try again.')
     }
-    setDeleteConfirm(null)
-    onReload()
   }
 
   function handleSave(data: Omit<AdminRole, 'id' | 'createdAt'>, id?: string) {
+    const duplicate = roles.find(r => r.name.trim().toLowerCase() === data.name.trim().toLowerCase() && r.id !== id)
+    if (duplicate) { showAlert('error', 'A role with this name already exists'); return }
     if (id) {
       updateAdminRole(id, { name: data.name, description: data.description, color: data.color, permissions: data.permissions })
       showAlert('success', 'Role updated')
@@ -403,6 +410,12 @@ function RoleForm({
             })}
           </div>
           <p className="text-xs text-muted-foreground">{permissions.length} of {ADMIN_PERMISSIONS.length} permissions selected</p>
+          {permissions.length === 0 && (
+            <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-950/20 dark:text-amber-400">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              This role has no permissions — users assigned to it will only see the Dashboard.
+            </div>
+          )}
         </div>
 
         <div className="flex gap-3">
@@ -428,41 +441,46 @@ function UsersTab({ users, roles, onReload }: { users: SubAdminUser[]; roles: Ad
   }
 
   async function handleSave(data: { name: string; email: string; password: string; roleId: string }, id?: string) {
-    if (id) {
-      // Exclude the user being edited from the duplicate check
-      const duplicate = users.find(u => u.id !== id && u.email.toLowerCase() === data.email.toLowerCase())
-      if (duplicate) { showAlert('error', 'Email already in use by another user'); return }
-      const update: Parameters<typeof updateSubAdmin>[1] = { name: data.name, email: data.email, roleId: data.roleId }
-      if (data.password) update.password = data.password
-      updateSubAdmin(id, update)
-    } else {
-      try {
-        createSubAdmin(data)
-      } catch (err) {
-        showAlert('error', err instanceof Error ? err.message : 'Failed to create user')
-        return
+    try {
+      if (id) {
+        const duplicate = users.find(u => u.id !== id && u.email.toLowerCase() === data.email.toLowerCase())
+        if (duplicate) { showAlert('error', 'Email already in use by another user'); return }
+        const update: Parameters<typeof updateSubAdmin>[1] = { name: data.name, email: data.email, roleId: data.roleId }
+        if (data.password) update.password = data.password
+        updateSubAdmin(id, update)
+      } else {
+        createSubAdmin(data) // throws if email already exists
       }
+      await flushSubAdmins() // throws on Supabase error
+      showAlert('success', id ? 'Admin user updated' : 'Admin user created')
+      setShowForm(false)
+      setEditingUser(null)
+      onReload()
+    } catch (err) {
+      showAlert('error', err instanceof Error ? err.message : 'Failed to save changes. Please try again.')
     }
-    // Await the Supabase write so data is persisted before the admin logs out
-    await flushSubAdmins()
-    showAlert('success', id ? 'Admin user updated' : 'Admin user created')
-    setShowForm(false)
-    setEditingUser(null)
-    onReload()
   }
 
   async function handleToggleActive(user: SubAdminUser) {
-    updateSubAdmin(user.id, { active: !user.active })
-    await flushSubAdmins()
-    onReload()
+    try {
+      updateSubAdmin(user.id, { active: !user.active })
+      await flushSubAdmins()
+      onReload()
+    } catch {
+      showAlert('error', 'Failed to save changes. Please try again.')
+    }
   }
 
   async function handleDelete(id: string) {
-    deleteSubAdmin(id)
-    await flushSubAdmins()
-    setDeleteConfirm(null)
-    showAlert('success', 'Admin user deleted')
-    onReload()
+    try {
+      deleteSubAdmin(id)
+      await flushSubAdmins()
+      setDeleteConfirm(null)
+      showAlert('success', 'Admin user deleted')
+      onReload()
+    } catch {
+      showAlert('error', 'Failed to delete user. Please try again.')
+    }
   }
 
   const nonSystemRoles = roles.filter(r => !r.isSystem)

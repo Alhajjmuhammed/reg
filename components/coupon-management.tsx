@@ -41,8 +41,10 @@ import {
 import { getCoupons, createCoupon, updateCoupon, deleteCoupon, getAllPackages } from '@/lib/store'
 import type { CouponCode, Package, PackageType } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { useStoreReady } from '@/components/store-provider'
 
 export function CouponManagement() {
+  const storeReady = useStoreReady()
   const [coupons, setCoupons] = useState<CouponCode[]>([])
   const [packages, setPackages] = useState<Package[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -61,7 +63,8 @@ export function CouponManagement() {
   useEffect(() => {
     setCoupons(getCoupons())
     setPackages(getAllPackages())
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-TZ', {

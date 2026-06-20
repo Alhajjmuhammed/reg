@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { getStatistics, getAllPackages } from '@/lib/store'
 import type { Package } from '@/lib/types'
+import { useStoreReady } from '@/components/store-provider'
 
 interface Stats {
   totalRegistrations: number
@@ -45,13 +46,15 @@ interface Stats {
 }
 
 export function DashboardStats() {
+  const storeReady = useStoreReady()
   const [stats, setStats] = useState<Stats | null>(null)
   const [packages, setPackages] = useState<Package[]>([])
 
   useEffect(() => {
     setStats(getStatistics())
     setPackages(getAllPackages())
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   if (!stats) {
     return (

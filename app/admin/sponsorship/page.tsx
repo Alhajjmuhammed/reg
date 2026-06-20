@@ -67,6 +67,7 @@ import {
 } from '@/lib/store'
 import type { SponsorshipTier, Sponsor, SponsorshipPageSettings, SponsorshipTierColor, AcademicPartner, AcademicPartnerSettings, SponsorshipApplication } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { useStoreReady } from '@/components/store-provider'
 import { assetUrl } from '@/lib/utils'
 
 const TIER_COLORS: { value: SponsorshipTierColor; label: string; dot: string }[] = [
@@ -118,6 +119,7 @@ function formatCurrency(amount: number) {
 }
 
 export default function AdminSponsorshipPage() {
+  const storeReady = useStoreReady()
   const [tiers, setTiers] = useState<SponsorshipTier[]>([])
   const [sponsors, setSponsors] = useState<Sponsor[]>([])
   const [settings, setSettings] = useState<SponsorshipPageSettings | null>(null)
@@ -201,7 +203,8 @@ export default function AdminSponsorshipPage() {
     setAcademicPartners(getAllAcademicPartners())
     setAcademicSettings(getAcademicPartnerSettings())
     setApplications(getSponsorshipApplications())
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   const showSave = (msg: string) => { setSaveMsg(msg); setTimeout(() => setSaveMsg(''), 3000) }
   const refreshTiers = () => setTiers(getAllSponsorshipTiers())

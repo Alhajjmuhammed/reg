@@ -53,6 +53,7 @@ import {
 } from '@/lib/store'
 import type { Trainer, TrainerAccount } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { useStoreReady } from '@/components/store-provider'
 
 // What the dialog passes back to the parent
 type CredentialAction =
@@ -61,6 +62,7 @@ type CredentialAction =
   | null
 
 export default function AdminTrainersPage() {
+  const storeReady = useStoreReady()
   const [mounted, setMounted] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
 
@@ -80,7 +82,8 @@ export default function AdminTrainersPage() {
     setMounted(true)
     setTrainers(getAllTrainers())
     setAccounts(getAllTrainerAccounts())
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   const showSave = (msg: string) => { setSaveMsg(msg); setTimeout(() => setSaveMsg(''), 3000) }
   const refreshAll = () => { setTrainers(getAllTrainers()); setAccounts(getAllTrainerAccounts()) }

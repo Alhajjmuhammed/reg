@@ -109,6 +109,7 @@ import {
   getGroupPricingTiers,
   updateGroupPricingTiers,
 } from '@/lib/store'
+import { useStoreReady } from '@/components/store-provider'
 import type {
   SiteSettings,
   HeroSlide,
@@ -123,6 +124,7 @@ import type {
 } from '@/lib/types'
 
 export default function AdminSettingsPage() {
+  const storeReady = useStoreReady()
   const [activeTab, setActiveTab] = useState('general')
   const [isSaving, setIsSaving] = useState(false)
   const [isSavingSeats, setIsSavingSeats] = useState(false)
@@ -202,7 +204,8 @@ export default function AdminSettingsPage() {
     setSeatConfig({ confirmedSeats: seatCfg.confirmedSeats, reservedSeats: seatCfg.reservedSeats, waitlistCount: seatCfg.waitlistCount })
     setGroupTiers(getGroupPricingTiers())
     setAdminEmail(getAdminCredential().email)
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   const handleSaveSettings = () => {
     if (!siteSettings) return

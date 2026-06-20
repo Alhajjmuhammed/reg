@@ -48,6 +48,7 @@ import {
 } from 'lucide-react'
 import { getAllDocuments, createDocument, updateDocument, deleteDocument, getAllPackages } from '@/lib/store'
 import type { EventDocument, DocumentType, PackageType, Package } from '@/lib/types'
+import { useStoreReady } from '@/components/store-provider'
 
 const DOC_TYPES: { value: DocumentType; label: string }[] = [
   { value: 'timetable', label: 'Timetable' },
@@ -104,11 +105,13 @@ export default function AdminDocumentsPage() {
   const [isMounted, setIsMounted] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const storeReady = useStoreReady()
   useEffect(() => {
     setIsMounted(true)
     setDocs(getAllDocuments())
     setPackages(getAllPackages().filter(p => p.active))
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   const refresh = () => setDocs(getAllDocuments())
 

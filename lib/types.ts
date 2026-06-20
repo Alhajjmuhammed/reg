@@ -114,6 +114,7 @@ export interface SponsorshipTier {
   highlighted: boolean  // shown as "Most Popular"
   active: boolean
   order: number
+  imageUrl?: string     // optional package image shown on the tier card
 }
 
 export interface Sponsor {
@@ -131,6 +132,8 @@ export interface SponsorshipPageSettings {
   heroTitle: string
   heroSubtitle: string
   heroDescription: string
+  heroImageUrl?: string      // background image for the hero section
+  packagesImageUrl?: string  // background image for the Sponsorship Packages section
   whyTitle: string
   whyDescription: string
   whyStats: { value: string; label: string }[]

@@ -239,10 +239,10 @@ export default function SponsorshipPage() {
 
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-border min-h-[560px] flex items-center">
-        {/* Background image */}
+        {/* Background image — uses admin-uploaded image or falls back to default */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "url('/images/hero-1.jpg')" }}
+          style={{ backgroundImage: `url('${settings.heroImageUrl || '/images/hero-1.jpg'}')` }}
         />
         {/* Dark overlay */}
         <div className="absolute inset-0 bg-black/65" />
@@ -250,13 +250,13 @@ export default function SponsorshipPage() {
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-sm text-white backdrop-blur-sm">
               <Handshake className="h-4 w-4" />
-              Sponsorship &amp; Partnership Opportunities
+              {settings.heroSubtitle}
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl mb-6">
-              Partner With Us
+              {settings.heroTitle}
             </h1>
             <p className="text-lg text-white/80 max-w-2xl mx-auto leading-relaxed">
-              Connect your brand with 500+ ambitious entrepreneurs, managers, and business leaders at Tanzania&apos;s most impactful business training event of the year.
+              {settings.heroDescription}
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button size="lg" className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground" asChild>
@@ -353,10 +353,10 @@ export default function SponsorshipPage() {
 
       {/* Sponsorship Tiers */}
       <section className="relative py-20 lg:py-28 overflow-hidden">
-        {/* Background image */}
+        {/* Background image — uses admin-uploaded image or falls back to default */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "url('/images/hero-2.jpg')" }}
+          style={{ backgroundImage: `url('${settings.packagesImageUrl || '/images/hero-2.jpg'}')` }}
         />
         <div className="absolute inset-0 bg-background/88 dark:bg-background/92" />
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -384,6 +384,16 @@ export default function SponsorshipPage() {
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground shadow-lg">
                         <Star className="h-3 w-3" /> Most Popular
                       </span>
+                    </div>
+                  )}
+                  {/* Package image */}
+                  {tier.imageUrl && (
+                    <div className="mb-4 -mx-6 -mt-6 overflow-hidden rounded-t-2xl">
+                      <img
+                        src={tier.imageUrl}
+                        alt={tier.name}
+                        className="h-36 w-full object-cover"
+                      />
                     </div>
                   )}
                   {/* Tier badge */}

@@ -43,6 +43,7 @@ function LoginPageInner() {
   const [mounted, setMounted] = useState(false)
 
   const redirectTo = searchParams.get('redirect') || null
+  const reason = searchParams.get('reason')
 
   useEffect(() => {
     setMounted(true)
@@ -90,6 +91,12 @@ function LoginPageInner() {
             <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
             <p className="text-muted-foreground text-sm mt-1">Sign in — we&apos;ll take you to the right place</p>
           </div>
+
+          {reason === 'idle' && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-300 text-center">
+              You were signed out due to 15 minutes of inactivity.
+            </div>
+          )}
 
           {/* Role indicators */}
           <div className="grid grid-cols-3 gap-2">

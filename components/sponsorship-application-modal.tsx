@@ -418,7 +418,8 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
       return data.application ?? null
     } catch { return null }
   }
-  const isLipaNumber = form.paymentMethod === 'lipa-number'
+  const isLipaNumber   = form.paymentMethod === 'lipa-number'
+  const isBankTransfer = form.paymentMethod === 'bank-transfer'
   const selectedMethod = methods.find(m => m.id === form.paymentMethod)
   const detectedBrand  = detectCardBrand(form.cardNumber)
 
@@ -433,6 +434,10 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
 
   const handleReceiptChange = (file: File | null) => {
     if (!file) { patch({ receiptDataUrl: '', receiptName: '' }); return }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors(prev => ({ ...prev, paymentReference: 'Image is too large. Please upload a file under 5 MB.' }))
+      return
+    }
     const reader = new FileReader()
     reader.onload = () => patch({ receiptDataUrl: reader.result as string, receiptName: file.name })
     reader.readAsDataURL(file)
@@ -465,9 +470,9 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
         if (form.cardExpiry.length < 5)  e.cardExpiry = 'Enter expiry as MM/YY'
         if (form.cardCvv.length < 3)     e.cardCvv    = 'Enter a valid CVV'
         if (!form.cardName.trim())        e.cardName   = 'Name on card is required'
-      } else if (isLipaNumber) {
+      } else if (isLipaNumber || isBankTransfer) {
         if (!form.receiptDataUrl && !form.paymentReference.trim())
-          e.paymentReference = 'Please upload your payment receipt or enter the reference number'
+          e.paymentReference = 'Please upload your deposit receipt or enter the reference number'
       } else if (form.paymentMethod) {
         if (!form.paymentReference.trim()) e.paymentReference = 'Phone number is required'
       }
@@ -479,11 +484,10 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
   const [downloading, setDownloading] = useState(false)
   const [downloadingReceipt, setDownloadingReceipt] = useState(false)
 
-  // Renders an HTML string in an isolated container on document.body (no oklch),
-  // captures it with html2canvas, and saves as PDF.
-  const captureHtmlAsPDF = useCallback(async (html: string, filename: string) => {
-    const html2canvas = (await import('html2canvas')).default
-    const jsPDF       = (await import('jspdf')).default
+  // Renders HTML off-screen, captures with html2canvas, adds to jsPDF.
+  // Returns the pdf instance (does NOT call pdf.save — caller decides).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const capturePageIntoPDF = useCallback(async (html2canvas: any, jsPDFClass: any, html: string, pdf?: any) => {
     const wrap = document.createElement('div')
     wrap.setAttribute('style', [
       'position:fixed', 'top:-9999px', 'left:-9999px',
@@ -499,36 +503,47 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false,
-        onclone: (clonedDoc) => {
-          // Strip ALL stylesheets from the clone — our HTML is fully inline-styled,
-          // so removing them prevents html2canvas from trying to parse oklch/lab colors
-          clonedDoc.querySelectorAll('link[rel="stylesheet"], style').forEach(el => el.remove())
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onclone: (clonedDoc: any) => {
+          clonedDoc.querySelectorAll('link[rel="stylesheet"], style').forEach((el: Element) => el.remove())
         },
       })
-      const imgData = canvas.toDataURL('image/png')
-      const pdf   = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-      const pageW = pdf.internal.pageSize.getWidth()
-      const pageH = pdf.internal.pageSize.getHeight()
+      const isFirst = !pdf
+      const doc = pdf ?? new jsPDFClass({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const pageW = doc.internal.pageSize.getWidth()
+      const pageH = doc.internal.pageSize.getHeight()
       const imgH  = (canvas.height / canvas.width) * pageW
+      if (!isFirst) doc.addPage()
       if (imgH <= pageH) {
-        pdf.addImage(imgData, 'PNG', 0, 0, pageW, imgH)
+        doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, imgH)
       } else {
         const chunkH = Math.floor(canvas.width * (pageH / pageW))
-        let y = 0; let first = true
+        let y = 0; let firstChunk = isFirst
         while (y < canvas.height) {
-          if (!first) pdf.addPage()
+          if (!firstChunk) doc.addPage()
           const sh = Math.min(chunkH, canvas.height - y)
           const sc = document.createElement('canvas'); sc.width = canvas.width; sc.height = sh
           sc.getContext('2d')!.drawImage(canvas, 0, y, canvas.width, sh, 0, 0, canvas.width, sh)
-          pdf.addImage(sc.toDataURL('image/png'), 'PNG', 0, 0, pageW, (sh / canvas.width) * pageW)
-          y += chunkH; first = false
+          doc.addImage(sc.toDataURL('image/png'), 'PNG', 0, 0, pageW, (sh / canvas.width) * pageW)
+          y += chunkH; firstChunk = false
         }
       }
-      pdf.save(filename)
+      return doc
     } finally {
       document.body.removeChild(wrap)
     }
   }, [])
+
+  // Renders one or two HTML pages into a single PDF and saves it.
+  const captureHtmlAsPDF = useCallback(async (html: string, filename: string, termsHtml?: string) => {
+    const html2canvas = (await import('html2canvas')).default
+    const jsPDF       = (await import('jspdf')).default
+    const pdf = await capturePageIntoPDF(html2canvas, jsPDF, html, null)
+    if (termsHtml) {
+      await capturePageIntoPDF(html2canvas, jsPDF, termsHtml, pdf)
+    }
+    pdf.save(filename)
+  }, [capturePageIntoPDF])
 
   const buildInvoiceHTML = useCallback(() => {
     if (!tier) return ''
@@ -764,16 +779,112 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
 </div>`
   }, [application, form, tier])
 
+  const buildTermsHTML = useCallback(() => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    return `
+<div style="padding:32px;background:#fff;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#111;line-height:1.6">
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #1d4ed8;padding-bottom:12px;margin-bottom:20px">
+    <img src="${origin}/images/haminass-logo.png" style="height:52px;width:auto;object-fit:contain" crossorigin="anonymous"/>
+    <div style="text-align:right">
+      <div style="font-size:16px;font-weight:900;color:#1d4ed8;letter-spacing:0.08em">TERMS &amp; CONDITIONS</div>
+      <div style="font-size:10px;color:#6b7280;margin-top:2px">HAMINASS GROUP LIMITED — Sponsorship Agreement</div>
+    </div>
+  </div>
+
+  <p style="margin:0 0 16px;font-size:10px;color:#6b7280">
+    By submitting a sponsorship application and making payment, the Sponsor agrees to be bound by the following Terms and Conditions.
+    These terms form part of the sponsorship agreement between the Sponsor and HAMINASS GROUP LIMITED.
+  </p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 24px">
+
+    <div>
+      <p style="font-weight:700;font-size:12px;color:#1d4ed8;margin:0 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">1. AGREEMENT</p>
+      <p style="margin:0 0 12px">Submission of the sponsorship application and receipt of payment constitutes acceptance of these Terms and Conditions. HAMINASS GROUP LIMITED reserves the right to amend these terms with reasonable prior notice.</p>
+
+      <p style="font-weight:700;font-size:12px;color:#1d4ed8;margin:0 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">2. SPONSORSHIP PACKAGES</p>
+      <p style="margin:0 0 12px">All sponsorship packages and their associated benefits are as described in the invoice. HAMINASS GROUP LIMITED reserves the right to make reasonable adjustments to package details where circumstances require, with prior notification to the Sponsor.</p>
+
+      <p style="font-weight:700;font-size:12px;color:#1d4ed8;margin:0 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">3. PAYMENT TERMS</p>
+      <ul style="margin:0 0 12px;padding-left:16px">
+        <li style="margin-bottom:3px">Full payment is due within 14 days of the invoice date.</li>
+        <li style="margin-bottom:3px">Accepted methods: bank transfer, Mobile Lipa Number, or as otherwise agreed in writing.</li>
+        <li style="margin-bottom:3px">All quoted prices are inclusive of VAT at the applicable rate (currently 15%).</li>
+        <li style="margin-bottom:3px">Payments received after the due date may incur a late-payment fee of 5% per month.</li>
+      </ul>
+
+      <p style="font-weight:700;font-size:12px;color:#1d4ed8;margin:0 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">4. CANCELLATION &amp; REFUNDS</p>
+      <ul style="margin:0 0 12px;padding-left:16px">
+        <li style="margin-bottom:3px">30+ days before the event: 50% refund of the amount paid.</li>
+        <li style="margin-bottom:3px">14–29 days before the event: 25% refund of the amount paid.</li>
+        <li style="margin-bottom:3px">Less than 14 days before the event: No refund.</li>
+        <li style="margin-bottom:3px">Should HAMINASS GROUP LIMITED cancel or postpone the event, a full refund will be issued within 30 days.</li>
+      </ul>
+
+      <p style="font-weight:700;font-size:12px;color:#1d4ed8;margin:0 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">5. SPONSOR OBLIGATIONS</p>
+      <p style="margin:0 0 4px">The Sponsor agrees to:</p>
+      <ul style="margin:0 0 12px;padding-left:16px">
+        <li style="margin-bottom:3px">Provide logos, artwork, and required materials in agreed formats within agreed timescales.</li>
+        <li style="margin-bottom:3px">Ensure all submitted materials comply with applicable laws, regulations, and do not infringe any third-party rights.</li>
+        <li style="margin-bottom:3px">Not make any representation on behalf of HAMINASS GROUP LIMITED without prior written consent.</li>
+      </ul>
+    </div>
+
+    <div>
+      <p style="font-weight:700;font-size:12px;color:#1d4ed8;margin:0 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">6. INTELLECTUAL PROPERTY</p>
+      <p style="margin:0 0 12px">Each party retains ownership of their respective intellectual property. The Sponsor grants HAMINASS GROUP LIMITED a non-exclusive, royalty-free licence to use the Sponsor's name, logo, and trademarks solely for the purpose of fulfilling the sponsorship obligations during the event period.</p>
+
+      <p style="font-weight:700;font-size:12px;color:#1d4ed8;margin:0 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">7. LIMITATION OF LIABILITY</p>
+      <p style="margin:0 0 12px">HAMINASS GROUP LIMITED shall not be liable for any indirect, incidental, special, or consequential losses or damages arising from the sponsorship arrangement. Our total aggregate liability to the Sponsor shall not exceed the total amount paid by the Sponsor under the relevant invoice.</p>
+
+      <p style="font-weight:700;font-size:12px;color:#1d4ed8;margin:0 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">8. CONFIDENTIALITY</p>
+      <p style="margin:0 0 12px">Both parties agree to keep confidential any proprietary or sensitive information disclosed during the sponsorship arrangement and not to disclose such information to any third party without prior written consent, except as required by law.</p>
+
+      <p style="font-weight:700;font-size:12px;color:#1d4ed8;margin:0 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">9. FORCE MAJEURE</p>
+      <p style="margin:0 0 12px">Neither party shall be liable for failure to perform its obligations if such failure results from circumstances beyond their reasonable control, including but not limited to acts of God, government restrictions, or public health emergencies. The affected party shall notify the other as soon as reasonably practicable.</p>
+
+      <p style="font-weight:700;font-size:12px;color:#1d4ed8;margin:0 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">10. GOVERNING LAW &amp; DISPUTES</p>
+      <p style="margin:0 0 12px">These Terms and Conditions are governed by and construed in accordance with the laws of the United Republic of Tanzania. Any disputes arising shall be subject to the exclusive jurisdiction of the courts of Zanzibar, Tanzania. The parties shall first attempt to resolve disputes amicably before initiating legal proceedings.</p>
+
+      <p style="font-weight:700;font-size:12px;color:#1d4ed8;margin:0 0 4px;border-bottom:1px solid #e5e7eb;padding-bottom:4px">11. ENTIRE AGREEMENT</p>
+      <p style="margin:0 0 12px">These Terms and Conditions, together with the invoice, constitute the entire agreement between the parties with respect to the subject matter hereof and supersede all prior agreements, representations, and understandings.</p>
+    </div>
+  </div>
+
+  <!-- Signatures -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:24px;border-top:1px solid #e5e7eb;padding-top:16px">
+    <div>
+      <p style="font-weight:600;margin:0 0 32px">For and on behalf of the Sponsor:</p>
+      <div style="border-bottom:1px solid #111;width:80%;margin-bottom:4px"></div>
+      <p style="margin:0;font-size:10px;color:#6b7280">Authorised Signatory &amp; Date</p>
+    </div>
+    <div>
+      <p style="font-weight:600;margin:0 0 32px">For and on behalf of HAMINASS GROUP LIMITED:</p>
+      <div style="border-bottom:1px solid #111;width:80%;margin-bottom:4px"></div>
+      <p style="margin:0;font-size:10px;color:#6b7280">Authorised Signatory &amp; Date</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="border-top:2px solid #f97316;margin-top:20px;padding-top:8px;font-size:9px;color:#2563eb;text-align:center">
+    HAMINASS GROUP LIMITED | Mwanakwerekwe, Mzee Kificho Building, Ground Floor, Zanzibar – Tanzania<br/>
+    P.O.BOX: 2704 | Tel: +255 658 338 646 / +255 710 967 616 | Email: info@haminass.com | www.haminass.com
+  </div>
+</div>`
+  }, [])
+
   const downloadInvoice = useCallback(async () => {
     setDownloading(true)
     try {
       const html = buildInvoiceHTML()
       if (!html) return
       const name = `invoice-${(application?.invoiceNumber || tier?.name || 'sponsorship').replace(/\s+/g, '-').toLowerCase()}.pdf`
-      await captureHtmlAsPDF(html, name)
+      // T&C page is appended to the downloaded PDF but is NOT shown in the on-screen preview
+      await captureHtmlAsPDF(html, name, buildTermsHTML())
     } catch (err) { console.error('Invoice download failed', err) }
     finally { setDownloading(false) }
-  }, [buildInvoiceHTML, captureHtmlAsPDF, application, tier])
+  }, [buildInvoiceHTML, buildTermsHTML, captureHtmlAsPDF, application, tier])
 
   const downloadReceipt = useCallback(async () => {
     setDownloadingReceipt(true)
@@ -908,8 +1019,8 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
 
     // ── Manual payment: save locally and show receipt ────────────────────────
     await new Promise(r => setTimeout(r, 1500))
-    const ref = isLipaNumber
-      ? (form.paymentReference.trim() || `LIPA-${Date.now().toString(36).toUpperCase()}`)
+    const ref = (isLipaNumber || isBankTransfer)
+      ? (form.paymentReference.trim() || `REF-${Date.now().toString(36).toUpperCase()}`)
       : form.paymentReference.trim()
     const app = createSponsorshipApplication({
       companyName:    form.companyName.trim(),
@@ -932,7 +1043,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
       currency:       tier.currency,
       paymentMethod:  form.paymentMethod as SponsorshipApplication['paymentMethod'],
       paymentReference: ref,
-      receiptUrl:     isLipaNumber ? form.receiptDataUrl : undefined,
+      receiptUrl:     (isLipaNumber || isBankTransfer) ? (form.receiptDataUrl || undefined) : undefined,
       notes:          form.notes.trim() || undefined,
     })
     setApp(app)
@@ -1090,11 +1201,11 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                   <AlertCircle className="h-3.5 w-3.5" />{errors.paymentMethod}
                 </p>
               )}
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {/* Lipa Number — active default */}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {/* Lipa Number — active */}
                 <button
                   type="button"
-                  onClick={() => patch({ paymentMethod: 'lipa-number' })}
+                  onClick={() => patch({ paymentMethod: 'lipa-number', paymentReference: '', receiptDataUrl: '', receiptName: '' })}
                   className={cn(
                     'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all',
                     form.paymentMethod === 'lipa-number'
@@ -1104,8 +1215,25 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                 >
                   <Image src={assetUrl('/images/lipa-number-logo.jpg')} alt="Lipa Number" width={72} height={28} className="h-7 w-auto object-contain rounded" />
                   <p className="text-xs font-semibold text-foreground">LIPA NUMBER</p>
-                  <p className="text-[10px] text-muted-foreground">Upload receipt for approval</p>
+                  <p className="text-[10px] text-muted-foreground">Mobile money transfer</p>
                   {form.paymentMethod === 'lipa-number' && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                </button>
+
+                {/* Bank Transfer — active */}
+                <button
+                  type="button"
+                  onClick={() => patch({ paymentMethod: 'bank-transfer', paymentReference: '', receiptDataUrl: '', receiptName: '' })}
+                  className={cn(
+                    'flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all',
+                    form.paymentMethod === 'bank-transfer'
+                      ? 'border-primary bg-primary/5 shadow-sm'
+                      : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                  )}
+                >
+                  <Building2 className="h-7 w-7 text-blue-600" />
+                  <p className="text-xs font-semibold text-foreground">BANK TRANSFER</p>
+                  <p className="text-[10px] text-muted-foreground">NBC bank deposit</p>
+                  {form.paymentMethod === 'bank-transfer' && <CheckCircle2 className="h-4 w-4 text-primary" />}
                 </button>
 
                 {/* M-Pesa — Coming Soon */}
@@ -1114,24 +1242,84 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                   <p className="text-xs font-semibold text-foreground">M-PESA</p>
                   <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Coming Soon</span>
                 </div>
-
-                {/* Mixx by Yas — Coming Soon */}
-                <div className="flex flex-col items-start gap-2 rounded-xl border-2 border-border p-4 opacity-50 cursor-not-allowed select-none">
-                  <Image src={assetUrl('/images/mixx-by-yas-logo.png')} alt="Mixx by Yas" width={72} height={28} className="h-7 w-auto object-contain" />
-                  <p className="text-xs font-semibold text-foreground">MIXX BY YAS</p>
-                  <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Coming Soon</span>
-                </div>
-
-                {/* Card — Coming Soon */}
-                <div className="flex flex-col items-start gap-2 rounded-xl border-2 border-border p-4 opacity-50 cursor-not-allowed select-none">
-                  <CreditCard className="h-7 w-7 text-indigo-500" />
-                  <p className="text-xs font-semibold text-foreground">Visa / Mastercard</p>
-                  <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">Coming Soon</span>
-                </div>
               </div>
 
+              {/* Bank Transfer — account details + receipt */}
+              {isBankTransfer && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+                  <p className="text-xs font-bold text-primary uppercase tracking-wide">Bank Transfer Instructions</p>
+                  <div className="rounded-lg bg-background border border-border p-4 space-y-1.5 text-sm">
+                    <p className="font-semibold text-foreground">Transfer to this account:</p>
+                    <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs">
+                      <span className="text-muted-foreground">Bank</span>
+                      <span className="font-medium text-foreground">National Bank of Commerce (NBC)</span>
+                      <span className="text-muted-foreground">Account Name</span>
+                      <span className="font-medium text-foreground">HAMINASS GROUP LIMITED</span>
+                      <span className="text-muted-foreground">Account No.</span>
+                      <span className="font-mono font-bold text-foreground tracking-wider">089186010433</span>
+                      <span className="text-muted-foreground">Swift Code</span>
+                      <span className="font-mono text-foreground">NLCBTZTXXXX</span>
+                      <span className="text-muted-foreground">Amount</span>
+                      <span className="font-bold text-primary">{fmtCurrency(Math.round(tier.price * 1.15), tier.currency)}</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-foreground">
+                    After completing the bank transfer, enter your transaction reference number and upload the bank deposit slip below.
+                    Your application will be confirmed once an admin reviews the payment.
+                  </p>
+                  {errors.paymentReference && (
+                    <p className="text-xs text-destructive flex items-center gap-1.5">
+                      <AlertCircle className="h-3.5 w-3.5" />{errors.paymentReference}
+                    </p>
+                  )}
+                  <Field label="Transaction Reference Number">
+                    <Input
+                      value={form.paymentReference}
+                      onChange={e => patch({ paymentReference: e.target.value })}
+                      placeholder="e.g. NBC20240001234"
+                      className="font-mono bg-background"
+                    />
+                  </Field>
+                  <div className="relative py-1 text-center text-xs text-muted-foreground">
+                    <span className="bg-primary/5 px-2">— or upload deposit slip —</span>
+                  </div>
+                  <label
+                    htmlFor="bankReceiptUpload"
+                    className={cn(
+                      'flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-6 text-center transition-colors bg-background',
+                      form.receiptDataUrl ? 'border-primary/40' : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                    )}
+                  >
+                    {form.receiptDataUrl ? (
+                      <>
+                        <ImageIcon className="h-6 w-6 text-primary" />
+                        <p className="text-sm font-medium text-foreground">{form.receiptName}</p>
+                        <p className="text-xs text-muted-foreground">Click to replace</p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-6 w-6 text-muted-foreground" />
+                        <p className="text-sm font-medium text-foreground">Click to upload deposit slip</p>
+                        <p className="text-xs text-muted-foreground">PNG, JPG up to 5MB</p>
+                      </>
+                    )}
+                    <input
+                      id="bankReceiptUpload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => handleReceiptChange(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                  {form.receiptDataUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={form.receiptDataUrl} alt="Deposit slip preview" className="max-h-48 w-auto rounded-lg border border-border object-contain" />
+                  )}
+                </div>
+              )}
+
               {/* Mobile money — phone number input */}
-              {!isCard && !isLipaNumber && form.paymentMethod && (
+              {!isCard && !isLipaNumber && !isBankTransfer && form.paymentMethod && (
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
                   <p className="text-xs font-bold text-primary uppercase tracking-wide">
                     {form.paymentMethod === 'mpesa' ? 'M-Pesa' : 'Mixx by Yas'} Phone Number
@@ -1507,15 +1695,15 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
               </Button>
             )}
             {step === 2 && (() => {
-              const lipaIncomplete   = isLipaNumber && !form.receiptDataUrl && !form.paymentReference.trim()
-              const mobileIncomplete = !isCard && !isLipaNumber && !!form.paymentMethod && !form.paymentReference.trim()
+              const lipaIncomplete   = (isLipaNumber || isBankTransfer) && !form.receiptDataUrl && !form.paymentReference.trim()
+              const mobileIncomplete = !isCard && !isLipaNumber && !isBankTransfer && !!form.paymentMethod && !form.paymentReference.trim()
               const cardIncomplete   = isCard && (
                 form.cardNumber.replace(/\s/g, '').length < 16 ||
                 form.cardExpiry.length < 5 || form.cardCvv.length < 3 || !form.cardName.trim()
               )
               const blocked = !form.paymentMethod || lipaIncomplete || mobileIncomplete || cardIncomplete
               const hint = !form.paymentMethod ? 'Select a payment method'
-                         : lipaIncomplete      ? 'Upload receipt or enter reference number'
+                         : lipaIncomplete      ? 'Upload receipt/deposit slip or enter reference number'
                          : mobileIncomplete    ? 'Enter your phone number'
                          : undefined
               return (

@@ -74,6 +74,10 @@ const SESSION_KEYS = new Set([
 // In-memory store — all reads come from here (synchronous, no API latency)
 const memStore: Record<string, unknown> = {}
 
+// Set to true after initStore() completes. Guards seeding calls so that default
+// values are never written to Supabase before we know what's actually stored there.
+let storeInitialized = false
+
 // Load all data from Supabase into memStore on app start
 export async function initStore(): Promise<void> {
   if (typeof window === 'undefined') return
@@ -91,6 +95,27 @@ export async function initStore(): Promise<void> {
     }
   } catch (e) {
     console.error('initStore failed, using localStorage fallback', e)
+  } finally {
+    storeInitialized = true
+  }
+}
+
+// Re-fetch participants from Supabase into memStore right before seat assignment.
+// Reduces (but cannot fully eliminate) the race window for concurrent registrations.
+export async function refreshParticipants(): Promise<void> {
+  if (typeof window === 'undefined') return
+  try {
+    const { supabase } = await import('./supabase')
+    const { data, error } = await supabase
+      .from('app_store')
+      .select('value')
+      .eq('key', STORAGE_KEYS.participants)
+      .maybeSingle()
+    if (!error && data) {
+      memStore[STORAGE_KEYS.participants] = data.value
+    }
+  } catch {
+    // proceed with cached data if Supabase is unreachable
   }
 }
 
@@ -183,6 +208,16 @@ function setStorage<T>(key: string, value: T): void {
   syncToSupabase(key, value)
 }
 
+// Seed a default value only after initStore() has confirmed no value exists in Supabase.
+// Before initStore completes, writes only to the local memStore so this session has
+// something to render — but NEVER syncs to Supabase (which would overwrite admin data).
+function seedIfReady<T>(key: string, value: T): void {
+  memStore[key] = value
+  if (storeInitialized) {
+    syncToSupabase(key, value)
+  }
+}
+
 // Generate receipt number
 function generateReceiptNumber(): string {
   const date = new Date()
@@ -210,7 +245,7 @@ export function updateSiteSettings(data: Partial<SiteSettings>): SiteSettings {
 export function getHeroSlides(): HeroSlide[] {
   const stored = getStorage<HeroSlide[]>(STORAGE_KEYS.heroSlides, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.heroSlides, DEFAULT_HERO_SLIDES)
+    seedIfReady(STORAGE_KEYS.heroSlides, DEFAULT_HERO_SLIDES)
     return DEFAULT_HERO_SLIDES
   }
   return stored.sort((a, b) => a.order - b.order)
@@ -256,7 +291,7 @@ export function reorderHeroSlides(slideIds: string[]): HeroSlide[] {
 export function getTrainers(): Trainer[] {
   const stored = getStorage<Trainer[]>(STORAGE_KEYS.trainers, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.trainers, DEFAULT_TRAINERS)
+    seedIfReady(STORAGE_KEYS.trainers, DEFAULT_TRAINERS)
     return DEFAULT_TRAINERS
   }
   return stored.filter(t => t.active).sort((a, b) => a.order - b.order)
@@ -265,7 +300,7 @@ export function getTrainers(): Trainer[] {
 export function getAllTrainers(): Trainer[] {
   const stored = getStorage<Trainer[]>(STORAGE_KEYS.trainers, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.trainers, DEFAULT_TRAINERS)
+    seedIfReady(STORAGE_KEYS.trainers, DEFAULT_TRAINERS)
     return DEFAULT_TRAINERS
   }
   return stored.sort((a, b) => a.order - b.order)
@@ -314,7 +349,7 @@ export function deleteTrainer(id: string): boolean {
 export function getCurriculum(): CurriculumModule[] {
   const stored = getStorage<CurriculumModule[]>(STORAGE_KEYS.curriculum, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.curriculum, DEFAULT_CURRICULUM)
+    seedIfReady(STORAGE_KEYS.curriculum, DEFAULT_CURRICULUM)
     return DEFAULT_CURRICULUM
   }
   return stored.filter(m => m.active).sort((a, b) => a.order - b.order)
@@ -323,7 +358,7 @@ export function getCurriculum(): CurriculumModule[] {
 export function getAllCurriculum(): CurriculumModule[] {
   const stored = getStorage<CurriculumModule[]>(STORAGE_KEYS.curriculum, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.curriculum, DEFAULT_CURRICULUM)
+    seedIfReady(STORAGE_KEYS.curriculum, DEFAULT_CURRICULUM)
     return DEFAULT_CURRICULUM
   }
   return stored.sort((a, b) => a.order - b.order)
@@ -359,7 +394,7 @@ export function deleteCurriculumModule(id: string): boolean {
 export function getFAQs(): FAQ[] {
   const stored = getStorage<FAQ[]>(STORAGE_KEYS.faqs, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.faqs, DEFAULT_FAQS)
+    seedIfReady(STORAGE_KEYS.faqs, DEFAULT_FAQS)
     return DEFAULT_FAQS
   }
   return stored.filter(f => f.active).sort((a, b) => a.order - b.order)
@@ -368,7 +403,7 @@ export function getFAQs(): FAQ[] {
 export function getAllFAQs(): FAQ[] {
   const stored = getStorage<FAQ[]>(STORAGE_KEYS.faqs, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.faqs, DEFAULT_FAQS)
+    seedIfReady(STORAGE_KEYS.faqs, DEFAULT_FAQS)
     return DEFAULT_FAQS
   }
   return stored.sort((a, b) => a.order - b.order)
@@ -404,7 +439,7 @@ export function deleteFAQ(id: string): boolean {
 export function getTestimonials(): Testimonial[] {
   const stored = getStorage<Testimonial[]>(STORAGE_KEYS.testimonials, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.testimonials, DEFAULT_TESTIMONIALS)
+    seedIfReady(STORAGE_KEYS.testimonials, DEFAULT_TESTIMONIALS)
     return DEFAULT_TESTIMONIALS
   }
   return stored.filter(t => t.active).sort((a, b) => a.order - b.order)
@@ -413,7 +448,7 @@ export function getTestimonials(): Testimonial[] {
 export function getAllTestimonials(): Testimonial[] {
   const stored = getStorage<Testimonial[]>(STORAGE_KEYS.testimonials, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.testimonials, DEFAULT_TESTIMONIALS)
+    seedIfReady(STORAGE_KEYS.testimonials, DEFAULT_TESTIMONIALS)
     return DEFAULT_TESTIMONIALS
   }
   return stored.sort((a, b) => a.order - b.order)
@@ -449,7 +484,7 @@ export function deleteTestimonial(id: string): boolean {
 export function getChatbotQA(): ChatbotQA[] {
   const stored = getStorage<ChatbotQA[]>(STORAGE_KEYS.chatbotQA, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.chatbotQA, DEFAULT_CHATBOT_QA)
+    seedIfReady(STORAGE_KEYS.chatbotQA, DEFAULT_CHATBOT_QA)
     return DEFAULT_CHATBOT_QA
   }
   return stored.filter(q => q.active).sort((a, b) => a.order - b.order)
@@ -458,7 +493,7 @@ export function getChatbotQA(): ChatbotQA[] {
 export function getAllChatbotQA(): ChatbotQA[] {
   const stored = getStorage<ChatbotQA[]>(STORAGE_KEYS.chatbotQA, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.chatbotQA, DEFAULT_CHATBOT_QA)
+    seedIfReady(STORAGE_KEYS.chatbotQA, DEFAULT_CHATBOT_QA)
     return DEFAULT_CHATBOT_QA
   }
   return stored.sort((a, b) => a.order - b.order)
@@ -508,7 +543,7 @@ export function findChatbotResponse(message: string): ChatbotQA | null {
 export function getCompanyStats(): CompanyStat[] {
   const stored = getStorage<CompanyStat[]>(STORAGE_KEYS.companyStats, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.companyStats, DEFAULT_COMPANY_STATS)
+    seedIfReady(STORAGE_KEYS.companyStats, DEFAULT_COMPANY_STATS)
     return DEFAULT_COMPANY_STATS
   }
   return stored.sort((a, b) => a.order - b.order)
@@ -523,40 +558,28 @@ export function updateCompanyStats(stats: CompanyStat[]): CompanyStat[] {
 
 export function getPackages(): Package[] {
   if (typeof window === 'undefined') return []
-  const raw = localStorage.getItem(STORAGE_KEYS.packages)
-  if (raw === null) {
-    // Key never set (fresh install) — seed defaults
+  const stored = getStorage<Package[]>(STORAGE_KEYS.packages, [])
+  if (stored.length === 0) {
     const packagesWithActive = PACKAGES.map(p => ({ ...p, active: true }))
-    setStorage(STORAGE_KEYS.packages, packagesWithActive)
+    seedIfReady(STORAGE_KEYS.packages, packagesWithActive)
     return packagesWithActive
   }
-  try {
-    const stored = JSON.parse(raw) as Package[]
-    return stored.filter(p => p.active)
-  } catch {
-    return []
-  }
+  return stored.filter(p => p.active)
 }
 
 export function getAllPackages(): Package[] {
   if (typeof window === 'undefined') return []
-  const raw = localStorage.getItem(STORAGE_KEYS.packages)
-  if (raw === null) {
-    // Key never set (fresh install) — seed defaults
+  const stored = getStorage<Package[]>(STORAGE_KEYS.packages, [])
+  if (stored.length === 0) {
     const packagesWithActive = PACKAGES.map(p => ({ ...p, active: true }))
-    setStorage(STORAGE_KEYS.packages, packagesWithActive)
+    seedIfReady(STORAGE_KEYS.packages, packagesWithActive)
     return packagesWithActive
   }
-  try {
-    const stored = JSON.parse(raw) as Package[]
-    // Backfill any new fields added to PACKAGES defaults that aren't in stored data yet
-    return stored.map(pkg => {
-      const def = PACKAGES.find(p => p.id === pkg.id)
-      return def ? { ...def, ...pkg } : pkg
-    })
-  } catch {
-    return []
-  }
+  // Backfill any new fields added to PACKAGES defaults that aren't in stored data yet
+  return stored.map(pkg => {
+    const def = PACKAGES.find(p => p.id === pkg.id)
+    return def ? { ...def, ...pkg } : pkg
+  })
 }
 
 export function updatePackage(id: PackageType, data: Partial<Package>): Package | null {
@@ -592,15 +615,8 @@ export function deletePackage(id: string): void {
 // ==================== GROUP PRICING TIERS ====================
 
 export function getGroupPricingTiers(): GroupPricingTier[] {
-  if (typeof window === 'undefined') return GROUP_PRICING_TIERS
-  const raw = localStorage.getItem(STORAGE_KEYS.groupPricingTiers)
-  if (raw === null) return GROUP_PRICING_TIERS
-  try {
-    const parsed = JSON.parse(raw) as GroupPricingTier[]
-    return parsed.length > 0 ? parsed : GROUP_PRICING_TIERS
-  } catch {
-    return GROUP_PRICING_TIERS
-  }
+  const stored = getStorage<GroupPricingTier[]>(STORAGE_KEYS.groupPricingTiers, [])
+  return stored.length > 0 ? stored : GROUP_PRICING_TIERS
 }
 
 export function updateGroupPricingTiers(tiers: GroupPricingTier[]): void {
@@ -648,7 +664,7 @@ function migratePaymentMethods(stored: PaymentMethodConfig[]): PaymentMethodConf
 export function getPaymentMethods(): PaymentMethodConfig[] {
   const stored = getStorage<PaymentMethodConfig[]>(STORAGE_KEYS.paymentMethods, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.paymentMethods, PAYMENT_METHODS_CONFIG)
+    seedIfReady(STORAGE_KEYS.paymentMethods, PAYMENT_METHODS_CONFIG)
     return PAYMENT_METHODS_CONFIG
   }
   return migratePaymentMethods(stored).filter(p => p.active)
@@ -657,7 +673,7 @@ export function getPaymentMethods(): PaymentMethodConfig[] {
 export function getAllPaymentMethods(): PaymentMethodConfig[] {
   const stored = getStorage<PaymentMethodConfig[]>(STORAGE_KEYS.paymentMethods, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.paymentMethods, PAYMENT_METHODS_CONFIG)
+    seedIfReady(STORAGE_KEYS.paymentMethods, PAYMENT_METHODS_CONFIG)
     return PAYMENT_METHODS_CONFIG
   }
   return migratePaymentMethods(stored)
@@ -675,10 +691,13 @@ export function updatePaymentMethod(id: string, data: Partial<PaymentMethodConfi
 // ==================== SEAT MANAGEMENT ====================
 
 export function getSeatConfiguration(): SeatConfiguration {
-  const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.seats) : null
-  const stored: SeatConfiguration = raw
-    ? (() => { try { return JSON.parse(raw) } catch { return { ...DEFAULT_SEAT_CONFIG } } })()
-    : { ...DEFAULT_SEAT_CONFIG, packageSeats: { ...DEFAULT_SEAT_CONFIG.packageSeats } }
+  if (typeof window === 'undefined') {
+    return { ...DEFAULT_SEAT_CONFIG, packageSeats: { ...DEFAULT_SEAT_CONFIG.packageSeats } }
+  }
+  const stored: SeatConfiguration = getStorage<SeatConfiguration>(
+    STORAGE_KEYS.seats,
+    { ...DEFAULT_SEAT_CONFIG, packageSeats: { ...DEFAULT_SEAT_CONFIG.packageSeats } }
+  )
 
   if (!stored.packageSeats) {
     stored.packageSeats = { ...DEFAULT_SEAT_CONFIG.packageSeats }
@@ -773,7 +792,7 @@ export function reserveSeats(count: number, pkg: PackageType): number[] | null {
 export function getCoupons(): CouponCode[] {
   const stored = getStorage<CouponCode[]>(STORAGE_KEYS.coupons, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.coupons, DEFAULT_COUPONS)
+    seedIfReady(STORAGE_KEYS.coupons, DEFAULT_COUPONS)
     return DEFAULT_COUPONS
   }
   return stored
@@ -1338,7 +1357,7 @@ export function updateSponsorshipSettings(data: Partial<SponsorshipPageSettings>
 export function getSponsorshipTiers(): SponsorshipTier[] {
   const stored = getStorage<SponsorshipTier[]>(STORAGE_KEYS.sponsorshipTiers, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.sponsorshipTiers, DEFAULT_SPONSORSHIP_TIERS)
+    seedIfReady(STORAGE_KEYS.sponsorshipTiers, DEFAULT_SPONSORSHIP_TIERS)
     return DEFAULT_SPONSORSHIP_TIERS
   }
   return stored.filter(t => t.active).sort((a, b) => a.order - b.order)
@@ -1347,7 +1366,7 @@ export function getSponsorshipTiers(): SponsorshipTier[] {
 export function getAllSponsorshipTiers(): SponsorshipTier[] {
   const stored = getStorage<SponsorshipTier[]>(STORAGE_KEYS.sponsorshipTiers, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.sponsorshipTiers, DEFAULT_SPONSORSHIP_TIERS)
+    seedIfReady(STORAGE_KEYS.sponsorshipTiers, DEFAULT_SPONSORSHIP_TIERS)
     return DEFAULT_SPONSORSHIP_TIERS
   }
   return stored.sort((a, b) => a.order - b.order)
@@ -1381,7 +1400,7 @@ export function deleteSponsorshipTier(id: string): boolean {
 export function getSponsors(): Sponsor[] {
   const stored = getStorage<Sponsor[]>(STORAGE_KEYS.sponsors, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.sponsors, DEFAULT_SPONSORS)
+    seedIfReady(STORAGE_KEYS.sponsors, DEFAULT_SPONSORS)
     return DEFAULT_SPONSORS.filter(s => s.active)
   }
   return stored.filter(s => s.active)
@@ -1390,7 +1409,7 @@ export function getSponsors(): Sponsor[] {
 export function getAllSponsors(): Sponsor[] {
   const stored = getStorage<Sponsor[]>(STORAGE_KEYS.sponsors, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.sponsors, DEFAULT_SPONSORS)
+    seedIfReady(STORAGE_KEYS.sponsors, DEFAULT_SPONSORS)
     return DEFAULT_SPONSORS
   }
   return stored
@@ -1468,7 +1487,7 @@ export function deleteSponsorshipApplication(id: string): boolean {
 export function getAcademicPartners(): AcademicPartner[] {
   const stored = getStorage<AcademicPartner[]>(STORAGE_KEYS.academicPartners, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.academicPartners, DEFAULT_ACADEMIC_PARTNERS)
+    seedIfReady(STORAGE_KEYS.academicPartners, DEFAULT_ACADEMIC_PARTNERS)
     return DEFAULT_ACADEMIC_PARTNERS.filter(p => p.active)
   }
   return stored.filter(p => p.active)
@@ -1477,7 +1496,7 @@ export function getAcademicPartners(): AcademicPartner[] {
 export function getAllAcademicPartners(): AcademicPartner[] {
   const stored = getStorage<AcademicPartner[]>(STORAGE_KEYS.academicPartners, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.academicPartners, DEFAULT_ACADEMIC_PARTNERS)
+    seedIfReady(STORAGE_KEYS.academicPartners, DEFAULT_ACADEMIC_PARTNERS)
     return DEFAULT_ACADEMIC_PARTNERS
   }
   return stored
@@ -1539,7 +1558,7 @@ export function getAdminCredential(): AdminCredential {
   if (stored && stored.email && stored.passwordHash) return stored
   // Seed default (covers first run and cases where stored hash is empty/corrupt)
   const cred: AdminCredential = { email: DEFAULT_ADMIN_CREDENTIAL.email, passwordHash: hashPassword(DEFAULT_ADMIN_PASSWORD) }
-  setStorage(STORAGE_KEYS.adminCredential, cred)
+  seedIfReady(STORAGE_KEYS.adminCredential, cred)
   return cred
 }
 
@@ -1849,7 +1868,7 @@ export function resetUserAccountPassword(email: string, newPassword: string): bo
 export function getDocuments(): EventDocument[] {
   const stored = getStorage<EventDocument[]>(STORAGE_KEYS.documents, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.documents, DEFAULT_DOCUMENTS)
+    seedIfReady(STORAGE_KEYS.documents, DEFAULT_DOCUMENTS)
     return DEFAULT_DOCUMENTS
   }
   return stored.filter(d => d.active).sort((a, b) => a.uploadedAt > b.uploadedAt ? -1 : 1)
@@ -1858,7 +1877,7 @@ export function getDocuments(): EventDocument[] {
 export function getAllDocuments(): EventDocument[] {
   const stored = getStorage<EventDocument[]>(STORAGE_KEYS.documents, [])
   if (stored.length === 0) {
-    setStorage(STORAGE_KEYS.documents, DEFAULT_DOCUMENTS)
+    seedIfReady(STORAGE_KEYS.documents, DEFAULT_DOCUMENTS)
     return DEFAULT_DOCUMENTS
   }
   return stored.sort((a, b) => a.uploadedAt > b.uploadedAt ? -1 : 1)

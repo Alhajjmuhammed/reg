@@ -38,6 +38,7 @@ import {
 import type { UserAccount, GroupMember, Package } from '@/lib/types'
 import type { Participant, EventDocument } from '@/lib/types'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { useStoreReady } from '@/components/store-provider'
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   confirmed: { label: 'Confirmed', icon: CheckCircle, color: 'text-green-500' },
@@ -71,6 +72,7 @@ function formatDate(dateStr: string) {
 
 export default function AccountDashboard() {
   const router = useRouter()
+  const storeReady = useStoreReady()
   const [user, setUser] = useState<UserAccount | null>(null)
   const [participant, setParticipant] = useState<Participant | null>(null)
   const [documents, setDocuments] = useState<EventDocument[]>([])
@@ -96,7 +98,7 @@ export default function AccountDashboard() {
       setParticipant(p)
       setDocuments(getDocumentsForParticipant(p.selectedPackage))
     }
-  }, [router])
+  }, [router, storeReady])
 
   const handleEditMembers = () => {
     if (!participant) return

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { X, User, Briefcase, CreditCard, FileText, Calendar, MapPin, Mail, Phone, KeyRound, Eye, EyeOff } from 'lucide-react'
+import { X, User, Briefcase, CreditCard, FileText, Calendar, MapPin, Mail, Phone, KeyRound, Eye, EyeOff, Armchair, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -88,6 +88,7 @@ export function ParticipantModal({
   const [newPassword, setNewPassword] = useState('')
   const [showNewPw, setShowNewPw] = useState(false)
   const [pwMessage, setPwMessage] = useState('')
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null)
 
   useEffect(() => {
     if (participant && (mode === 'view' || mode === 'edit')) {
@@ -220,6 +221,7 @@ export function ParticipantModal({
 
   if (mode === 'view' && participant) {
     return (
+      <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
@@ -346,66 +348,128 @@ export function ParticipantModal({
               </div>
             </div>
 
-            {/* Package & Payment */}
+            {/* Seats & Booking */}
             <div className="rounded-lg border border-border p-4">
               <h3 className="mb-3 flex items-center gap-2 font-medium text-foreground">
-                <CreditCard className="h-4 w-4 text-primary" />
-                Package & Payment
+                <Armchair className="h-4 w-4 text-primary" />
+                Seats & Booking
               </h3>
               <dl className="grid gap-3 text-sm sm:grid-cols-2">
                 <div>
-                  <dt className="text-muted-foreground">Selected Package</dt>
-                  <dd className="font-medium text-foreground">
-                    {PACKAGES.find((p) => p.id === participant.selectedPackage)?.name}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Package Price</dt>
-                  <dd className="font-medium text-foreground">
-                    TZS{' '}
-                    {formatCurrency(
-                      PACKAGES.find((p) => p.id === participant.selectedPackage)?.price || 0
+                  <dt className="text-muted-foreground">Booking Type</dt>
+                  <dd className="flex items-center gap-1.5 font-medium text-foreground capitalize">
+                    {participant.bookingType === 'group' ? (
+                      <><Users className="h-3.5 w-3.5 text-muted-foreground" /> Group ({participant.groupSeats ?? 1} seats)</>
+                    ) : (
+                      <><User className="h-3.5 w-3.5 text-muted-foreground" /> Individual</>
                     )}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-muted-foreground">Amount Paid</dt>
+                  <dt className="text-muted-foreground">Assigned Seat{(participant.seatNumbers?.length ?? 0) > 1 ? 's' : ''}</dt>
                   <dd className="font-medium text-foreground">
-                    TZS {formatCurrency(participant.amountPaid)}
+                    {participant.seatNumbers && participant.seatNumbers.length > 0
+                      ? participant.seatNumbers.map(n => `#${n}`).join(', ')
+                      : <span className="text-muted-foreground italic">Not yet assigned</span>
+                    }
                   </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Package</dt>
+                  <dd className="font-medium text-foreground">
+                    {PACKAGES.find((p) => p.id === participant.selectedPackage)?.name}
+                  </dd>
+                </div>
+                {participant.receiptNumber && (
+                  <div>
+                    <dt className="text-muted-foreground">Receipt No.</dt>
+                    <dd className="font-mono font-medium text-foreground">{participant.receiptNumber}</dd>
+                  </div>
+                )}
+              </dl>
+
+              {/* Group members */}
+              {participant.bookingType === 'group' && participant.groupMembers && participant.groupMembers.length > 0 && (
+                <div className="mt-3 border-t border-border pt-3">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Group Members</p>
+                  <div className="space-y-1.5">
+                    {participant.groupMembers.map((m, i) => (
+                      <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs bg-muted/40 rounded px-2.5 py-1.5">
+                        <span className="font-medium text-foreground">{m.name || `Member ${i + 1}`}</span>
+                        {m.email && <span className="text-muted-foreground">{m.email}</span>}
+                        {m.phone && <span className="text-muted-foreground">{m.phone}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Package & Payment */}
+            <div className="rounded-lg border border-border p-4">
+              <h3 className="mb-3 flex items-center gap-2 font-medium text-foreground">
+                <CreditCard className="h-4 w-4 text-primary" />
+                Payment
+              </h3>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted-foreground">Total Amount</dt>
+                  <dd className="font-medium text-foreground">TZS {formatCurrency(participant.totalAmount)}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Amount Paid</dt>
+                  <dd className="font-medium text-foreground">TZS {formatCurrency(participant.amountPaid)}</dd>
                 </div>
                 {participant.paymentMethod && (
                   <div>
                     <dt className="text-muted-foreground">Payment Method</dt>
-                    <dd className="font-medium text-foreground">{participant.paymentMethod}</dd>
+                    <dd className="font-medium text-foreground capitalize">{participant.paymentMethod.replace(/-/g, ' ')}</dd>
                   </div>
                 )}
                 {participant.paymentReference && (
                   <div className="sm:col-span-2">
                     <dt className="text-muted-foreground">Payment Reference</dt>
-                    <dd className="font-mono font-medium text-foreground">
+                    <dd className="font-mono font-bold text-foreground bg-muted/50 rounded px-2 py-1 inline-block mt-0.5">
                       {participant.paymentReference}
                     </dd>
                   </div>
                 )}
               </dl>
 
+              {/* Payment receipt */}
               {participant.paymentSlipUrl && (
-                <div className="mt-4 border-t border-border pt-4">
-                  <p className="mb-2 text-sm text-muted-foreground">Payment Receipt / Screenshot</p>
-                  <a href={participant.paymentSlipUrl} target="_blank" rel="noopener noreferrer">
+                <div className="mt-4 border-t border-border pt-4 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Payment Receipt / Screenshot</p>
+                  <button
+                    type="button"
+                    onClick={() => setViewingReceipt(participant.paymentSlipUrl!)}
+                    className="inline-block text-left"
+                    title="Click to view full receipt"
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={participant.paymentSlipUrl}
                       alt="Payment receipt"
-                      className="max-h-56 w-auto rounded-lg border border-border object-contain"
+                      className="max-h-48 w-auto rounded-lg border border-border object-contain hover:opacity-70 transition-opacity cursor-zoom-in"
                     />
-                  </a>
+                    <p className="text-xs text-primary mt-1 hover:underline">View full receipt</p>
+                  </button>
                   {participant.paymentStatus !== 'paid' && (
-                    <Button size="sm" className="mt-3 gap-2" onClick={handleApprovePayment}>
-                      Approve Payment
-                    </Button>
+                    <div>
+                      <Button size="sm" className="gap-2" onClick={handleApprovePayment}>
+                        Approve Payment
+                      </Button>
+                    </div>
                   )}
+                </div>
+              )}
+
+              {/* No receipt — show reference prominently with approve button */}
+              {!participant.paymentSlipUrl && participant.paymentReference && participant.paymentStatus !== 'paid' && (
+                <div className="mt-3 border-t border-border pt-3">
+                  <Button size="sm" className="gap-2" onClick={handleApprovePayment}>
+                    Approve Payment
+                  </Button>
                 </div>
               )}
             </div>
@@ -440,6 +504,39 @@ export function ParticipantModal({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Receipt lightbox */}
+      <Dialog open={!!viewingReceipt} onOpenChange={() => setViewingReceipt(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-4 py-3 border-b">
+            <DialogTitle>Payment Receipt</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto flex items-center justify-center bg-muted/30 p-4">
+            {viewingReceipt && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={viewingReceipt}
+                alt="Payment receipt"
+                className="max-w-full max-h-[70vh] rounded-lg border border-border object-contain"
+              />
+            )}
+          </div>
+          <div className="flex justify-between items-center px-4 py-3 border-t gap-3">
+            <Button variant="outline" onClick={() => setViewingReceipt(null)}>Close</Button>
+            {viewingReceipt && (
+              <Button onClick={() => {
+                const link = document.createElement('a')
+                link.href = viewingReceipt
+                link.download = 'payment-receipt.png'
+                link.click()
+              }}>
+                Download Receipt
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      </>
     )
   }
 

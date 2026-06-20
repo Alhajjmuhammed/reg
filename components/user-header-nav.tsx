@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { User, LogOut, ShieldCheck, GraduationCap } from 'lucide-react'
 import { getCurrentRole, logoutAll } from '@/lib/store'
+import { useIdleLogout } from '@/lib/use-idle-logout'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -34,6 +35,8 @@ const ROLE_LABEL = {
 export function UserHeaderNav() {
   const [session, setSession] = useState<{ role: 'admin' | 'trainer' | 'participant'; email: string } | null>(null)
   const [mounted, setMounted] = useState(false)
+
+  useIdleLogout(!!session)
 
   useEffect(() => {
     setMounted(true)

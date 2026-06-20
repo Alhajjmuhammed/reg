@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { logoutAll, getCurrentAdmin } from '@/lib/store'
+import { useIdleLogout } from '@/lib/use-idle-logout'
+import { useStoreReady } from '@/components/store-provider'
 import {
   LayoutDashboard,
   Users,
@@ -47,12 +49,15 @@ const navigation = [
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const storeReady = useStoreReady()
 
   useEffect(() => {
     if (!getCurrentAdmin()) {
       window.location.href = '/login'
     }
   }, [])
+
+  useIdleLogout()
 
   return (
     <div className="min-h-screen bg-background">
@@ -166,7 +171,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="p-4 sm:p-6 lg:p-8">
+          {storeReady ? children : (
+            <div className="flex items-center justify-center py-24">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                <p className="text-sm text-muted-foreground">Loading data…</p>
+              </div>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   )

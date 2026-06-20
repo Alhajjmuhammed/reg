@@ -36,7 +36,8 @@ import { GroupBookingSelector } from './group-booking-selector'
 import { PaymentGateway } from './payment-gateway'
 import { CouponInput } from './coupon-input'
 import { SeatMap } from './seat-map'
-import { createParticipant, getSeatConfiguration, useCoupon, createUserAccount, computeGroupPricing, getAllPackages, getSiteSettings } from '@/lib/store'
+import { createParticipant, getSeatConfiguration, useCoupon, createUserAccount, computeGroupPricing, getAllPackages, getSiteSettings, refreshParticipants } from '@/lib/store'
+import { useStoreReady } from '@/components/store-provider'
 import {
   type PackageType,
   type Gender,
@@ -143,6 +144,7 @@ interface RegistrationResult {
 
 export function RegistrationForm() {
   const router = useRouter()
+  const storeReady = useStoreReady()
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<FormData>(initialFormData)
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
@@ -170,7 +172,9 @@ export function RegistrationForm() {
         groupBasePackage: activePackages.find(p => p.id === prev.groupBasePackage) ? prev.groupBasePackage : activePackages[0].id,
       }))
     }
-  }, [])
+  // Re-run when Supabase data finishes loading so seat counts and packages are fresh
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   const updateField = useCallback(
     <K extends keyof FormData>(field: K, value: FormData[K]) => {
@@ -263,12 +267,16 @@ export function RegistrationForm() {
     setCurrentStep((prev) => Math.max(prev - 1, 1))
   }
 
-  const handlePaymentComplete = (reference: string, method: PaymentMethod, receiptUrl?: string) => {
+  const handlePaymentComplete = async (reference: string, method: PaymentMethod, receiptUrl?: string) => {
     const totalAmount = calculateTotal()
     const selectedPkg = formData.bookingType === 'group'
       ? formData.groupBasePackage
       : formData.selectedPackage
     const pendingApproval = method === 'lipa-number'
+
+    // Fetch the freshest participant list from Supabase right before seat assignment
+    // to minimise the chance of two simultaneous registrations getting the same seat.
+    await refreshParticipants()
 
     // Use coupon if applied
     if (formData.couponCode) {

@@ -91,6 +91,7 @@ const emptyTier: Omit<SponsorshipTier, 'id'> = {
   highlighted: false,
   active: true,
   order: 99,
+  imageUrl: '',
 }
 
 const emptySponsor: Omit<Sponsor, 'id'> = {
@@ -136,6 +137,7 @@ export default function AdminSponsorshipPage() {
 
   // Sponsorship applications
   const [applications, setApplications] = useState<SponsorshipApplication[]>([])
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null)
 
   // Academic partners
   const [academicPartners, setAcademicPartners] = useState<AcademicPartner[]>([])
@@ -157,6 +159,24 @@ export default function AdminSponsorshipPage() {
   const handleImageUpload = async (field: 'logoUrl' | 'bannerUrl', file: File) => {
     const dataUrl = await readFileAsDataURL(file)
     setSponsorForm(f => ({ ...f, [field]: dataUrl }))
+  }
+
+  const handleTierImageUpload = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) return
+    const dataUrl = await readFileAsDataURL(file)
+    setTierForm(f => ({ ...f, imageUrl: dataUrl }))
+  }
+
+  const handleHeroImageUpload = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) return
+    const dataUrl = await readFileAsDataURL(file)
+    setSettings(s => s ? { ...s, heroImageUrl: dataUrl } : s)
+  }
+
+  const handlePackagesImageUpload = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) return
+    const dataUrl = await readFileAsDataURL(file)
+    setSettings(s => s ? { ...s, packagesImageUrl: dataUrl } : s)
   }
 
   const handleAcademicImageUpload = async (field: 'logoUrl' | 'bannerUrl', file: File) => {
@@ -195,7 +215,7 @@ export default function AdminSponsorshipPage() {
   }
   const openEditTier = (t: SponsorshipTier) => {
     setEditingTier(t)
-    setTierForm({ name: t.name, color: t.color, customColor: t.customColor, price: t.price, currency: t.currency, description: t.description, benefits: [...t.benefits.map(b => ({ ...b }))], highlighted: t.highlighted, active: t.active, order: t.order })
+    setTierForm({ name: t.name, color: t.color, customColor: t.customColor, price: t.price, currency: t.currency, description: t.description, benefits: [...t.benefits.map(b => ({ ...b }))], highlighted: t.highlighted, active: t.active, order: t.order, imageUrl: t.imageUrl || '' })
     setTierDialog(true)
   }
   const saveTier = () => {
@@ -580,6 +600,70 @@ export default function AdminSponsorshipPage() {
                   <Label>Hero Description</Label>
                   <Textarea rows={3} value={settings.heroDescription} onChange={e => setSettings(s => s ? { ...s, heroDescription: e.target.value } : s)} />
                 </div>
+                <div className="space-y-2">
+                  <Label>Hero Background Image <span className="text-muted-foreground text-xs">(replaces default image)</span></Label>
+                  <label className={cn(
+                    'flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-4 text-center transition-colors',
+                    settings.heroImageUrl ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                  )}>
+                    {settings.heroImageUrl ? (
+                      <div className="flex flex-col items-center gap-2 w-full">
+                        <img src={settings.heroImageUrl} alt="Hero background" className="max-h-36 w-full rounded-md object-cover border border-border" />
+                        <button
+                          type="button"
+                          onClick={e => { e.preventDefault(); setSettings(s => s ? { ...s, heroImageUrl: '' } : s) }}
+                          className="flex items-center gap-1 text-xs text-destructive hover:underline"
+                        >
+                          <X className="h-3 w-3" /> Remove image (use default)
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-6 w-6 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">Click to upload hero background</p>
+                        <p className="text-xs text-muted-foreground">PNG, JPG up to 5 MB — currently using default image</p>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleHeroImageUpload(f) }}
+                    />
+                  </label>
+                </div>
+                <div className="space-y-2">
+                  <Label>Sponsorship Packages Section Background <span className="text-muted-foreground text-xs">(behind the package cards)</span></Label>
+                  <label className={cn(
+                    'flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-4 text-center transition-colors',
+                    settings.packagesImageUrl ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                  )}>
+                    {settings.packagesImageUrl ? (
+                      <div className="flex flex-col items-center gap-2 w-full">
+                        <img src={settings.packagesImageUrl} alt="Packages section background" className="max-h-36 w-full rounded-md object-cover border border-border" />
+                        <button
+                          type="button"
+                          onClick={e => { e.preventDefault(); setSettings(s => s ? { ...s, packagesImageUrl: '' } : s) }}
+                          className="flex items-center gap-1 text-xs text-destructive hover:underline"
+                        >
+                          <X className="h-3 w-3" /> Remove image (use default)
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-6 w-6 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">Click to upload packages section background</p>
+                        <p className="text-xs text-muted-foreground">PNG, JPG up to 5 MB — currently using default image</p>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handlePackagesImageUpload(f) }}
+                    />
+                  </label>
+                </div>
               </CardContent>
             </Card>
 
@@ -759,9 +843,15 @@ export default function AdminSponsorshipPage() {
                           </div>
                           {app.notes && <p className="text-xs text-muted-foreground italic">"{app.notes}"</p>}
                           {app.receiptUrl && (
-                            <a href={app.receiptUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-1">
-                              <img src={app.receiptUrl} alt="Payment receipt" className="h-16 w-auto rounded border border-border object-contain hover:opacity-80 transition-opacity" />
-                            </a>
+                            <button
+                              type="button"
+                              onClick={() => setViewingReceipt(app.receiptUrl!)}
+                              className="inline-block mt-1 text-left"
+                              title="Click to view full receipt"
+                            >
+                              <img src={app.receiptUrl} alt="Payment receipt" className="h-16 w-auto rounded border border-border object-contain hover:opacity-70 transition-opacity cursor-zoom-in" />
+                              <p className="text-xs text-primary mt-0.5 hover:underline">View full receipt</p>
+                            </button>
                           )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -856,6 +946,38 @@ export default function AdminSponsorshipPage() {
             <div className="space-y-2">
               <Label>Description</Label>
               <Textarea rows={2} value={tierForm.description} onChange={e => setTierForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Package Image <span className="text-muted-foreground text-xs">(optional, shown on the tier card)</span></Label>
+              <label className={cn(
+                'flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-4 text-center transition-colors',
+                tierForm.imageUrl ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-muted/30'
+              )}>
+                {tierForm.imageUrl ? (
+                  <div className="flex flex-col items-center gap-2 w-full">
+                    <img src={tierForm.imageUrl} alt="Tier image" className="max-h-32 w-auto rounded-md object-contain border border-border" />
+                    <button
+                      type="button"
+                      onClick={e => { e.preventDefault(); setTierForm(f => ({ ...f, imageUrl: '' })) }}
+                      className="flex items-center gap-1 text-xs text-destructive hover:underline"
+                    >
+                      <X className="h-3 w-3" /> Remove image
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="h-6 w-6 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Click to upload image</p>
+                    <p className="text-xs text-muted-foreground">PNG, JPG up to 5 MB</p>
+                  </>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleTierImageUpload(f) }}
+                />
+              </label>
             </div>
             <div className="space-y-3">
               <Label>Benefits</Label>
@@ -1085,6 +1207,40 @@ export default function AdminSponsorshipPage() {
             <Button onClick={saveAcademic} disabled={!academicForm.name.trim()}>
               {editingAcademic ? 'Save Changes' : 'Add Partner'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Lightbox */}
+      <Dialog open={!!viewingReceipt} onOpenChange={() => setViewingReceipt(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-4 py-3 border-b">
+            <DialogTitle>Payment Receipt</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto flex items-center justify-center bg-muted/30 p-4">
+            {viewingReceipt && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={viewingReceipt}
+                alt="Payment receipt"
+                className="max-w-full max-h-[70vh] rounded-lg border border-border object-contain"
+              />
+            )}
+          </div>
+          <DialogFooter className="px-4 py-3 border-t">
+            <Button variant="outline" onClick={() => setViewingReceipt(null)}>Close</Button>
+            {viewingReceipt && (
+              <Button
+                onClick={() => {
+                  const link = document.createElement('a')
+                  link.href = viewingReceipt
+                  link.download = 'payment-receipt.png'
+                  link.click()
+                }}
+              >
+                Download Receipt
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

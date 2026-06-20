@@ -50,6 +50,10 @@ export function PaymentGateway({
 
   const handleReceiptChange = (file: File | null) => {
     if (!file) { setReceiptUrl(''); setReceiptName(''); return }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image is too large. Please upload a file under 5 MB.')
+      return
+    }
     const reader = new FileReader()
     reader.onload = () => { setReceiptUrl(reader.result as string); setReceiptName(file.name) }
     reader.readAsDataURL(file)

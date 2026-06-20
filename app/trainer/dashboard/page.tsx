@@ -61,6 +61,7 @@ import type { TrainerAccount, Trainer, TrainerMaterial, TrainerAnnouncement, Att
 import { DEFAULT_SESSIONS } from '@/lib/types'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { cn } from '@/lib/utils'
+import { useStoreReady } from '@/components/store-provider'
 
 const FILE_TYPE_ICONS: Record<TrainerMaterialType, React.ElementType> = {
   pdf: FileText,
@@ -86,6 +87,7 @@ function formatDate(iso: string) {
 
 export default function TrainerDashboardPage() {
   const router = useRouter()
+  const storeReady = useStoreReady()
   const [account, setAccount] = useState<TrainerAccount | null>(null)
   const [trainer, setTrainer] = useState<Trainer | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -126,7 +128,7 @@ export default function TrainerDashboardPage() {
     setAnnouncements(getAllTrainerAnnouncements(acc.trainerId))
     setParticipants(getParticipants())
     setAttendance(getAttendance(acc.trainerId))
-  }, [router])
+  }, [router, storeReady])
 
   if (!mounted || !account) return null
 

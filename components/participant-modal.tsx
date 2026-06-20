@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   createParticipant,
   updateParticipant,
+  declineParticipant,
   resetUserAccountPassword,
   getUserByParticipantId,
 } from '@/lib/store'
@@ -89,6 +90,8 @@ export function ParticipantModal({
   const [showNewPw, setShowNewPw] = useState(false)
   const [pwMessage, setPwMessage] = useState('')
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null)
+  const [showDeclineInput, setShowDeclineInput] = useState(false)
+  const [declineReason, setDeclineReason] = useState('')
 
   useEffect(() => {
     if (participant && (mode === 'view' || mode === 'edit')) {
@@ -199,6 +202,15 @@ export function ParticipantModal({
       amountPaid: participant.totalAmount,
       status: 'confirmed',
     })
+    onSave?.()
+    onClose()
+  }
+
+  const handleDeclinePayment = () => {
+    if (!participant) return
+    declineParticipant(participant.id, declineReason || undefined)
+    setShowDeclineInput(false)
+    setDeclineReason('')
     onSave?.()
     onClose()
   }
@@ -454,22 +466,34 @@ export function ParticipantModal({
                     />
                     <p className="text-xs text-primary mt-1 hover:underline">View full receipt</p>
                   </button>
-                  {participant.paymentStatus !== 'paid' && (
-                    <div>
-                      <Button size="sm" className="gap-2" onClick={handleApprovePayment}>
-                        Approve Payment
-                      </Button>
-                    </div>
-                  )}
                 </div>
               )}
 
-              {/* No receipt — show reference prominently with approve button */}
-              {!participant.paymentSlipUrl && participant.paymentReference && participant.paymentStatus !== 'paid' && (
-                <div className="mt-3 border-t border-border pt-3">
-                  <Button size="sm" className="gap-2" onClick={handleApprovePayment}>
-                    Approve Payment
-                  </Button>
+              {/* Approve / Decline action bar — always visible for non-paid participants */}
+              {participant.paymentStatus !== 'paid' && participant.status !== 'cancelled' && (
+                <div className="mt-4 border-t border-border pt-4 space-y-3">
+                  <p className="text-sm font-semibold text-foreground">Admin Action</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="gap-2 bg-green-600 hover:bg-green-700 text-white" onClick={handleApprovePayment}>
+                      ✓ Approve Payment
+                    </Button>
+                    <Button size="sm" variant="destructive" className="gap-2" onClick={() => setShowDeclineInput(v => !v)}>
+                      ✕ Decline
+                    </Button>
+                  </div>
+                  {showDeclineInput && (
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Reason for declining (optional)"
+                        value={declineReason}
+                        onChange={e => setDeclineReason(e.target.value)}
+                        className="text-sm"
+                      />
+                      <Button size="sm" variant="destructive" onClick={handleDeclinePayment}>
+                        Confirm Decline & Notify Participant
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

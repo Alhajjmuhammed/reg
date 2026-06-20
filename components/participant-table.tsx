@@ -40,7 +40,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { getParticipants, deleteParticipant, exportToCSV, getAllPackages } from '@/lib/store'
+import { getParticipants, deleteParticipant, exportToCSV, getAllPackages, updateParticipant, declineParticipant } from '@/lib/store'
 import type { Package, Participant, ParticipantStatus, PaymentStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { ParticipantModal } from './participant-modal'
@@ -348,6 +348,33 @@ export function ParticipantTable() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {participant.paymentStatus !== 'paid' && participant.status !== 'cancelled' && (
+                            <>
+                              <DropdownMenuItem
+                                className="text-green-600 focus:text-green-600"
+                                onClick={() => {
+                                  updateParticipant(participant.id, {
+                                    paymentStatus: 'paid',
+                                    amountPaid: participant.totalAmount,
+                                    status: 'confirmed',
+                                  })
+                                  loadParticipants()
+                                }}
+                              >
+                                ✓ Approve Payment
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => {
+                                  declineParticipant(participant.id)
+                                  loadParticipants()
+                                }}
+                              >
+                                ✕ Decline
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
                           <DropdownMenuItem
                             onClick={() => {
                               setSelectedParticipant(participant)

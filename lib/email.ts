@@ -4,6 +4,7 @@ export type EmailNotificationType =
   | 'registration_confirmation'
   | 'seat_confirmed'
   | 'payment_received'
+  | 'payment_declined'
   | 'waitlist_added'
   | 'waitlist_available'
   | 'event_reminder'
@@ -24,14 +25,24 @@ export interface EmailData {
   totalAmount?: number
   currency?: string
   paymentMethod?: string
+  // Login credentials — sent with seat_confirmed email
+  loginEmail?: string
+  loginPassword?: string
+  loginUrl?: string
+  // Decline reason
+  declineReason?: string
 }
 
 function createTransporter() {
+  // Remove spaces from App Password (Google adds spaces for readability but they're not part of the key)
+  const pass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s/g, '')
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
       user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
+      pass,
     },
   })
 }
@@ -156,11 +167,63 @@ function buildHTML(data: EmailData): string {
           ${data.eventVenue ? `<p style="margin:0 0 4px 0;color:#475569;font-size:14px;">📍 <strong>${data.eventVenue}</strong>${data.eventAddress ? ', ' + data.eventAddress : ''}</p>` : ''}
         </div>` : ''}
 
+        ${data.loginEmail && data.loginPassword ? `
+        <div style="margin:24px 0;padding:20px;background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;">
+          <p style="margin:0 0 12px 0;color:#14532d;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">🔐 Your Login Credentials</p>
+          <p style="margin:0 0 6px 0;color:#166534;font-size:14px;">Your account has been created. Use these details to access your registration portal:</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0 4px;margin-top:12px;">
+            <tr><td style="padding:8px 12px;background:#ffffff;border-radius:6px;border:1px solid #bbf7d0;">
+              <span style="color:#64748b;font-size:12px;font-weight:600;text-transform:uppercase;">Username (Email)</span><br/>
+              <span style="color:#1e293b;font-size:15px;font-weight:600;">${data.loginEmail}</span>
+            </td></tr>
+            <tr><td style="padding:8px 12px;background:#ffffff;border-radius:6px;border:1px solid #bbf7d0;">
+              <span style="color:#64748b;font-size:12px;font-weight:600;text-transform:uppercase;">Password</span><br/>
+              <span style="color:#1e293b;font-size:15px;font-weight:700;font-family:monospace;letter-spacing:1px;">${data.loginPassword}</span>
+            </td></tr>
+          </table>
+          ${data.loginUrl ? `
+          <div style="text-align:center;margin-top:16px;">
+            <a href="${data.loginUrl}" style="display:inline-block;background:#16a34a;color:#ffffff;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">
+              Login to Your Account
+            </a>
+          </div>` : ''}
+          <p style="margin:12px 0 0 0;color:#166534;font-size:12px;">Please change your password after your first login.</p>
+        </div>` : ''}
+
         <div style="margin:20px 0;padding:16px;background:#eff6ff;border-left:4px solid #1d4ed8;border-radius:0 6px 6px 0;">
           <p style="margin:0;color:#1e3a8a;font-size:14px;line-height:1.6;">
             Please bring a valid ID and this confirmation email on the event day. We look forward to welcoming you!
           </p>
         </div>
+      `
+      return baseTemplate(content, event)
+    }
+
+    case 'payment_declined': {
+      const content = `
+        <div style="text-align:center;margin-bottom:28px;">
+          <div style="display:inline-block;background:#fee2e2;border-radius:50%;width:64px;height:64px;line-height:64px;font-size:32px;">❌</div>
+          <h2 style="margin:12px 0 4px 0;color:#1e293b;font-size:22px;">Payment Not Approved</h2>
+          <p style="margin:0;color:#64748b;font-size:15px;">Your registration requires attention</p>
+        </div>
+
+        <p style="margin:0 0 24px 0;color:#475569;font-size:15px;line-height:1.6;">
+          Dear <strong>${data.name}</strong>, unfortunately we were unable to verify your payment for <strong>${event}</strong>.
+        </p>
+
+        ${data.declineReason ? `
+        <div style="margin:0 0 24px 0;padding:16px;background:#fef2f2;border-left:4px solid #ef4444;border-radius:0 6px 6px 0;">
+          <p style="margin:0;color:#991b1b;font-size:14px;line-height:1.6;"><strong>Reason:</strong> ${data.declineReason}</p>
+        </div>` : ''}
+
+        <div style="margin:20px 0;padding:16px;background:#fef3c7;border-left:4px solid #f59e0b;border-radius:0 6px 6px 0;">
+          <p style="margin:0;color:#92400e;font-size:14px;line-height:1.6;">
+            <strong>What to do next:</strong> Please contact us to resolve this issue or re-submit your payment proof.
+            You can reply to this email or reach us at <a href="mailto:${process.env.GMAIL_USER}" style="color:#1d4ed8;">${process.env.GMAIL_USER}</a>.
+          </p>
+        </div>
+
+        <p style="margin:24px 0 0 0;color:#475569;font-size:14px;">We apologise for the inconvenience and hope to resolve this quickly.</p>
       `
       return baseTemplate(content, event)
     }
@@ -249,6 +312,7 @@ export async function sendEmail(data: EmailData): Promise<{ success: boolean; er
     registration_confirmation: `Registration Received — ${data.eventName || 'Executive Masterclass'}`,
     seat_confirmed: `Your Seat is Confirmed — ${data.eventName || 'Executive Masterclass'}`,
     payment_received: `Payment Received — ${data.eventName || 'Executive Masterclass'}`,
+    payment_declined: `Payment Not Approved — ${data.eventName || 'Executive Masterclass'}`,
     waitlist_added: `Added to Waitlist — ${data.eventName || 'Executive Masterclass'}`,
     waitlist_available: `Seat Available for You! — ${data.eventName || 'Executive Masterclass'}`,
     event_reminder: `Event Reminder — ${data.eventName || 'Executive Masterclass'}`,

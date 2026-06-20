@@ -1390,11 +1390,12 @@ export interface WaitlistEntry {
   participantId?: string
 }
 
-export type NotificationType = 
+export type NotificationType =
   | 'registration_confirmation'
   | 'payment_received'
   | 'payment_reminder'
   | 'seat_confirmed'
+  | 'payment_declined'
   | 'waitlist_added'
   | 'waitlist_available'
   | 'event_reminder'

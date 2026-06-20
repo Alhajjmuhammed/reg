@@ -218,6 +218,14 @@ function seedIfReady<T>(key: string, value: T): void {
   }
 }
 
+// Generate a temporary login password for new accounts
+function generateTempPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  let pass = 'Mc@'
+  for (let i = 0; i < 6; i++) pass += chars[Math.floor(Math.random() * chars.length)]
+  return pass
+}
+
 // Generate receipt number
 function generateReceiptNumber(): string {
   const date = new Date()
@@ -1043,6 +1051,9 @@ export function sendNotification(
     receiptNumber?: string
     totalAmount?: number
     paymentMethod?: string
+    loginEmail?: string
+    loginPassword?: string
+    declineReason?: string
   }
 ): EmailNotification {
   const notifications = getNotifications()
@@ -1052,6 +1063,7 @@ export function sendNotification(
     payment_received: 'Payment Received',
     payment_reminder: 'Payment Reminder',
     seat_confirmed: 'Your Seat is Confirmed',
+    payment_declined: 'Payment Not Approved',
     waitlist_added: 'Added to Waitlist',
     waitlist_available: 'Seat Available for You!',
     event_reminder: 'Event Reminder',
@@ -1087,6 +1099,7 @@ export function sendNotification(
         eventVenue: settings.eventVenue,
         eventAddress: settings.eventAddress,
         currency: 'TZS',
+        loginUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/login`,
         ...emailData,
       }),
     }).catch(err => console.error('[sendNotification] email API error:', err))
@@ -1192,17 +1205,34 @@ export function updateParticipant(id: string, data: Partial<Participant>): Parti
   participants[index] = updated
   setStorage(STORAGE_KEYS.participants, participants)
 
-  // Notify participant when admin approves their payment
+  // When admin approves payment: create account with auto-generated password and email credentials
   if (becamePaid) {
+    const existingAccount = getUserByParticipantId(updated.id)
+    let loginPassword: string | undefined
+    if (!existingAccount) {
+      loginPassword = generateTempPassword()
+      createUserAccount(updated.email, loginPassword, updated.id)
+    }
     sendNotification(updated.email, updated.fullName, 'seat_confirmed', updated.id, {
       selectedPackage: updated.selectedPackage,
       seatNumbers: updated.seatNumbers,
       receiptNumber: updated.receiptNumber,
       totalAmount: updated.totalAmount,
       paymentMethod: updated.paymentMethod,
+      loginEmail: updated.email,
+      loginPassword,
     })
   }
 
+  return updated
+}
+
+export function declineParticipant(id: string, reason?: string): Participant | null {
+  const updated = updateParticipant(id, { status: 'cancelled' })
+  if (!updated) return null
+  sendNotification(updated.email, updated.fullName, 'payment_declined', updated.id, {
+    declineReason: reason,
+  })
   return updated
 }
 

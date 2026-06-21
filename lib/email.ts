@@ -36,12 +36,14 @@ export interface EmailData {
 }
 
 function createTransporter() {
-  // Remove spaces from App Password (Google adds spaces for readability but they're not part of the key)
+  // Strip spaces — Google shows App Passwords with spaces but SMTP needs them removed
   const pass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s/g, '')
+  // Port 587 + STARTTLS works on VPS hosts that block port 465 (SSL)
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false,
+    requireTLS: true,
     auth: {
       user: process.env.GMAIL_USER,
       pass,

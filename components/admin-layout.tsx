@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { logoutAll, getCurrentAdmin, getAdminRoles } from '@/lib/store'
-import { useIdleLogout } from '@/lib/use-idle-logout'
 import { useStoreReady } from '@/components/store-provider'
 import type { AdminSession, PermissionKey } from '@/lib/types'
 import {
@@ -83,8 +82,6 @@ export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) 
     }
     setSession(s)
   }, [storeReady])
-
-  useIdleLogout()
 
   const isSuperAdmin = !session || session.isSuperAdmin !== false
 

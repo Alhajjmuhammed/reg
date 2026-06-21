@@ -143,11 +143,10 @@ function RolesTab({ roles, users, onReload }: { roles: AdminRole[]; users: SubAd
       deleteAdminRole(id)
       setDeleteConfirm(null)
       onReload()
-      if (assigned.length > 0) {
-        showAlert('error', `Role deleted. ${assigned.length} admin user${assigned.length > 1 ? 's were' : ' was'} deactivated.`)
-      } else {
-        showAlert('success', 'Role deleted')
-      }
+      showAlert('success', assigned.length > 0
+        ? `Role deleted. ${assigned.length} assigned user${assigned.length > 1 ? 's were' : ' was'} deactivated.`
+        : 'Role deleted'
+      )
     } catch {
       showAlert('error', 'Failed to save changes. Please try again.')
     }
@@ -518,7 +517,7 @@ function UsersTab({ users, roles, onReload }: { users: SubAdminUser[]; roles: Ad
           return (
             <div key={user.id} className="flex items-center gap-4 rounded-xl border border-border bg-card p-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
-                {user.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                {user.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">

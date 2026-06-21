@@ -433,6 +433,15 @@ export function RegistrationForm() {
           </p>
         </div>
 
+        {/* Email spam notice */}
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-900/20">
+          <span className="mt-0.5 text-lg leading-none">📧</span>
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            A confirmation email has been sent to <strong>{registrationResult.email}</strong>.
+            If you don&apos;t see it in your inbox, please check your <strong>Spam / Junk</strong> folder and mark it as &quot;Not Spam&quot;.
+          </p>
+        </div>
+
         {/* Receipt */}
         <div className="mb-6 rounded-lg border border-border bg-secondary/30 p-6" id="receipt">
           <div className="mb-4 flex items-center justify-between border-b border-border pb-4">

@@ -336,30 +336,7 @@ export function RegistrationForm() {
       pendingApproval,
     })
 
-    // Send confirmation email (fire-and-forget)
-    const emailPkg = packages.find(p => p.id === selectedPkg)
-    fetch('/api/email/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'registration_confirmation',
-        to: participant.email,
-        name: participant.fullName,
-        eventName: siteSettings?.eventName,
-        eventDate: siteSettings?.eventDate,
-        eventTime: siteSettings?.eventTime,
-        eventVenue: siteSettings?.eventVenue
-          ? `${siteSettings.eventVenue}, ${siteSettings.eventCity}`
-          : siteSettings?.eventCity,
-        selectedPackage: emailPkg?.name ?? selectedPkg,
-        totalAmount,
-        paymentMethod: method,
-        receiptNumber: participant.receiptNumber,
-        currency: 'TZS',
-      }),
-    }).catch(console.error)
-
-    // Account is created automatically when admin approves payment
+    // Email is sent automatically by createParticipant() → sendNotification() in store.ts
   }
 
   const handlePaymentError = (error: string) => {

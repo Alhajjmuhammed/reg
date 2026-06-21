@@ -40,7 +40,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { getParticipants, deleteParticipant, exportToCSV, getAllPackages, updateParticipant, declineParticipant, getSiteSettings } from '@/lib/store'
+import { getParticipants, deleteParticipant, exportToCSV, getAllPackages, updateParticipant, declineParticipant } from '@/lib/store'
 import type { Package, Participant, ParticipantStatus, PaymentStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { ParticipantModal } from './participant-modal'
@@ -356,37 +356,14 @@ export function ParticipantTable() {
                               <DropdownMenuItem
                                 className="text-green-600 focus:text-green-600"
                                 onClick={() => {
+                                  // updateParticipant → sendNotification() in store.ts sends seat_confirmed
+                                  // email automatically with login credentials included
                                   updateParticipant(participant.id, {
                                     paymentStatus: 'paid',
                                     amountPaid: participant.totalAmount,
                                     status: 'confirmed',
                                   })
                                   loadParticipants()
-                                  // Send approval email (fire-and-forget)
-                                  const settings = getSiteSettings()
-                                  const pkg = packages.find(p => p.id === participant.selectedPackage)
-                                  fetch('/api/email/send', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      type: 'seat_confirmed',
-                                      to: participant.email,
-                                      name: participant.fullName,
-                                      eventName: settings.eventName,
-                                      eventDate: settings.eventDate,
-                                      eventTime: settings.eventTime,
-                                      eventVenue: settings.eventVenue
-                                        ? `${settings.eventVenue}, ${settings.eventCity}`
-                                        : settings.eventCity,
-                                      selectedPackage: pkg?.name ?? participant.selectedPackage,
-                                      totalAmount: participant.totalAmount,
-                                      paymentMethod: participant.paymentMethod,
-                                      receiptNumber: participant.receiptNumber,
-                                      seatNumbers: participant.seatNumbers,
-                                      currency: 'TZS',
-                                      loginUrl: `${window.location.origin}/account/dashboard`,
-                                    }),
-                                  }).catch(console.error)
                                 }}
                               >
                                 ✓ Approve Payment

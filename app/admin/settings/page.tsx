@@ -108,6 +108,8 @@ import {
   deletePackage,
   getGroupPricingTiers,
   updateGroupPricingTiers,
+  flushSiteSettings,
+  flushSeatConfiguration,
 } from '@/lib/store'
 import { useStoreReady } from '@/components/store-provider'
 import type {
@@ -207,25 +209,33 @@ export default function AdminSettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeReady])
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     if (!siteSettings) return
     setIsSaving(true)
-    updateSiteSettings(siteSettings)
-    setTimeout(() => {
-      setIsSaving(false)
+    try {
+      updateSiteSettings(siteSettings)
+      await flushSiteSettings()
       setSaveMessage('Settings saved successfully!')
-      setTimeout(() => setSaveMessage(''), 3000)
-    }, 500)
+    } catch (err) {
+      setSaveMessage('Save failed: ' + (err instanceof Error ? err.message : 'Check your connection'))
+    } finally {
+      setIsSaving(false)
+      setTimeout(() => setSaveMessage(''), 4000)
+    }
   }
 
-  const handleSaveSeats = () => {
+  const handleSaveSeats = async () => {
     setIsSavingSeats(true)
-    updatePackageSeats(packageSeats)
-    setTimeout(() => {
-      setIsSavingSeats(false)
+    try {
+      updatePackageSeats(packageSeats)
+      await flushSeatConfiguration()
       setSaveMessage('Seat configuration updated!')
-      setTimeout(() => setSaveMessage(''), 3000)
-    }, 500)
+    } catch (err) {
+      setSaveMessage('Save failed: ' + (err instanceof Error ? err.message : 'Check your connection'))
+    } finally {
+      setIsSavingSeats(false)
+      setTimeout(() => setSaveMessage(''), 4000)
+    }
   }
 
   const handleResetData = () => {

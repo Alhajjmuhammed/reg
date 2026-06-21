@@ -2,24 +2,45 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, Sparkles, Calendar, MapPin, Users } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Sparkles, Calendar, MapPin, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getHeroSlides, getSiteSettings } from '@/lib/store'
 import type { HeroSlide, SiteSettings } from '@/lib/types'
 import { assetUrl } from '@/lib/utils'
+import { useStoreReady } from '@/components/store-provider'
+
+function formatDateRange(start: string, end: string): string {
+  try {
+    const s = new Date(start + 'T00:00:00')
+    const e = new Date(end + 'T00:00:00')
+    const ms = s.toLocaleDateString('en-US', { month: 'short' })
+    const me = e.toLocaleDateString('en-US', { month: 'short' })
+    const year = e.getFullYear()
+    if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
+      return `${ms} ${s.getDate()}–${e.getDate()}, ${year}`
+    }
+    return `${ms} ${s.getDate()} – ${me} ${e.getDate()}, ${year}`
+  } catch {
+    return [start, end].filter(Boolean).join(' – ')
+  }
+}
 
 export function HeroSlideshow() {
+  const storeReady = useStoreReady()
   const [slides, setSlides] = useState<HeroSlide[]>([])
   const [settings, setSettings] = useState<SiteSettings | null>(null)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
 
+  // isMounted guards SSR hydration — set on first client render only
+  useEffect(() => { setIsMounted(true) }, [])
+
+  // Re-read settings and slides whenever the store finishes loading from Supabase
   useEffect(() => {
-    setIsMounted(true)
     setSlides(getHeroSlides())
     setSettings(getSiteSettings())
-  }, [])
+  }, [storeReady])
 
   const nextSlide = useCallback(() => {
     if (slides.length === 0) return
@@ -86,10 +107,15 @@ export function HeroSlideshow() {
           <span>Limited Seats Available</span>
         </div>
 
-        <h1 className="mb-4 max-w-4xl text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-          {isMounted && settings ? settings.eventName : 'Executive Masterclass'} on{' '}
-          <span className="text-primary">Social Media, AI & Automation</span>
+        <h1 className="mb-3 max-w-4xl text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+          {isMounted && settings ? settings.eventName : 'Executive Masterclass'}
         </h1>
+
+        {isMounted && settings?.eventTagline && (
+          <p className="mb-3 max-w-2xl text-xl font-semibold text-primary sm:text-2xl">
+            {settings.eventTagline}
+          </p>
+        )}
 
         {/* Dynamic Slide Text */}
         <div className="mb-6 h-20">
@@ -117,15 +143,27 @@ export function HeroSlideshow() {
         <div className="mb-8 flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2 rounded-full bg-background/50 px-3 py-1.5 backdrop-blur-sm">
             <Calendar className="h-4 w-4 text-primary" />
-            <span>3 Days Intensive Training</span>
+            <span>
+              {isMounted && settings?.eventDate && settings?.eventEndDate
+                ? formatDateRange(settings.eventDate, settings.eventEndDate)
+                : '3 Days Intensive Training'}
+            </span>
           </div>
           <div className="flex items-center gap-2 rounded-full bg-background/50 px-3 py-1.5 backdrop-blur-sm">
             <MapPin className="h-4 w-4 text-primary" />
-            <span>{isMounted && settings ? `${settings.eventCity}, ${settings.eventCountry}` : 'Dar es Salaam, Tanzania'}</span>
+            <span>
+              {isMounted && settings
+                ? settings.eventVenue
+                  ? `${settings.eventVenue}, ${settings.eventCity}`
+                  : `${settings.eventCity}, ${settings.eventCountry}`
+                : 'Dar es Salaam, Tanzania'}
+            </span>
           </div>
           <div className="flex items-center gap-2 rounded-full bg-background/50 px-3 py-1.5 backdrop-blur-sm">
-            <Users className="h-4 w-4 text-primary" />
-            <span>Limited Executive Seats</span>
+            <Clock className="h-4 w-4 text-primary" />
+            <span>
+              {isMounted && settings?.eventTime ? settings.eventTime : 'Daily 08:00 AM – 05:00 PM'}
+            </span>
           </div>
         </div>
 

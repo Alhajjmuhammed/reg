@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { getTermsContent } from '@/lib/store'
 import { useStoreReady } from '@/components/store-provider'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { sanitizeHtml } from '@/lib/utils'
 
 export default function RegistrationTermsPage() {
   const storeReady = useStoreReady()
@@ -56,7 +57,7 @@ export default function RegistrationTermsPage() {
               [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-foreground [&_h3]:mt-6 [&_h3]:mb-2
               [&_p]:text-muted-foreground [&_p]:leading-relaxed [&_p]:mb-3
               [&_ul]:text-muted-foreground [&_li]:mb-1"
-            dangerouslySetInnerHTML={{ __html: content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
           />
         ) : (
           <div className="flex items-center justify-center py-20">

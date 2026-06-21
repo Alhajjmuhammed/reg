@@ -21,6 +21,7 @@ import Image from 'next/image'
 import { getPaymentMethods, createSponsorshipApplication, getSiteSettings } from '@/lib/store'
 import type { SponsorshipTier, PaymentMethodConfig, SponsorshipApplication, SiteSettings } from '@/lib/types'
 import { cn, assetUrl } from '@/lib/utils'
+import { useStoreReady } from '@/components/store-provider'
 
 // ── Industry options ──────────────────────────────────────────────────────────
 const INDUSTRY_OPTIONS = [
@@ -361,6 +362,7 @@ const EMPTY: FormData = {
 interface Props { tier: SponsorshipTier | null; open: boolean; onClose: () => void }
 
 export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
+  const storeReady = useStoreReady()
   const [step, setStep]             = useState(0)
   const [form, setForm]             = useState<FormData>(EMPTY)
   const [errors, setErrors]         = useState<Partial<Record<keyof FormData, string>>>({})
@@ -390,7 +392,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
       setChallenge(null); setMethod(null)
       setMethods(getPaymentMethods()); setSettings(getSiteSettings())
     }
-  }, [open])
+  }, [open, storeReady])
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }) }, [step])
 
@@ -935,8 +937,31 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
 
         if (data.success) {
           const app = await fetchApplication(data.applicationId as string)
-          if (app) { setApp(app); setStep(3) }
-          else setStep(3)
+          if (app) {
+            setApp(app)
+            // Send submission confirmation email (fire-and-forget)
+            fetch('/api/email/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'sponsorship_submitted',
+                to: app.contactEmail,
+                name: app.contactName,
+                eventName: settings?.eventName,
+                eventDate: settings?.eventDate,
+                eventTime: settings?.eventTime,
+                eventVenue: settings?.eventVenue
+                  ? `${settings.eventVenue}, ${settings.eventCity}`
+                  : settings?.eventCity,
+                selectedPackage: `${tier.name} Sponsorship`,
+                totalAmount: tier.price,
+                paymentMethod: form.paymentMethod,
+                receiptNumber: app.invoiceNumber,
+                currency: tier.currency,
+              }),
+            }).catch(console.error)
+          }
+          setStep(3)
           setSubmitting(false)
           return
         }
@@ -1020,6 +1045,28 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
     setApp(app)
     setSubmitting(false)
     setStep(3)
+
+    // Send submission confirmation email (fire-and-forget)
+    fetch('/api/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'sponsorship_submitted',
+        to: app.contactEmail,
+        name: app.contactName,
+        eventName: settings?.eventName,
+        eventDate: settings?.eventDate,
+        eventTime: settings?.eventTime,
+        eventVenue: settings?.eventVenue
+          ? `${settings.eventVenue}, ${settings.eventCity}`
+          : settings?.eventCity,
+        selectedPackage: `${tier.name} Sponsorship`,
+        totalAmount: tier.price,
+        paymentMethod: form.paymentMethod,
+        receiptNumber: app.invoiceNumber,
+        currency: tier.currency,
+      }),
+    }).catch(console.error)
   }
 
   if (!open || !tier) return null
@@ -1749,7 +1796,29 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
               }
               if (data.success) {
                 const app = await fetchApplication(data.applicationId as string)
-                if (app) setApp(app)
+                if (app) {
+                  setApp(app)
+                  fetch('/api/email/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      type: 'sponsorship_submitted',
+                      to: app.contactEmail,
+                      name: app.contactName,
+                      eventName: settings?.eventName,
+                      eventDate: settings?.eventDate,
+                      eventTime: settings?.eventTime,
+                      eventVenue: settings?.eventVenue
+                        ? `${settings.eventVenue}, ${settings.eventCity}`
+                        : settings?.eventCity,
+                      selectedPackage: `${tier?.name} Sponsorship`,
+                      totalAmount: tier?.price,
+                      paymentMethod: form.paymentMethod,
+                      receiptNumber: app.invoiceNumber,
+                      currency: tier?.currency,
+                    }),
+                  }).catch(console.error)
+                }
                 setStep(3)
                 return
               }
@@ -1780,7 +1849,29 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
           onSuccess={async () => {
             const app = await fetchApplication(challenge.applicationId)
             setChallenge(null)
-            if (app) setApp(app)
+            if (app) {
+              setApp(app)
+              fetch('/api/email/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'sponsorship_submitted',
+                  to: app.contactEmail,
+                  name: app.contactName,
+                  eventName: settings?.eventName,
+                  eventDate: settings?.eventDate,
+                  eventTime: settings?.eventTime,
+                  eventVenue: settings?.eventVenue
+                    ? `${settings.eventVenue}, ${settings.eventCity}`
+                    : settings?.eventCity,
+                  selectedPackage: `${tier?.name} Sponsorship`,
+                  totalAmount: tier?.price,
+                  paymentMethod: form.paymentMethod,
+                  receiptNumber: app.invoiceNumber,
+                  currency: tier?.currency,
+                }),
+              }).catch(console.error)
+            }
             setStep(3)
           }}
           onFailure={(msg) => {

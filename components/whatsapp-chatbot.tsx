@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { findChatbotResponse, getSiteSettings } from '@/lib/store'
 import type { SiteSettings } from '@/lib/types'
+import { useStoreReady } from '@/components/store-provider'
 
 interface Message {
   id: string
@@ -36,6 +37,7 @@ const QUICK_REPLIES: Record<string, QuickReply[]> = {
 }
 
 export function WhatsAppChatbot() {
+  const storeReady = useStoreReady()
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
@@ -47,7 +49,7 @@ export function WhatsAppChatbot() {
 
   useEffect(() => {
     setSettings(getSiteSettings())
-  }, [])
+  }, [storeReady])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

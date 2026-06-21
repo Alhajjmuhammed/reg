@@ -256,12 +256,17 @@ export function PaymentGateway({
       )}
 
       {/* Pay Button */}
+      {isLipaNumber && !receiptUrl && !lipaReference.trim() && (
+        <p className="text-center text-sm text-muted-foreground">
+          Enter your payment reference number or upload your receipt to continue.
+        </p>
+      )}
       <Button
         type="button"
         className="w-full"
         size="lg"
         onClick={handlePay}
-        disabled={!selectedMethod || isProcessing}
+        disabled={!selectedMethod || isProcessing || (isLipaNumber && !receiptUrl && !lipaReference.trim())}
       >
         {isProcessing ? (
           <>

@@ -64,6 +64,7 @@ import {
   getSponsorshipApplications,
   updateSponsorshipApplication,
   deleteSponsorshipApplication,
+  getSiteSettings,
 } from '@/lib/store'
 import type { SponsorshipTier, Sponsor, SponsorshipPageSettings, SponsorshipTierColor, AcademicPartner, AcademicPartnerSettings, SponsorshipApplication } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -862,8 +863,32 @@ export default function AdminSponsorshipPage() {
                             className="rounded-md border border-border bg-background px-2 py-1 text-xs"
                             value={app.status}
                             onChange={e => {
-                              updateSponsorshipApplication(app.id, { status: e.target.value as SponsorshipApplication['status'] })
+                              const newStatus = e.target.value as SponsorshipApplication['status']
+                              updateSponsorshipApplication(app.id, { status: newStatus })
                               setApplications(getSponsorshipApplications())
+                              if (newStatus === 'confirmed') {
+                                const evtSettings = getSiteSettings()
+                                fetch('/api/email/send', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    type: 'sponsorship_approved',
+                                    to: app.contactEmail,
+                                    name: app.contactName,
+                                    eventName: evtSettings.eventName,
+                                    eventDate: evtSettings.eventDate,
+                                    eventTime: evtSettings.eventTime,
+                                    eventVenue: evtSettings.eventVenue
+                                      ? `${evtSettings.eventVenue}, ${evtSettings.eventCity}`
+                                      : evtSettings.eventCity,
+                                    selectedPackage: `${app.tierName} Sponsorship`,
+                                    totalAmount: app.amount,
+                                    currency: app.currency,
+                                    receiptNumber: app.invoiceNumber,
+                                    paymentMethod: app.paymentMethod,
+                                  }),
+                                }).catch(console.error)
+                              }
                             }}
                           >
                             <option value="pending">Pending</option>

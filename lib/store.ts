@@ -2227,3 +2227,42 @@ export function setTermsContent(data: Partial<TermsContent>): TermsContent {
   setStorage(STORAGE_KEYS.termsContent, updated)
   return updated
 }
+
+// Explicitly awaits the Supabase write for terms content. Throws on error.
+export async function flushTermsContent(): Promise<void> {
+  const content = getTermsContent()
+  const { supabase } = await import('./supabase')
+  const { error } = await supabase
+    .from('app_store')
+    .upsert({ key: STORAGE_KEYS.termsContent, value: content, updated_at: new Date().toISOString() })
+  if (error) throw new Error(error.message)
+}
+
+// Explicitly awaits the Supabase write for site settings. Throws on error.
+export async function flushSiteSettings(): Promise<void> {
+  const settings = getSiteSettings()
+  const { supabase } = await import('./supabase')
+  const { error } = await supabase
+    .from('app_store')
+    .upsert({ key: STORAGE_KEYS.siteSettings, value: settings, updated_at: new Date().toISOString() })
+  if (error) throw new Error(error.message)
+}
+
+// Explicitly awaits the Supabase write for seat configuration. Throws on error.
+export async function flushSeatConfiguration(): Promise<void> {
+  const config = getStorage<unknown>(STORAGE_KEYS.seats, {})
+  const { supabase } = await import('./supabase')
+  const { error } = await supabase
+    .from('app_store')
+    .upsert({ key: STORAGE_KEYS.seats, value: config, updated_at: new Date().toISOString() })
+  if (error) throw new Error(error.message)
+}
+
+export async function flushCurriculumModules(): Promise<void> {
+  const modules = getAllCurriculum()
+  const { supabase } = await import('./supabase')
+  const { error } = await supabase
+    .from('app_store')
+    .upsert({ key: STORAGE_KEYS.curriculum, value: modules, updated_at: new Date().toISOString() })
+  if (error) throw new Error(error.message)
+}

@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   ShieldX,
   UserCircle,
+  BookOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -56,6 +57,7 @@ const ALL_NAV: NavItem[] = [
   { name: 'Documents',    href: '/admin/documents',     icon: FolderOpen,     permission: 'documents.manage' },
   { name: 'Sponsorship',  href: '/admin/sponsorship',   icon: Handshake,      permission: 'sponsorship.view' },
   { name: 'Trainers',     href: '/admin/trainers',      icon: GraduationCap,  permission: 'trainers.manage' },
+  { name: 'Curriculum',   href: '/admin/curriculum',    icon: BookOpen,       permission: 'settings.manage' },
   { name: 'Terms',        href: '/admin/terms',         icon: ScrollText,     permission: 'terms.manage' },
   { name: 'Roles',        href: '/admin/roles',         icon: ShieldCheck,    permission: 'roles.manage' },
   { name: 'Settings',     href: '/admin/settings',      icon: Settings,       permission: 'settings.manage' },
@@ -63,12 +65,15 @@ const ALL_NAV: NavItem[] = [
 
 export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  // Eagerly initialize from localStorage so the first render already has the correct session —
-  // prevents the nav/Settings flash for sub-admins before useEffect runs.
-  const [session, setSession] = useState<AdminSession | null>(() =>
-    typeof window !== 'undefined' ? getCurrentAdmin() : null
-  )
+  const [session, setSession] = useState<AdminSession | null>(null)
   const storeReady = useStoreReady()
+
+  // Populate session from localStorage on first mount (synchronous read, no Supabase needed).
+  // Runs before the storeReady effect so the sidebar name/nav are correct on first paint.
+  useEffect(() => {
+    const s = getCurrentAdmin()
+    if (s) setSession(s)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const s = getCurrentAdmin()

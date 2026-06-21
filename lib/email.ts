@@ -9,6 +9,8 @@ export type EmailNotificationType =
   | 'waitlist_available'
   | 'event_reminder'
   | 'receipt'
+  | 'sponsorship_submitted'
+  | 'sponsorship_approved'
 
 export interface EmailData {
   type: EmailNotificationType
@@ -490,6 +492,98 @@ function buildHTML(data: EmailData): string {
       return baseTemplate(content, event, '#15803d')
     }
 
+    /* ── SPONSORSHIP SUBMITTED ── */
+    case 'sponsorship_submitted': {
+      const detailRows = [
+        ...(data.selectedPackage ? [{ label: 'Tier / Package', value: data.selectedPackage }] : []),
+        ...(data.totalAmount     ? [{ label: 'Amount', value: `${currency} ${data.totalAmount.toLocaleString()}` }] : []),
+        ...(data.paymentMethod   ? [{ label: 'Payment Method', value: data.paymentMethod.replace(/-/g, ' ') }] : []),
+        ...(data.receiptNumber   ? [{ label: 'Invoice No.', value: `<span style="font-family:monospace;font-size:13px;">${data.receiptNumber}</span>` }] : []),
+      ]
+
+      const content = `
+        ${greetingBlock(data.name,
+          'Application Received!',
+          `thank you for your interest in sponsoring <strong>${event}</strong>.
+          Your application has been received and is under review. Our team will be in touch within 1–2 business days.`)}
+
+        ${detailRows.length ? detailCard(detailRows) : ''}
+
+        ${alertBox(`<strong>What happens next?</strong><br/>
+          Our partnerships team will review your application and verify your payment details.
+          Once confirmed, you will receive a separate email with your official invoice and sponsorship confirmation.`, 'warning')}
+
+        ${data.eventDate ? `
+          ${sectionTitle('Event Details')}
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+            style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+            <tr><td style="padding:16px 20px;">
+              <p style="margin:0 0 6px 0;color:#475569;font-size:14px;">
+                <span style="font-size:16px;">&#128197;</span>&nbsp;
+                <strong>${data.eventDate}</strong>${data.eventTime ? ' &nbsp;at&nbsp; ' + data.eventTime : ''}
+              </p>
+              ${data.eventVenue ? `<p style="margin:0;color:#475569;font-size:14px;">
+                <span style="font-size:16px;">&#128205;</span>&nbsp;
+                <strong>${data.eventVenue}</strong>
+              </p>` : ''}
+            </td></tr>
+          </table>` : ''}
+
+        <p style="margin:24px 0 0 0;color:#64748b;font-size:14px;line-height:1.6;">
+          We appreciate your support of ${event}. For immediate assistance, please reply to this email.
+        </p>`
+
+      return baseTemplate(content, event)
+    }
+
+    /* ── SPONSORSHIP APPROVED ── */
+    case 'sponsorship_approved': {
+      const siteUrl = process.env.SITE_URL || 'https://e-masterclass.eopsprimax.com'
+      const detailRows = [
+        ...(data.receiptNumber   ? [{ label: 'Invoice No.', value: `<span style="font-family:monospace;font-size:13px;">${data.receiptNumber}</span>` }] : []),
+        ...(data.selectedPackage ? [{ label: 'Sponsorship Tier', value: data.selectedPackage }] : []),
+        ...(data.totalAmount     ? [{ label: 'Amount Paid', value: `<strong>${currency} ${data.totalAmount.toLocaleString()}</strong>` }] : []),
+        ...(data.paymentMethod   ? [{ label: 'Payment Method', value: data.paymentMethod.replace(/-/g, ' ') }] : []),
+      ]
+
+      const content = `
+        <!-- Status badge -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;">
+          <tr>
+            <td style="background:#dcfce7;border-radius:100px;padding:6px 14px;">
+              <span style="color:#15803d;font-size:13px;font-weight:700;letter-spacing:0.3px;">&#10003;&nbsp; SPONSORSHIP CONFIRMED</span>
+            </td>
+          </tr>
+        </table>
+
+        ${greetingBlock(data.name,
+          'Your Sponsorship is Confirmed!',
+          `great news — your sponsorship of <strong>${event}</strong> has been approved and confirmed. Welcome aboard!`)}
+
+        ${detailCard(detailRows)}
+
+        ${data.eventDate ? `
+          ${sectionTitle('Event Details')}
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+            style="background:linear-gradient(135deg,#eff6ff,#f0fdf4);border:1px solid #bfdbfe;border-radius:10px;">
+            <tr><td style="padding:18px 20px;">
+              <p style="margin:0 0 8px 0;color:#1e40af;font-size:15px;font-weight:700;">
+                <span style="font-size:18px;">&#128197;</span>&nbsp; ${data.eventDate}${data.eventTime ? ' &nbsp;&bull;&nbsp; ' + data.eventTime : ''}
+              </p>
+              ${data.eventVenue ? `<p style="margin:0;color:#1e40af;font-size:14px;">
+                <span style="font-size:16px;">&#128205;</span>&nbsp; <strong>${data.eventVenue}</strong>
+              </p>` : ''}
+            </td></tr>
+          </table>` : ''}
+
+        ${alertBox(
+          `Your invoice is attached for your records. You can also <a href="${siteUrl}/sponsorship" style="color:#1e40af;font-weight:600;">visit the sponsorship page</a> to view your listing once it goes live.`,
+          'info'
+        )}`
+
+      return baseTemplate(content, event, '#16a34a')
+    }
+
     default:
       return baseTemplate(
         `<p style="color:#475569;font-size:15px;">Hello <strong>${data.name}</strong>, you have a notification regarding <strong>${event}</strong>.</p>`,
@@ -516,6 +610,8 @@ export async function sendEmail(data: EmailData): Promise<{ success: boolean; er
     waitlist_available: `Seat Available for You! — ${data.eventName || 'Executive Masterclass'}`,
     event_reminder: `Event Reminder — ${data.eventName || 'Executive Masterclass'}`,
     receipt: `Payment Receipt — ${data.eventName || 'Executive Masterclass'}`,
+    sponsorship_submitted: `Sponsorship Application Received — ${data.eventName || 'Executive Masterclass'}`,
+    sponsorship_approved: `Your Sponsorship is Confirmed! — ${data.eventName || 'Executive Masterclass'}`,
   }
 
   try {

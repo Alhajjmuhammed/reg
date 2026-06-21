@@ -22,6 +22,7 @@ import { getPaymentMethods, createSponsorshipApplication, getSiteSettings } from
 import type { SponsorshipTier, PaymentMethodConfig, SponsorshipApplication, SiteSettings } from '@/lib/types'
 import { cn, assetUrl } from '@/lib/utils'
 import { useStoreReady } from '@/components/store-provider'
+import { EmailSentDialog } from '@/components/email-sent-dialog'
 
 // ── Industry options ──────────────────────────────────────────────────────────
 const INDUSTRY_OPTIONS = [
@@ -1562,14 +1563,10 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                 </div>
               </div>
 
-              {/* Email spam notice */}
-              <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-800 dark:bg-blue-900/20">
-                <span className="mt-0.5 text-lg leading-none">📧</span>
-                <p className="text-sm text-blue-800 dark:text-blue-300">
-                  A confirmation email has been sent to <strong>{application.contactEmail}</strong>.
-                  If you don&apos;t see it in your inbox, please check your <strong>Spam / Junk</strong> folder and mark it as &quot;Not Spam&quot;.
-                </p>
-              </div>
+              <EmailSentDialog
+                email={application.contactEmail}
+                eventName={settings?.eventName || 'Executive Masterclass'}
+              />
 
               {/* ── Tab switcher ── */}
               <div className="flex rounded-lg border border-border overflow-hidden">

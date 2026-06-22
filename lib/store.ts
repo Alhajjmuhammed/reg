@@ -89,10 +89,13 @@ let storeInitialized = false
 // Load all data from SQLite (via /api/store) into memStore on app start
 export async function initStore(): Promise<void> {
   if (typeof window === 'undefined') return
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 12000) // 12s client-side safety net
   try {
-    const res = await fetch('/api/store')
+    const res = await fetch('/api/store', { signal: controller.signal })
+    clearTimeout(timer)
     if (!res.ok) {
-      console.error('DB load error, status:', res.status)
+      console.error('DB load error, status:', res.status, await res.text().catch(() => ''))
       return
     }
     const rows: { key: string; value: unknown }[] = await res.json()
@@ -105,6 +108,7 @@ export async function initStore(): Promise<void> {
       setLocalStorage('masterclass_sub_admins_local', subAdminsRow.value)
     }
   } catch (e) {
+    clearTimeout(timer)
     console.error('initStore failed', e)
   } finally {
     storeInitialized = true

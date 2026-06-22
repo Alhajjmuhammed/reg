@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { prisma } from '@/lib/prisma'
 import { authenticate3DS2, PAID_STATES } from '@/lib/ngenius'
 import type { SponsorshipApplication } from '@/lib/types'
 
@@ -11,17 +11,17 @@ function getBaseUrl(req: NextRequest): string {
 }
 
 async function readApps(): Promise<SponsorshipApplication[]> {
-  const { data } = await supabase
-    .from('app_store').select('value')
-    .eq('key', 'masterclass_sponsorship_applications').maybeSingle()
-  return (data?.value as SponsorshipApplication[]) || []
+  const row = await prisma.kvStore.findUnique({
+    where: { key: 'masterclass_sponsorship_applications' },
+  })
+  return row ? JSON.parse(row.value) : []
 }
 
 async function writeApps(apps: SponsorshipApplication[]): Promise<void> {
-  await supabase.from('app_store').upsert({
-    key: 'masterclass_sponsorship_applications',
-    value: apps,
-    updated_at: new Date().toISOString(),
+  await prisma.kvStore.upsert({
+    where: { key: 'masterclass_sponsorship_applications' },
+    create: { key: 'masterclass_sponsorship_applications', value: JSON.stringify(apps) },
+    update: { value: JSON.stringify(apps) },
   })
 }
 
@@ -43,7 +43,6 @@ export async function POST(req: NextRequest) {
       req.headers.get('x-real-ip') || '127.0.0.1'
 
     const threeDSCompInd: 'Y' | 'N' = methodCompleted ? 'Y' : 'N'
-    // Try the already-registered payment webhook URL — NBC may require a pre-registered URL
     const notificationUrl = `${baseUrl}/api/payment/webhook`
 
     console.log('[authenticate] orderRef:', orderRef, 'compInd:', threeDSCompInd, 'notifyUrl:', notificationUrl)

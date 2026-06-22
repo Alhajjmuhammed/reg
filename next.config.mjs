@@ -7,9 +7,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Prevent Next.js from bundling nodemailer — it uses Node.js built-ins (net, tls)
-  // that cannot be bundled by Webpack/Turbopack. Must run as an external at runtime.
-  serverExternalPackages: ['nodemailer'],
+  // Prevent Next.js from bundling these Node.js-only packages.
+  serverExternalPackages: ['nodemailer', '@prisma/client', '.prisma/client'],
 }
 
 export default nextConfig

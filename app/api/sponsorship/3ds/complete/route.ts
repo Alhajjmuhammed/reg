@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { prisma } from '@/lib/prisma'
 import { complete3DSChallenge, PAID_STATES } from '@/lib/ngenius'
 import type { SponsorshipApplication } from '@/lib/types'
 
 async function readApps(): Promise<SponsorshipApplication[]> {
-  const { data } = await supabase
-    .from('app_store').select('value')
-    .eq('key', 'masterclass_sponsorship_applications').maybeSingle()
-  return (data?.value as SponsorshipApplication[]) || []
+  const row = await prisma.kvStore.findUnique({
+    where: { key: 'masterclass_sponsorship_applications' },
+  })
+  return row ? JSON.parse(row.value) : []
 }
 
 async function writeApps(apps: SponsorshipApplication[]): Promise<void> {
-  await supabase.from('app_store').upsert({
-    key: 'masterclass_sponsorship_applications',
-    value: apps,
-    updated_at: new Date().toISOString(),
+  await prisma.kvStore.upsert({
+    where: { key: 'masterclass_sponsorship_applications' },
+    create: { key: 'masterclass_sponsorship_applications', value: JSON.stringify(apps) },
+    update: { value: JSON.stringify(apps) },
   })
 }
 
@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
     console.log('[3ds/complete] final state:', result.state)
 
     if (PAID_STATES.has(result.state)) {
-      // Confirm the application in Supabase
       const apps = await readApps()
       const idx  = apps.findIndex(a => a.id === applicationId || a.paymentReference === orderRef)
       if (idx !== -1) {

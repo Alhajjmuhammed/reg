@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { prisma } from '@/lib/prisma'
 import { chargeCard, PAID_STATES } from '@/lib/ngenius'
 import { v4 as uuidv4 } from 'uuid'
 import type { SponsorshipApplication } from '@/lib/types'
@@ -12,17 +12,17 @@ function getBaseUrl(req: NextRequest): string {
 }
 
 async function readApps(): Promise<SponsorshipApplication[]> {
-  const { data } = await supabase
-    .from('app_store').select('value')
-    .eq('key', 'masterclass_sponsorship_applications').maybeSingle()
-  return (data?.value as SponsorshipApplication[]) || []
+  const row = await prisma.kvStore.findUnique({
+    where: { key: 'masterclass_sponsorship_applications' },
+  })
+  return row ? JSON.parse(row.value) : []
 }
 
 async function writeApps(apps: SponsorshipApplication[]): Promise<void> {
-  await supabase.from('app_store').upsert({
-    key: 'masterclass_sponsorship_applications',
-    value: apps,
-    updated_at: new Date().toISOString(),
+  await prisma.kvStore.upsert({
+    where: { key: 'masterclass_sponsorship_applications' },
+    create: { key: 'masterclass_sponsorship_applications', value: JSON.stringify(apps) },
+    update: { value: JSON.stringify(apps) },
   })
 }
 
@@ -37,14 +37,14 @@ export async function POST(req: NextRequest) {
       tierPrice:       number
       card: {
         pan:    string
-        expiry: string  // MM/YY from form input
+        expiry: string
         cvv:    string
         name:   string
       }
       browserInfo: Record<string, unknown>
     }
 
-    // ── 1. Save application to Supabase ──────────────────────────────────────
+    // ── 1. Save application to SQLite ────────────────────────────────────────
     const apps = await readApps()
     const seq  = (apps.length + 1).toString().padStart(4, '0')
     const year = new Date().getFullYear()
@@ -119,7 +119,6 @@ export async function POST(req: NextRequest) {
         threeDSServerTransID,
         methodNotifyUrl:     `${baseUrl}/api/sponsorship/3ds/method-notify`,
       })
-
     }
 
     // ── 6. Payment failed ────────────────────────────────────────────────────

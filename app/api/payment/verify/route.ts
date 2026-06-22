@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { prisma } from '@/lib/prisma'
 import type { Participant } from '@/lib/types'
 
 const IDENTITY_URL = process.env.NGENIUS_IDENTITY_URL!
@@ -23,6 +23,20 @@ async function getNGeniusToken(): Promise<string> {
   if (!res.ok) throw new Error(`Auth failed: ${res.status}`)
   const d = await res.json()
   return d.access_token as string
+}
+
+async function readKey<T>(key: string, fallback: T): Promise<T> {
+  const row = await prisma.kvStore.findUnique({ where: { key } })
+  if (!row) return fallback
+  return JSON.parse(row.value) as T
+}
+
+async function writeKey(key: string, value: unknown): Promise<void> {
+  await prisma.kvStore.upsert({
+    where: { key },
+    create: { key, value: JSON.stringify(value) },
+    update: { value: JSON.stringify(value) },
+  })
 }
 
 const PAID_STATES = new Set(['CAPTURED', 'AUTHORISED', 'SUCCESS', 'PURCHASED'])
@@ -57,13 +71,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Mark participant as confirmed
-    const { data } = await supabase
-      .from('app_store')
-      .select('value')
-      .eq('key', 'masterclass_participants')
-      .maybeSingle()
-
-    const participants: Participant[] = (data?.value as Participant[]) || []
+    const participants = await readKey<Participant[]>('masterclass_participants', [])
     const idx = participants.findIndex(
       p => p.paymentReference === ref || p.id === merchantOrderRef
     )
@@ -77,9 +85,7 @@ export async function GET(req: NextRequest) {
         amountPaid: participants[idx].totalAmount,
         lastUpdated: now,
       }
-      await supabase
-        .from('app_store')
-        .upsert({ key: 'masterclass_participants', value: participants, updated_at: now })
+      await writeKey('masterclass_participants', participants)
 
       return NextResponse.json({
         success: true,

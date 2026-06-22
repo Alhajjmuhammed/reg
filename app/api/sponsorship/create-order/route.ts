@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { prisma } from '@/lib/prisma'
 import { v4 as uuidv4 } from 'uuid'
 import type { SponsorshipApplication } from '@/lib/types'
 
@@ -9,8 +9,6 @@ const API_KEY      = process.env.NGENIUS_API_KEY!
 const OUTLET_REF   = process.env.NGENIUS_OUTLET_REF!
 const REALM        = process.env.NGENIUS_REALM!
 
-// Derive base URL from the incoming request so redirects work on both
-// localhost (local dev) and the production domain (VPS).
 function getBaseUrl(req: NextRequest): string {
   const host  = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'localhost:3000'
   const proto = req.headers.get('x-forwarded-proto') ||
@@ -39,19 +37,17 @@ async function getNGeniusToken(): Promise<string> {
 }
 
 async function readApps(): Promise<SponsorshipApplication[]> {
-  const { data } = await supabase
-    .from('app_store')
-    .select('value')
-    .eq('key', 'masterclass_sponsorship_applications')
-    .maybeSingle()
-  return (data?.value as SponsorshipApplication[]) || []
+  const row = await prisma.kvStore.findUnique({
+    where: { key: 'masterclass_sponsorship_applications' },
+  })
+  return row ? JSON.parse(row.value) : []
 }
 
 async function writeApps(apps: SponsorshipApplication[]): Promise<void> {
-  await supabase.from('app_store').upsert({
-    key: 'masterclass_sponsorship_applications',
-    value: apps,
-    updated_at: new Date().toISOString(),
+  await prisma.kvStore.upsert({
+    where: { key: 'masterclass_sponsorship_applications' },
+    create: { key: 'masterclass_sponsorship_applications', value: JSON.stringify(apps) },
+    update: { value: JSON.stringify(apps) },
   })
 }
 
@@ -103,7 +99,6 @@ export async function POST(req: NextRequest) {
           merchantAttributes: {
             redirectUrl: `${baseUrl}/payment/sponsorship-callback`,
             cancelUrl:   `${baseUrl}/sponsorship`,
-            // Prefix 'spo-' lets the webhook distinguish sponsorship orders
             merchantOrderReference: `spo-${application.id}`,
             skipConfirmationPage: false,
           },

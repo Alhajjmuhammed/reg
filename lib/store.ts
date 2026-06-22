@@ -71,7 +71,7 @@ import {
   DEFAULT_ADMIN_ROLES,
 } from './types'
 
-// ==================== SUPABASE SYNC ====================
+// ==================== DB SYNC ====================
 // Keys stored only in localStorage (device-specific sessions, never synced)
 const SESSION_KEYS = new Set([
   'masterclass_current_user',
@@ -83,62 +83,62 @@ const SESSION_KEYS = new Set([
 const memStore: Record<string, unknown> = {}
 
 // Set to true after initStore() completes. Guards seeding calls so that default
-// values are never written to Supabase before we know what's actually stored there.
+// values are never written to DB before we know what's actually stored there.
 let storeInitialized = false
 
-// Load all data from Supabase into memStore on app start
+// Load all data from SQLite (via /api/store) into memStore on app start
 export async function initStore(): Promise<void> {
   if (typeof window === 'undefined') return
   try {
-    const { supabase } = await import('./supabase')
-    const { data, error } = await supabase.from('app_store').select('key, value')
-    if (error) {
-      console.error('Supabase load error, falling back to localStorage', error.message)
+    const res = await fetch('/api/store')
+    if (!res.ok) {
+      console.error('DB load error, status:', res.status)
       return
     }
-    if (data) {
-      for (const row of data) {
-        memStore[row.key] = row.value
-      }
-      // Keep localStorage sub-admin cache in sync with what Supabase returned
-      const subAdminsRow = data.find(r => r.key === 'masterclass_sub_admins')
-      if (subAdminsRow) {
-        setLocalStorage('masterclass_sub_admins_local', subAdminsRow.value)
-      }
+    const rows: { key: string; value: unknown }[] = await res.json()
+    for (const row of rows) {
+      memStore[row.key] = row.value
+    }
+    // Keep localStorage sub-admin cache in sync with what DB returned
+    const subAdminsRow = rows.find(r => r.key === 'masterclass_sub_admins')
+    if (subAdminsRow) {
+      setLocalStorage('masterclass_sub_admins_local', subAdminsRow.value)
     }
   } catch (e) {
-    console.error('initStore failed, using localStorage fallback', e)
+    console.error('initStore failed', e)
   } finally {
     storeInitialized = true
   }
 }
 
-// Re-fetch participants from Supabase into memStore right before seat assignment.
+// Re-fetch participants from DB into memStore right before seat assignment.
 // Reduces (but cannot fully eliminate) the race window for concurrent registrations.
 export async function refreshParticipants(): Promise<void> {
   if (typeof window === 'undefined') return
   try {
-    const { supabase } = await import('./supabase')
-    const { data, error } = await supabase
-      .from('app_store')
-      .select('value')
-      .eq('key', STORAGE_KEYS.participants)
-      .maybeSingle()
-    if (!error && data) {
-      memStore[STORAGE_KEYS.participants] = data.value
+    const res = await fetch(`/api/store?key=${STORAGE_KEYS.participants}`)
+    if (res.ok) {
+      const row: { key: string; value: unknown } | null = await res.json()
+      if (row) {
+        memStore[STORAGE_KEYS.participants] = row.value
+      }
     }
   } catch {
-    // proceed with cached data if Supabase is unreachable
+    // proceed with cached data if DB is unreachable
   }
 }
 
-// Persist a single key to Supabase (fire-and-forget)
-async function syncToSupabase(key: string, value: unknown): Promise<void> {
+// Persist a single key to SQLite via /api/store (fire-and-forget from client)
+async function syncToDb(key: string, value: unknown): Promise<void> {
+  if (typeof window === 'undefined') return
   try {
-    const { supabase } = await import('./supabase')
-    await supabase.from('app_store').upsert({ key, value, updated_at: new Date().toISOString() })
+    await fetch('/api/store', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value }),
+    })
   } catch (e) {
-    console.error('Supabase sync failed for key', key, e)
+    console.error('DB sync failed for key', key, e)
   }
 }
 
@@ -224,7 +224,7 @@ function setStorage<T>(key: string, value: T): void {
     return
   }
   memStore[key] = value
-  syncToSupabase(key, value)
+  syncToDb(key, value)
 }
 
 // Seed a default value only after initStore() has confirmed no value exists in Supabase.
@@ -233,7 +233,7 @@ function setStorage<T>(key: string, value: T): void {
 function seedIfReady<T>(key: string, value: T): void {
   memStore[key] = value
   if (storeInitialized) {
-    syncToSupabase(key, value)
+    syncToDb(key, value)
   }
 }
 
@@ -2202,16 +2202,17 @@ export function deleteSubAdmin(id: string): boolean {
   return true
 }
 
-// Explicitly await the Supabase write for sub-admins (use after create/update/delete
+// Explicitly awaits the DB write for sub-admins (use after create/update/delete
 // to guarantee data is persisted before the admin logs out or navigates away).
-// Throws on Supabase error so callers can surface the failure to the user.
+// Throws on error so callers can surface the failure to the user.
 export async function flushSubAdmins(): Promise<void> {
   const users = getSubAdmins()
-  const { supabase } = await import('./supabase')
-  const { error } = await supabase
-    .from('app_store')
-    .upsert({ key: STORAGE_KEYS.subAdmins, value: users, updated_at: new Date().toISOString() })
-  if (error) throw new Error(error.message)
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.subAdmins, value: users }),
+  })
+  if (!res.ok) throw new Error('Failed to persist sub-admins')
   saveSubAdminsLocal(users)
 }
 
@@ -2228,41 +2229,45 @@ export function setTermsContent(data: Partial<TermsContent>): TermsContent {
   return updated
 }
 
-// Explicitly awaits the Supabase write for terms content. Throws on error.
+// Explicitly awaits the DB write for terms content. Throws on error.
 export async function flushTermsContent(): Promise<void> {
   const content = getTermsContent()
-  const { supabase } = await import('./supabase')
-  const { error } = await supabase
-    .from('app_store')
-    .upsert({ key: STORAGE_KEYS.termsContent, value: content, updated_at: new Date().toISOString() })
-  if (error) throw new Error(error.message)
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.termsContent, value: content }),
+  })
+  if (!res.ok) throw new Error('Failed to persist terms content')
 }
 
-// Explicitly awaits the Supabase write for site settings. Throws on error.
+// Explicitly awaits the DB write for site settings. Throws on error.
 export async function flushSiteSettings(): Promise<void> {
   const settings = getSiteSettings()
-  const { supabase } = await import('./supabase')
-  const { error } = await supabase
-    .from('app_store')
-    .upsert({ key: STORAGE_KEYS.siteSettings, value: settings, updated_at: new Date().toISOString() })
-  if (error) throw new Error(error.message)
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.siteSettings, value: settings }),
+  })
+  if (!res.ok) throw new Error('Failed to persist site settings')
 }
 
-// Explicitly awaits the Supabase write for seat configuration. Throws on error.
+// Explicitly awaits the DB write for seat configuration. Throws on error.
 export async function flushSeatConfiguration(): Promise<void> {
   const config = getStorage<unknown>(STORAGE_KEYS.seats, {})
-  const { supabase } = await import('./supabase')
-  const { error } = await supabase
-    .from('app_store')
-    .upsert({ key: STORAGE_KEYS.seats, value: config, updated_at: new Date().toISOString() })
-  if (error) throw new Error(error.message)
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.seats, value: config }),
+  })
+  if (!res.ok) throw new Error('Failed to persist seat configuration')
 }
 
 export async function flushCurriculumModules(): Promise<void> {
   const modules = getAllCurriculum()
-  const { supabase } = await import('./supabase')
-  const { error } = await supabase
-    .from('app_store')
-    .upsert({ key: STORAGE_KEYS.curriculum, value: modules, updated_at: new Date().toISOString() })
-  if (error) throw new Error(error.message)
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.curriculum, value: modules }),
+  })
+  if (!res.ok) throw new Error('Failed to persist curriculum modules')
 }

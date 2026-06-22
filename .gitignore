@@ -9,6 +9,10 @@ __v0_jsx-dev-runtime.ts
 # Environment variables
 .env*.local
 
+# SQLite database files
+prisma/*.db
+prisma/*.db-journal
+
 # Common ignores
 node_modules
 .next/

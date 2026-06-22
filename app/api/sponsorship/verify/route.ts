@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { prisma } from '@/lib/prisma'
 import type { SponsorshipApplication } from '@/lib/types'
 
 const IDENTITY_URL = process.env.NGENIUS_IDENTITY_URL!
@@ -25,6 +25,21 @@ async function getNGeniusToken(): Promise<string> {
   if (!res.ok) throw new Error(`NGenius auth failed: ${res.status}`)
   const data = await res.json()
   return data.access_token as string
+}
+
+async function readApps(): Promise<SponsorshipApplication[]> {
+  const row = await prisma.kvStore.findUnique({
+    where: { key: 'masterclass_sponsorship_applications' },
+  })
+  return row ? JSON.parse(row.value) : []
+}
+
+async function writeApps(apps: SponsorshipApplication[]): Promise<void> {
+  await prisma.kvStore.upsert({
+    where: { key: 'masterclass_sponsorship_applications' },
+    create: { key: 'masterclass_sponsorship_applications', value: JSON.stringify(apps) },
+    update: { value: JSON.stringify(apps) },
+  })
 }
 
 export async function GET(req: NextRequest) {
@@ -56,29 +71,17 @@ export async function GET(req: NextRequest) {
     }
 
     // Find and confirm the sponsorship application
-    const { data } = await supabase
-      .from('app_store')
-      .select('value')
-      .eq('key', 'masterclass_sponsorship_applications')
-      .maybeSingle()
-
-    const apps: SponsorshipApplication[] = (data?.value as SponsorshipApplication[]) || []
+    const apps = await readApps()
     const idx = apps.findIndex(
       a => a.paymentReference === ref || `spo-${a.id}` === merchantRef
     )
 
     if (idx !== -1 && apps[idx].paymentStatus !== 'paid') {
-      const now = new Date().toISOString()
       apps[idx] = { ...apps[idx], status: 'confirmed', paymentStatus: 'paid' }
-      await supabase.from('app_store').upsert({
-        key:        'masterclass_sponsorship_applications',
-        value:      apps,
-        updated_at: now,
-      })
+      await writeApps(apps)
       return NextResponse.json({ success: true, status: 'paid', application: apps[idx] })
     }
 
-    // Already updated or not found — return paid if NGenius says so
     const app = idx !== -1 ? apps[idx] : null
     return NextResponse.json({ success: true, status: 'paid', application: app })
   } catch (e) {

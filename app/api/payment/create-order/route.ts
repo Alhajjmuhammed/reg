@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/crypto'
 import type { Participant, UserAccount } from '@/lib/types'
 
@@ -31,19 +31,17 @@ async function getNGeniusToken(): Promise<string> {
 }
 
 async function readKey<T>(key: string, fallback: T): Promise<T> {
-  const { data, error } = await supabase
-    .from('app_store')
-    .select('value')
-    .eq('key', key)
-    .maybeSingle()
-  if (error || !data) return fallback
-  return data.value as T
+  const row = await prisma.kvStore.findUnique({ where: { key } })
+  if (!row) return fallback
+  return JSON.parse(row.value) as T
 }
 
 async function writeKey(key: string, value: unknown): Promise<void> {
-  await supabase
-    .from('app_store')
-    .upsert({ key, value, updated_at: new Date().toISOString() })
+  await prisma.kvStore.upsert({
+    where: { key },
+    create: { key, value: JSON.stringify(value) },
+    update: { value: JSON.stringify(value) },
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -139,7 +137,7 @@ export async function POST(req: NextRequest) {
       lastUpdated: now,
     }
 
-    // Save participant to Supabase
+    // Save participant to SQLite
     const participants = await readKey<Participant[]>('masterclass_participants', [])
     participants.push(newParticipant)
     await writeKey('masterclass_participants', participants)

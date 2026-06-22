@@ -71,6 +71,7 @@ import {
   Share2,
   Upload,
 } from 'lucide-react'
+import { uploadFile } from '@/lib/upload'
 import {
   getSiteSettings,
   updateSiteSettings,
@@ -1819,16 +1820,17 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const file = e.target.files?.[0]
                   if (!file) return
-                  const reader = new FileReader()
-                  reader.onload = () => setForm({ ...form, imageUrl: reader.result as string })
-                  reader.readAsDataURL(file)
+                  try {
+                    const url = await uploadFile(file)
+                    setForm(f => ({ ...f, imageUrl: url }))
+                  } catch { /* ignore */ }
                 }}
               />
             </label>
-            {form.imageUrl && form.imageUrl.startsWith('data:') && (
+            {form.imageUrl && !form.imageUrl.startsWith('data:') && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={form.imageUrl} alt="Preview" className="h-24 w-full rounded-lg object-cover border border-border" />
             )}
@@ -1837,7 +1839,7 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
               <span className="text-xs text-muted-foreground">or use URL</span>
               <div className="flex-1 h-px bg-border" />
             </div>
-            <Input value={form.imageUrl?.startsWith('data:') ? '' : (form.imageUrl || '')} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="/images/hero-1.jpg" />
+            <Input value={form.imageUrl?.startsWith('data:') ? '' : (form.imageUrl || '')} onChange={(e) => setForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="/images/hero-1.jpg" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

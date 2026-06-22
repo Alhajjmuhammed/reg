@@ -14,25 +14,22 @@ const HEAVY_KEYS = new Set([
   'masterclass_notifications',
 ])
 
-// Keys whose array items may contain large base64 image data.
-// In light mode we strip base64 imageUrl values to keep the response small
-// (they can be fetched individually via ?key=... after initial load).
-const IMAGE_ARRAY_KEYS = new Set(['masterclass_hero_slides'])
+// Recursively replace any base64 data: strings with '' so the light response
+// stays small. Works for every key at any nesting depth — new admin image
+// uploads use /uploads/ URLs and are not affected.
+function stripBase64Recursive(value: unknown): unknown {
+  if (typeof value === 'string') return value.startsWith('data:') ? '' : value
+  if (Array.isArray(value)) return value.map(stripBase64Recursive)
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, stripBase64Recursive(v)])
+    )
+  }
+  return value
+}
 
 function stripBase64Images(rows: { key: string; value: unknown }[]): { key: string; value: unknown }[] {
-  return rows.map(r => {
-    if (!IMAGE_ARRAY_KEYS.has(r.key) || !Array.isArray(r.value)) return r
-    return {
-      ...r,
-      value: (r.value as Record<string, unknown>[]).map(item => {
-        const url = item.imageUrl
-        if (typeof url === 'string' && url.startsWith('data:')) {
-          return { ...item, imageUrl: '' }
-        }
-        return item
-      }),
-    }
-  })
+  return rows.map(r => ({ ...r, value: stripBase64Recursive(r.value) }))
 }
 
 // GET /api/store            → all rows as [{ key, value }]

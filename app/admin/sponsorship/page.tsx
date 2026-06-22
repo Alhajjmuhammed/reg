@@ -70,6 +70,7 @@ import type { SponsorshipTier, Sponsor, SponsorshipPageSettings, SponsorshipTier
 import { cn } from '@/lib/utils'
 import { useStoreReady } from '@/components/store-provider'
 import { assetUrl } from '@/lib/utils'
+import { uploadFile } from '@/lib/upload'
 
 const TIER_COLORS: { value: SponsorshipTierColor; label: string; dot: string }[] = [
   { value: 'platinum', label: 'Platinum', dot: 'bg-slate-500' },
@@ -150,46 +151,46 @@ export default function AdminSponsorshipPage() {
   const [academicForm, setAcademicForm] = useState<Omit<AcademicPartner, 'id'>>({ ...emptyAcademicPartner })
   const [deleteAcademicId, setDeleteAcademicId] = useState<string | null>(null)
 
-  // Image upload helper
-  const readFileAsDataURL = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-
   const handleImageUpload = async (field: 'logoUrl' | 'bannerUrl', file: File) => {
-    const dataUrl = await readFileAsDataURL(file)
-    setSponsorForm(f => ({ ...f, [field]: dataUrl }))
+    try {
+      const url = await uploadFile(file)
+      setSponsorForm(f => ({ ...f, [field]: url }))
+    } catch { /* ignore */ }
   }
 
   const handleTierImageUpload = async (file: File) => {
-    if (file.size > 5 * 1024 * 1024) return
-    const dataUrl = await readFileAsDataURL(file)
-    setTierForm(f => ({ ...f, imageUrl: dataUrl }))
+    try {
+      const url = await uploadFile(file)
+      setTierForm(f => ({ ...f, imageUrl: url }))
+    } catch { /* ignore */ }
   }
 
   const handleHeroImageUpload = async (file: File) => {
-    if (file.size > 5 * 1024 * 1024) return
-    const dataUrl = await readFileAsDataURL(file)
-    setSettings(s => s ? { ...s, heroImageUrl: dataUrl } : s)
+    try {
+      const url = await uploadFile(file)
+      setSettings(s => s ? { ...s, heroImageUrl: url } : s)
+    } catch { /* ignore */ }
   }
 
   const handlePackagesImageUpload = async (file: File) => {
-    if (file.size > 5 * 1024 * 1024) return
-    const dataUrl = await readFileAsDataURL(file)
-    setSettings(s => s ? { ...s, packagesImageUrl: dataUrl } : s)
+    try {
+      const url = await uploadFile(file)
+      setSettings(s => s ? { ...s, packagesImageUrl: url } : s)
+    } catch { /* ignore */ }
   }
 
   const handleAcademicImageUpload = async (field: 'logoUrl' | 'bannerUrl', file: File) => {
-    const dataUrl = await readFileAsDataURL(file)
-    setAcademicForm(f => ({ ...f, [field]: dataUrl }))
+    try {
+      const url = await uploadFile(file)
+      setAcademicForm(f => ({ ...f, [field]: url }))
+    } catch { /* ignore */ }
   }
 
   const handleProposalUpload = async (file: File) => {
-    const dataUrl = await readFileAsDataURL(file)
-    setSettings(s => s ? { ...s, proposalFileUrl: dataUrl, proposalFileName: file.name } : s)
+    try {
+      const url = await uploadFile(file)
+      setSettings(s => s ? { ...s, proposalFileUrl: url, proposalFileName: file.name } : s)
+    } catch { /* ignore */ }
   }
 
   // Delete confirms

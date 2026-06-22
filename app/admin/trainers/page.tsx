@@ -41,6 +41,7 @@ import {
   ChevronUp,
   ShieldCheck,
 } from 'lucide-react'
+import { uploadFile } from '@/lib/upload'
 import {
   getAllTrainers,
   createTrainer,
@@ -393,13 +394,16 @@ function TrainerDialog({
 
   const patch = (p: Partial<TrainerForm>) => setForm(f => ({ ...f, ...p }))
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 4 * 1024 * 1024) { setError('Photo too large. Max 4 MB.'); e.target.value = ''; return }
-    const reader = new FileReader()
-    reader.onload = ev => patch({ photoUrl: ev.target?.result as string })
-    reader.readAsDataURL(file)
+    try {
+      const url = await uploadFile(file)
+      patch({ photoUrl: url })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed')
+      e.target.value = ''
+    }
   }
 
   const handleSubmit = () => {

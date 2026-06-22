@@ -47,6 +47,7 @@ import {
   Download,
 } from 'lucide-react'
 import { getAllDocuments, createDocument, updateDocument, deleteDocument, getAllPackages } from '@/lib/store'
+import { uploadFile } from '@/lib/upload'
 import type { EventDocument, DocumentType, PackageType, Package } from '@/lib/types'
 import { useStoreReady } from '@/components/store-provider'
 
@@ -130,7 +131,7 @@ export default function AdminDocumentsPage() {
       fileUrl: doc.fileUrl,
       fileName: doc.fileName || '',
       fileSize: doc.fileSize || 0,
-      sourceType: isDataUrl(doc.fileUrl) ? 'file' : 'url',
+      sourceType: isDataUrl(doc.fileUrl) || doc.fileUrl.startsWith('/uploads/') ? 'file' : 'url',
       type: doc.type,
       availableTo: doc.availableTo,
       active: doc.active,
@@ -139,26 +140,17 @@ export default function AdminDocumentsPage() {
     setDialogOpen(true)
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setFileError('')
-    if (file.size > MAX_FILE_BYTES) {
-      setFileError(`File too large (${formatBytes(file.size)}). Max allowed is ${formatBytes(MAX_FILE_BYTES)}. Use a URL for large files.`)
+    try {
+      const url = await uploadFile(file)
+      setForm(f => ({ ...f, fileUrl: url, fileName: file.name, fileSize: file.size }))
+    } catch (err) {
+      setFileError(err instanceof Error ? err.message : 'Upload failed. Please try again.')
       if (fileInputRef.current) fileInputRef.current.value = ''
-      return
     }
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      setForm(f => ({
-        ...f,
-        fileUrl: ev.target?.result as string,
-        fileName: file.name,
-        fileSize: file.size,
-      }))
-    }
-    reader.onerror = () => setFileError('Failed to read file. Please try again.')
-    reader.readAsDataURL(file)
   }
 
   const clearFile = () => {
@@ -447,7 +439,7 @@ export default function AdminDocumentsPage() {
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Files are stored in the browser. For files larger than 4 MB, use the URL option instead (Google Drive, Dropbox).
+                  Files are uploaded to the server (max 20 MB). For very large files, use the URL option instead (Google Drive, Dropbox).
                 </p>
               </div>
             )}

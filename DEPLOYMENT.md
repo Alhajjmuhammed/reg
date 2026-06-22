@@ -3,14 +3,16 @@
 Content is stored in a **SQLite database file** on the server (`prisma/masterclass.db`),
 served via the Next.js app. It is permanent and shared by all visitors.
 
+> Domain: `https://e-masterclass.eopsprimax.com/`
 > VPS: `http://187.124.117.11:3001/`
+> Project path: `/var/www/masterclass/`
 
 ---
 
 ## First-time setup on the VPS
 
 ```bash
-cd /path/to/project          # wherever you cloned the repo on the VPS
+cd /var/www/masterclass          # wherever you cloned the repo on the VPS
 git pull
 
 # 1. Add the database URL to your environment file (NOT in git)
@@ -40,7 +42,7 @@ are copied from Supabase into SQLite. The app now reads and writes only to SQLit
 ## Updating the site later
 
 ```bash
-cd /path/to/project
+cd /var/www/masterclass
 git pull
 pnpm install
 DATABASE_URL="file:./masterclass.db" npx prisma db push   # only if schema changed
@@ -63,14 +65,14 @@ Your entire content — participants, payments, settings — is the single file
 crontab -e
 
 # Add this line (backs up every day at 2 AM):
-0 2 * * * cp /path/to/project/prisma/masterclass.db /var/backups/masterclass-$(date +\%F).db
+0 2 * * * cp /var/www/masterclass/prisma/masterclass.db /var/backups/masterclass-$(date +\%F).db
 ```
 
 To restore: stop the app, replace `prisma/masterclass.db` with the backup, restart.
 
 ```bash
 pm2 stop all
-cp /var/backups/masterclass-2026-06-22.db /path/to/project/prisma/masterclass.db
+cp /var/backups/masterclass-2026-06-22.db /var/www/masterclass/prisma/masterclass.db
 pm2 start all
 ```
 

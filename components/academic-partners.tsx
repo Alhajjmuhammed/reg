@@ -5,6 +5,7 @@ import { ExternalLink, Building2, ChevronLeft, ChevronRight, GraduationCap } fro
 import { getAcademicPartners, getAcademicPartnerSettings } from '@/lib/store'
 import type { AcademicPartner, AcademicPartnerSettings } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { useStoreReady } from '@/components/store-provider'
 
 function AcademicPartnersCarousel({ partners }: { partners: AcademicPartner[] }) {
   const [current, setCurrent] = useState(0)
@@ -126,6 +127,7 @@ function AcademicPartnersCarousel({ partners }: { partners: AcademicPartner[] })
 }
 
 export function AcademicPartnersSection() {
+  const storeReady = useStoreReady()
   const [partners, setPartners] = useState<AcademicPartner[]>([])
   const [sectionSettings, setSectionSettings] = useState<AcademicPartnerSettings | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -134,7 +136,8 @@ export function AcademicPartnersSection() {
     setMounted(true)
     setPartners(getAcademicPartners())
     setSectionSettings(getAcademicPartnerSettings())
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   if (!mounted || partners.length === 0 || !sectionSettings) return null
 

@@ -29,6 +29,7 @@ import type { SponsorshipTier, Sponsor, SponsorshipPageSettings } from '@/lib/ty
 import { cn } from '@/lib/utils'
 import { assetUrl } from '@/lib/utils'
 import { SponsorshipApplicationModal } from '@/components/sponsorship-application-modal'
+import { useStoreReady } from '@/components/store-provider'
 
 // ==================== PARTNERS CAROUSEL ====================
 
@@ -216,6 +217,7 @@ function formatCurrency(amount: number, currency: string) {
 }
 
 export default function SponsorshipPage() {
+  const storeReady = useStoreReady()
   const [tiers, setTiers] = useState<SponsorshipTier[]>([])
   const [sponsors, setSponsors] = useState<Sponsor[]>([])
   const [settings, setSettings] = useState<SponsorshipPageSettings | null>(null)
@@ -227,7 +229,8 @@ export default function SponsorshipPage() {
     setTiers(getSponsorshipTiers())
     setSponsors(getSponsors())
     setSettings(getSponsorshipSettings())
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
 
   if (!mounted || !settings) return null
 

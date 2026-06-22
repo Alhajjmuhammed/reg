@@ -159,8 +159,8 @@ function LoginPageInner() {
                   <p className="text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">{error}</p>
                 )}
 
-                <Button type="submit" className="w-full" disabled={isLoading || !storeReady}>
-                  {isLoading ? 'Signing in…' : !storeReady ? 'Loading…' : 'Sign In'}
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Signing in…' : 'Sign In'}
                 </Button>
               </form>
 

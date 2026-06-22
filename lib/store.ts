@@ -92,7 +92,7 @@ let storeInitialized = false
 export async function initStore(): Promise<void> {
   if (typeof window === 'undefined') return
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 10000)
+  const timer = setTimeout(() => controller.abort(), 5000)
   try {
     const res = await fetch('/api/store?light=1', { signal: controller.signal, cache: 'no-store' })
     clearTimeout(timer)

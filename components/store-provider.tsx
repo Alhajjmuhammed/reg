@@ -15,7 +15,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    initStore().finally(() => setReady(true))
+    // Hard fallback: if initStore() somehow never resolves (e.g. fetch hangs
+    // despite the AbortController), unblock the UI after 8 seconds.
+    const fallback = setTimeout(() => setReady(true), 8000)
+    initStore().finally(() => {
+      clearTimeout(fallback)
+      setReady(true)
+    })
+    return () => clearTimeout(fallback)
   }, [])
 
   return (

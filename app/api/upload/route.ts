@@ -5,9 +5,6 @@ import { v4 as uuidv4 } from 'uuid'
 
 export const dynamic = 'force-dynamic'
 
-// Must match UPLOADS_DIR in app/api/uploads/[filename]/route.ts
-const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), 'public', 'uploads')
-
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'])
 const ALLOWED_DOC_TYPES = new Set(['application/pdf', 'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -20,6 +17,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024   // 5 MB
 const MAX_DOC_BYTES   = 20 * 1024 * 1024  // 20 MB
 
 export async function POST(req: NextRequest) {
+  const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), 'public', 'uploads')
   try {
     const formData = await req.formData()
     const file = formData.get('file') as File | null

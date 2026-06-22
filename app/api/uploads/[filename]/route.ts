@@ -4,8 +4,6 @@ import path from 'path'
 
 export const dynamic = 'force-dynamic'
 
-const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), 'public', 'uploads')
-
 const MIME: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
@@ -19,9 +17,10 @@ const MIME: Record<string, string> = {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { filename: string } }
+  context: { params: Promise<{ filename: string }> }
 ) {
-  const { filename } = params
+  const { filename } = await context.params
+  const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), 'public', 'uploads')
 
   // Prevent path traversal
   if (!filename || filename.includes('/') || filename.includes('\\') || filename.includes('..')) {

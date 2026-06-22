@@ -127,17 +127,20 @@ export async function initStore(): Promise<void> {
 // Load heavy operational keys (participants, transactions, groups, notifications)
 // into memStore. Called by admin layout after initStore() so the initial page
 // load is fast and participant data loads in the background.
-export async function loadHeavyKeys(): Promise<void> {
-  if (typeof window === 'undefined') return
+// Returns true when data was successfully loaded into memStore.
+export async function loadHeavyKeys(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
   try {
     const res = await fetch('/api/store?heavy=1', { cache: 'no-store' })
-    if (!res.ok) return
+    if (!res.ok) return false
     const rows: { key: string; value: unknown }[] = await res.json()
     for (const row of rows) {
       memStore[row.key] = row.value
     }
+    return true
   } catch (e) {
     console.error('loadHeavyKeys failed', e)
+    return false
   }
 }
 

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { getBookedSeats, getSeatRangeForPackage } from '@/lib/store'
-import { useStoreReady, useStoreVersion, useHeavyStoreReady } from '@/components/store-provider'
+import { getSeatRangeForPackage } from '@/lib/store'
+import { useStoreReady, useStoreVersion } from '@/components/store-provider'
 import type { PackageType } from '@/lib/types'
 
 interface SeatMapProps {
@@ -64,7 +64,6 @@ const SEATS_PER_ROW = 10
 export function SeatMap({ selectedSeats, onSeatSelect, maxSeats, disabled, currentPackage }: SeatMapProps) {
   const storeReady = useStoreReady()
   const storeVersion = useStoreVersion()
-  const heavyReady = useHeavyStoreReady()
   const [bookedSeats, setBookedSeats] = useState<Map<string, PackageType>>(new Map())
   const [ranges, setRanges] = useState<Record<PackageType, { start: number; end: number }>>({
     'corporate-vip': { start: 1,  end: 20 },
@@ -83,11 +82,21 @@ export function SeatMap({ selectedSeats, onSeatSelect, maxSeats, disabled, curre
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeReady, storeVersion])
 
-  // Booked seats come from participant data (heavy store), only loaded in admin
+  // Fetch booked seats directly from DB via API — works on public AND admin pages.
+  // Re-fetches when storeVersion bumps (window focus) so the map stays fresh.
   useEffect(() => {
-    if (!heavyReady) return
-    setBookedSeats(getBookedSeats())
-  }, [heavyReady])
+    let cancelled = false
+    fetch('/api/booked-seats', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : {})
+      .then((data: Record<string, string>) => {
+        if (!cancelled) {
+          setBookedSeats(new Map(Object.entries(data) as [string, PackageType][]))
+        }
+      })
+      .catch(() => {}) // fail silently — all seats appear selectable
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeVersion])
 
   // Which zone does a seat belong to?
   const getSeatZone = (seatNum: number): PackageType | null => {

@@ -87,7 +87,16 @@ export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) 
     }
     setSession(s)
     setHeavyReady(false)
-    loadHeavyKeys().finally(() => setHeavyReady(true))
+    // Retry once if the first attempt fails (network hiccup on VPS)
+    loadHeavyKeys().then(ok => {
+      if (ok) {
+        setHeavyReady(true)
+      } else {
+        setTimeout(() => {
+          loadHeavyKeys().finally(() => setHeavyReady(true))
+        }, 1500)
+      }
+    })
   }, [storeReady])
 
   const isSuperAdmin = !session || session.isSuperAdmin !== false

@@ -72,6 +72,7 @@ import {
   Upload,
   CheckCircle2,
   AlertTriangle,
+  Check,
 } from 'lucide-react'
 import { uploadFile } from '@/lib/upload'
 import {
@@ -182,6 +183,9 @@ export default function AdminSettingsPage() {
   // New Package Dialog
   const [isAddPackageOpen, setIsAddPackageOpen] = useState(false)
   const [newPkg, setNewPkg] = useState({ name: '', description: '', price: '', currency: 'TZS', features: '', popular: false })
+  const [pkgDialog, setPkgDialog] = useState(false)
+  const [editingPackage, setEditingPackage] = useState<Package | null>(null)
+  const [pkgForm, setPkgForm] = useState<Partial<Package>>({})
   
   // Admin Account
   const [adminEmail, setAdminEmail] = useState('')
@@ -260,16 +264,29 @@ export default function AdminSettingsPage() {
     }
   }
 
-  const handleSavePackages = async () => {
+  const openEditPackage = (pkg: Package) => {
+    setEditingPackage(pkg)
+    setPkgForm({ ...pkg })
+    setPkgDialog(true)
+  }
+
+  const handleSavePackage = async () => {
+    if (!editingPackage || !pkgForm.name?.trim()) return
     setIsSaving(true)
     try {
+      updatePackage(editingPackage.id, {
+        ...pkgForm,
+        features: (pkgForm.features ?? []).filter(f => f.trim()),
+      })
+      setPackages(getAllPackages())
+      setPkgDialog(false)
       await flushPackages()
-      setSaveMessage('Packages saved!')
+      setSaveMessage('Package saved!')
     } catch (err) {
       setSaveMessage('Save failed: ' + (err instanceof Error ? err.message : 'Check your connection'))
     } finally {
       setIsSaving(false)
-      setTimeout(() => setSaveMessage(''), 4000)
+      setTimeout(() => setSaveMessage(''), 3000)
     }
   }
 
@@ -1060,120 +1077,79 @@ export default function AdminSettingsPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-8 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-3">
                   {packages.map((pkg) => (
-                    <div key={pkg.id} className={`rounded-xl border-2 p-5 space-y-4 ${pkg.popular ? 'border-primary' : 'border-border'}`}>
-                      {/* Header row */}
-                      <div className="flex items-center justify-between gap-2">
-                        <Badge variant={pkg.active ? 'default' : 'secondary'}>
-                          {pkg.active ? 'Active' : 'Hidden'}
-                        </Badge>
-                        <div className="flex items-center gap-3">
+                    <div key={pkg.id} className={`rounded-xl border-2 p-4 space-y-3 ${pkg.popular ? 'border-primary' : 'border-border'}`}>
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge variant={pkg.active ? 'default' : 'secondary'} className="text-xs">
+                              {pkg.active ? 'Active' : 'Hidden'}
+                            </Badge>
+                            {pkg.popular && (
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <Star className="h-3 w-3" /> Popular
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="font-semibold text-sm text-foreground">{pkg.name}</p>
+                          <p className="text-xs text-primary font-medium">
+                            {pkg.currency} {pkg.price.toLocaleString()}
+                            {pkg.originalPrice && pkg.originalPrice > 0 && (
+                              <span className="text-muted-foreground line-through ml-1.5">{pkg.originalPrice.toLocaleString()}</span>
+                            )}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditPackage(pkg)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-destructive hover:bg-destructive/10"
                             onClick={() => setDeleteConfirm({ type: 'package', id: pkg.id })}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-muted-foreground">Popular</span>
-                            <Switch
-                              checked={!!pkg.popular}
-                              onCheckedChange={(checked) => handleTogglePackage(pkg.id, { popular: checked })}
-                            />
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-muted-foreground">Active</span>
-                            <Switch
-                              checked={pkg.active}
-                              onCheckedChange={(checked) => handleTogglePackage(pkg.id, { active: checked })}
-                            />
-                          </div>
                         </div>
                       </div>
 
-                      {/* Name */}
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Package Name</Label>
-                        <Input
-                          defaultValue={pkg.name}
-                          onBlur={(e) => handleUpdatePackage(pkg.id, { name: e.target.value })}
-                          placeholder="Package name"
-                        />
-                      </div>
-
-                      {/* Description */}
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</Label>
-                        <Textarea
-                          rows={2}
-                          defaultValue={pkg.description ?? ''}
-                          onBlur={(e) => handleUpdatePackage(pkg.id, { description: e.target.value })}
-                          placeholder="Short description shown to participants"
-                        />
-                      </div>
-
-                      {/* Currency */}
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Currency</Label>
-                        <Input
-                          defaultValue={pkg.currency}
-                          onBlur={(e) => handleUpdatePackage(pkg.id, { currency: e.target.value })}
-                          placeholder="TZS"
-                        />
-                      </div>
-
-                      {/* Price */}
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Price</Label>
-                        <Input
-                          type="number"
-                          defaultValue={pkg.price}
-                          onBlur={(e) => handleUpdatePackage(pkg.id, { price: parseInt(e.target.value) || 0 })}
-                        />
-                      </div>
-
-                      {/* Original Price */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Original Price (strikethrough)</Label>
-                          <Switch
-                            checked={pkg.originalPrice !== undefined && pkg.originalPrice > 0}
-                            onCheckedChange={(checked) =>
-                              handleTogglePackage(pkg.id, { originalPrice: checked ? (pkg.price + 100000) : undefined })
-                            }
-                          />
-                        </div>
-                        {pkg.originalPrice !== undefined && pkg.originalPrice > 0 && (
-                          <Input
-                            type="number"
-                            defaultValue={pkg.originalPrice}
-                            onBlur={(e) => handleUpdatePackage(pkg.id, { originalPrice: parseInt(e.target.value) || 0 })}
-                          />
+                      {/* Feature preview */}
+                      <ul className="space-y-1">
+                        {pkg.features.filter(f => f.trim()).slice(0, 4).map((f, i) => (
+                          <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                            <Check className="h-3 w-3 shrink-0 text-primary mt-0.5" />
+                            <span className="line-clamp-1">{f}</span>
+                          </li>
+                        ))}
+                        {pkg.features.filter(f => f.trim()).length > 4 && (
+                          <li className="text-xs text-muted-foreground pl-4">
+                            +{pkg.features.filter(f => f.trim()).length - 4} more
+                          </li>
                         )}
-                      </div>
+                      </ul>
 
-                      {/* Features */}
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Features (one per line)</Label>
-                        <Textarea
-                          rows={6}
-                          value={pkg.features.join('\n')}
-                          onChange={(e) => handleUpdatePackage(pkg.id, { features: e.target.value.split('\n') })}
-                          onBlur={(e) => handleUpdatePackage(pkg.id, { features: e.target.value.split('\n').filter(f => f.trim()) })}
-                          placeholder="Each line becomes a feature bullet"
-                        />
+                      {/* Quick toggles */}
+                      <div className="flex items-center gap-4 pt-2 border-t">
+                        <div className="flex items-center gap-1.5">
+                          <Switch
+                            checked={!!pkg.popular}
+                            onCheckedChange={(checked) => handleTogglePackage(pkg.id, { popular: checked })}
+                          />
+                          <span className="text-xs text-muted-foreground">Popular</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Switch
+                            checked={pkg.active}
+                            onCheckedChange={(checked) => handleTogglePackage(pkg.id, { active: checked })}
+                          />
+                          <span className="text-xs text-muted-foreground">Active</span>
+                        </div>
                       </div>
                     </div>
                   ))}
-                </div>
-                <div className="flex justify-end pt-4 border-t mt-4">
-                  <Button onClick={handleSavePackages} disabled={isSaving}>
-                    <Save className="mr-2 h-4 w-4" />
-                    {isSaving ? 'Saving…' : 'Save Packages'}
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1713,6 +1689,74 @@ export default function AdminSettingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Package Dialog */}
+      <Dialog open={pkgDialog} onOpenChange={setPkgDialog}>
+        <DialogContent className="max-w-lg flex flex-col max-h-[90vh]">
+          <DialogHeader className="shrink-0">
+            <DialogTitle>Edit Package</DialogTitle>
+            <DialogDescription>Update package details and click Save to confirm.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+            <div className="space-y-2">
+              <Label>Package Name</Label>
+              <Input value={pkgForm.name ?? ''} onChange={e => setPkgForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea rows={2} value={pkgForm.description ?? ''} onChange={e => setPkgForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Currency</Label>
+                <Input value={pkgForm.currency ?? 'TZS'} onChange={e => setPkgForm(f => ({ ...f, currency: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Price</Label>
+                <Input type="number" value={pkgForm.price ?? 0} onChange={e => setPkgForm(f => ({ ...f, price: parseInt(e.target.value) || 0 }))} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Original Price (strikethrough)</Label>
+                <Switch
+                  checked={(pkgForm.originalPrice ?? 0) > 0}
+                  onCheckedChange={checked => setPkgForm(f => ({ ...f, originalPrice: checked ? (f.price ?? 0) + 100000 : undefined }))}
+                />
+              </div>
+              {(pkgForm.originalPrice ?? 0) > 0 && (
+                <Input type="number" value={pkgForm.originalPrice ?? 0} onChange={e => setPkgForm(f => ({ ...f, originalPrice: parseInt(e.target.value) || 0 }))} />
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Features (one per line)</Label>
+              <Textarea
+                rows={7}
+                value={(pkgForm.features ?? []).join('\n')}
+                onChange={e => setPkgForm(f => ({ ...f, features: e.target.value.split('\n') }))}
+                placeholder="Each line becomes a feature bullet"
+              />
+            </div>
+            <div className="flex items-center gap-6 pt-2">
+              <div className="flex items-center gap-2">
+                <Switch checked={!!pkgForm.popular} onCheckedChange={v => setPkgForm(f => ({ ...f, popular: v }))} />
+                <Label>Popular</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={!!pkgForm.active} onCheckedChange={v => setPkgForm(f => ({ ...f, active: v }))} />
+                <Label>Active</Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="shrink-0 pt-4">
+            <Button variant="outline" onClick={() => setPkgDialog(false)}>Cancel</Button>
+            <Button onClick={handleSavePackage} disabled={isSaving || !pkgForm.name?.trim()}>
+              <Save className="mr-2 h-4 w-4" />
+              {isSaving ? 'Saving...' : 'Save Package'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Fixed toast — visible regardless of scroll position */}
       {saveMessage && (

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { getBookedSeats, getSeatRangeForPackage } from '@/lib/store'
-import { useHeavyStoreReady } from '@/components/store-provider'
+import { useStoreReady, useStoreVersion, useHeavyStoreReady } from '@/components/store-provider'
 import type { PackageType } from '@/lib/types'
 
 interface SeatMapProps {
@@ -62,6 +62,8 @@ const ZONE_CONFIG: Record<PackageType, {
 const SEATS_PER_ROW = 10
 
 export function SeatMap({ selectedSeats, onSeatSelect, maxSeats, disabled, currentPackage }: SeatMapProps) {
+  const storeReady = useStoreReady()
+  const storeVersion = useStoreVersion()
   const heavyReady = useHeavyStoreReady()
   const [bookedSeats, setBookedSeats] = useState<Map<string, PackageType>>(new Map())
   const [ranges, setRanges] = useState<Record<PackageType, { start: number; end: number }>>({
@@ -70,14 +72,21 @@ export function SeatMap({ selectedSeats, onSeatSelect, maxSeats, disabled, curre
     'early-bird':    { start: 61, end: 100 },
   })
 
+  // Seat ranges come from the light store (seat config), available on all pages
   useEffect(() => {
-    if (!heavyReady) return
-    setBookedSeats(getBookedSeats())
+    if (!storeReady) return
     setRanges({
       'corporate-vip': getSeatRangeForPackage('corporate-vip'),
       'standard':      getSeatRangeForPackage('standard'),
       'early-bird':    getSeatRangeForPackage('early-bird'),
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady, storeVersion])
+
+  // Booked seats come from participant data (heavy store), only loaded in admin
+  useEffect(() => {
+    if (!heavyReady) return
+    setBookedSeats(getBookedSeats())
   }, [heavyReady])
 
   // Which zone does a seat belong to?

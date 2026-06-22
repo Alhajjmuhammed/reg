@@ -41,9 +41,9 @@ export async function POST(req: NextRequest) {
     const filename = `${uuidv4()}.${ext}`
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
 
-    await mkdir(uploadsDir, { recursive: true })
+    await mkdir(uploadsDir, { recursive: true, mode: 0o755 })
     const bytes = await file.arrayBuffer()
-    await writeFile(path.join(uploadsDir, filename), Buffer.from(bytes))
+    await writeFile(path.join(uploadsDir, filename), Buffer.from(bytes), { mode: 0o644 })
 
     return NextResponse.json({ url: `/uploads/${filename}` })
   } catch (err) {

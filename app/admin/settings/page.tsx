@@ -1892,9 +1892,11 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
   })
   const [uploadError, setUploadError] = useState('')
   const [isUploading, setIsUploading] = useState(false)
+  const [imgBroken, setImgBroken] = useState(false)
 
   useEffect(() => {
     setUploadError('')
+    setImgBroken(false)
     if (slide) {
       setForm(slide)
     } else {
@@ -1950,6 +1952,7 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
                   try {
                     const url = await uploadFile(file)
                     setForm(f => ({ ...f, imageUrl: url }))
+                    setImgBroken(false)
                   } catch (err) {
                     setUploadError(err instanceof Error ? err.message : 'Upload failed — try again')
                     e.target.value = ''
@@ -1965,16 +1968,26 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
                 {uploadError}
               </p>
             )}
-            {form.imageUrl && !form.imageUrl.startsWith('data:') && (
+            {form.imageUrl && !form.imageUrl.startsWith('data:') && !imgBroken && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={form.imageUrl} alt="Preview" className="h-24 w-full rounded-lg object-cover border border-border" />
+              <img
+                src={form.imageUrl}
+                alt="Preview"
+                className="h-24 w-full rounded-lg object-cover border border-border"
+                onError={() => setImgBroken(true)}
+              />
+            )}
+            {form.imageUrl && imgBroken && (
+              <div className="flex h-24 w-full items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
+                Image not found — upload a new one or check the URL
+              </div>
             )}
             <div className="flex items-center gap-2">
               <div className="flex-1 h-px bg-border" />
               <span className="text-xs text-muted-foreground">or use URL</span>
               <div className="flex-1 h-px bg-border" />
             </div>
-            <Input value={form.imageUrl?.startsWith('data:') ? '' : (form.imageUrl || '')} onChange={(e) => setForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="/images/hero-1.jpg" />
+            <Input value={form.imageUrl?.startsWith('data:') ? '' : (form.imageUrl || '')} onChange={(e) => { setForm(f => ({ ...f, imageUrl: e.target.value })); setImgBroken(false) }} placeholder="/images/hero-1.jpg" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

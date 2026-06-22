@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { getBookedSeats, getSeatRangeForPackage } from '@/lib/store'
-import { useStoreReady } from '@/components/store-provider'
+import { useHeavyStoreReady } from '@/components/store-provider'
 import type { PackageType } from '@/lib/types'
 
 interface SeatMapProps {
@@ -62,7 +62,7 @@ const ZONE_CONFIG: Record<PackageType, {
 const SEATS_PER_ROW = 10
 
 export function SeatMap({ selectedSeats, onSeatSelect, maxSeats, disabled, currentPackage }: SeatMapProps) {
-  const storeReady = useStoreReady()
+  const heavyReady = useHeavyStoreReady()
   const [bookedSeats, setBookedSeats] = useState<Map<string, PackageType>>(new Map())
   const [ranges, setRanges] = useState<Record<PackageType, { start: number; end: number }>>({
     'corporate-vip': { start: 1,  end: 20 },
@@ -70,15 +70,15 @@ export function SeatMap({ selectedSeats, onSeatSelect, maxSeats, disabled, curre
     'early-bird':    { start: 61, end: 100 },
   })
 
-  // Re-run whenever Supabase data finishes loading so confirmed seats show as taken
   useEffect(() => {
+    if (!heavyReady) return
     setBookedSeats(getBookedSeats())
     setRanges({
       'corporate-vip': getSeatRangeForPackage('corporate-vip'),
       'standard':      getSeatRangeForPackage('standard'),
       'early-bird':    getSeatRangeForPackage('early-bird'),
     })
-  }, [storeReady])
+  }, [heavyReady])
 
   // Which zone does a seat belong to?
   const getSeatZone = (seatNum: number): PackageType | null => {

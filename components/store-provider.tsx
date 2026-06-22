@@ -3,9 +3,13 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { initStore } from '@/lib/store'
 
-// Context so admin/trainer pages can gate on store being populated
 const StoreReadyContext = createContext(false)
 export const useStoreReady = () => useContext(StoreReadyContext)
+
+// Provided by AdminLayout after loadHeavyKeys() completes.
+// Components that read participants/transactions/groups/notifications use this.
+export const HeavyReadyContext = createContext(false)
+export const useHeavyStoreReady = () => useContext(HeavyReadyContext)
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false)
@@ -14,8 +18,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     initStore().finally(() => setReady(true))
   }, [])
 
-  // Never block rendering — public pages work fine with defaults.
-  // Admin/trainer layouts use useStoreReady() to gate their own content.
   return (
     <StoreReadyContext.Provider value={ready}>
       {children}

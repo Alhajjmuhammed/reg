@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AdminLayout } from '@/components/admin-layout'
 import { getStatistics, getAllPackages } from '@/lib/store'
-import { useStoreReady } from '@/components/store-provider'
+import { useHeavyStoreReady } from '@/components/store-provider'
 import type { Package } from '@/lib/types'
 import {
   Users, DollarSign, TrendingUp, Package as PackageIcon,
@@ -55,15 +55,16 @@ function ProgressBar({ label, value, total, color }: {
 const PACKAGE_COLORS = ['bg-purple-500', 'bg-blue-500', 'bg-amber-500', 'bg-green-500', 'bg-rose-500', 'bg-cyan-500']
 
 export default function ReportsPage() {
-  const storeReady = useStoreReady()
+  const heavyReady = useHeavyStoreReady()
   const [stats, setStats] = useState<Stats | null>(null)
   const [packages, setPackages] = useState<Package[]>([])
 
   useEffect(() => {
+    if (!heavyReady) return
     setStats(getStatistics())
     setPackages(getAllPackages())
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeReady])
+  }, [heavyReady])
 
   if (!stats) {
     return (

@@ -86,13 +86,15 @@ const memStore: Record<string, unknown> = {}
 // values are never written to DB before we know what's actually stored there.
 let storeInitialized = false
 
-// Load all data from SQLite (via /api/store) into memStore on app start
+// Load light keys from SQLite into memStore on app start.
+// Heavy operational keys (participants, transactions, groups, notifications)
+// are excluded here and loaded separately by admin pages via loadHeavyKeys().
 export async function initStore(): Promise<void> {
   if (typeof window === 'undefined') return
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 12000) // 12s client-side safety net
+  const timer = setTimeout(() => controller.abort(), 10000)
   try {
-    const res = await fetch('/api/store', { signal: controller.signal })
+    const res = await fetch('/api/store?light=1', { signal: controller.signal })
     clearTimeout(timer)
     if (!res.ok) {
       console.error('DB load error, status:', res.status, await res.text().catch(() => ''))
@@ -102,7 +104,7 @@ export async function initStore(): Promise<void> {
     for (const row of rows) {
       memStore[row.key] = row.value
     }
-    // Keep localStorage sub-admin cache in sync with what DB returned
+    // Keep localStorage sub-admin cache in sync
     const subAdminsRow = rows.find(r => r.key === 'masterclass_sub_admins')
     if (subAdminsRow) {
       setLocalStorage('masterclass_sub_admins_local', subAdminsRow.value)
@@ -112,6 +114,23 @@ export async function initStore(): Promise<void> {
     console.error('initStore failed', e)
   } finally {
     storeInitialized = true
+  }
+}
+
+// Load heavy operational keys (participants, transactions, groups, notifications)
+// into memStore. Called by admin layout after initStore() so the initial page
+// load is fast and participant data loads in the background.
+export async function loadHeavyKeys(): Promise<void> {
+  if (typeof window === 'undefined') return
+  try {
+    const res = await fetch('/api/store?heavy=1')
+    if (!res.ok) return
+    const rows: { key: string; value: unknown }[] = await res.json()
+    for (const row of rows) {
+      memStore[row.key] = row.value
+    }
+  } catch (e) {
+    console.error('loadHeavyKeys failed', e)
   }
 }
 

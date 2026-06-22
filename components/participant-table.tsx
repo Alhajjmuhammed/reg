@@ -44,7 +44,7 @@ import { getParticipants, deleteParticipant, exportToCSV, getAllPackages, update
 import type { Package, Participant, ParticipantStatus, PaymentStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { ParticipantModal } from './participant-modal'
-import { useStoreReady } from '@/components/store-provider'
+import { useHeavyStoreReady } from '@/components/store-provider'
 
 const ITEMS_PER_PAGE = 10
 
@@ -63,7 +63,7 @@ const paymentStatusColors: Record<PaymentStatus, string> = {
 }
 
 export function ParticipantTable() {
-  const storeReady = useStoreReady()
+  const heavyReady = useHeavyStoreReady()
   const [participants, setParticipants] = useState<Participant[]>([])
   const [packages, setPackages] = useState<Package[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -82,10 +82,11 @@ export function ParticipantTable() {
   }
 
   useEffect(() => {
+    if (!heavyReady) return
     loadParticipants()
     setPackages(getAllPackages())
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeReady])
+  }, [heavyReady])
 
   const filteredParticipants = useMemo(() => {
     let result = participants

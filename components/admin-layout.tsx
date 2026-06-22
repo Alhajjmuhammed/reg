@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { logoutAll, getCurrentAdmin, getAdminRoles } from '@/lib/store'
-import { useStoreReady } from '@/components/store-provider'
+import { logoutAll, getCurrentAdmin, getAdminRoles, loadHeavyKeys } from '@/lib/store'
+import { useStoreReady, HeavyReadyContext } from '@/components/store-provider'
 import type { AdminSession, PermissionKey } from '@/lib/types'
 import {
   LayoutDashboard,
@@ -65,6 +65,7 @@ const ALL_NAV: NavItem[] = [
 export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [session, setSession] = useState<AdminSession | null>(null)
+  const [heavyReady, setHeavyReady] = useState(false)
   const storeReady = useStoreReady()
 
   // Populate session from localStorage on first mount (synchronous read, no Supabase needed).
@@ -81,6 +82,9 @@ export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) 
       return
     }
     setSession(s)
+    // Load participant/transaction/group data in the background after light store is ready.
+    // This keeps the initial page load fast while still populating admin tables.
+    loadHeavyKeys().finally(() => setHeavyReady(true))
   }, [storeReady])
 
   const isSuperAdmin = !session || session.isSuperAdmin !== false
@@ -109,6 +113,7 @@ export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) 
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'AD'
 
   return (
+    <HeavyReadyContext.Provider value={heavyReady}>
     <div className="min-h-screen bg-background">
       {/* Mobile sidebar backdrop */}
       {isSidebarOpen && (
@@ -256,5 +261,6 @@ export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) 
         </main>
       </div>
     </div>
+    </HeavyReadyContext.Provider>
   )
 }

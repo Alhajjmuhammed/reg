@@ -4,9 +4,8 @@
  *
  *   npx tsx scripts/migrate-from-supabase.ts
  *
- * Requires .env.local to contain both Supabase credentials AND DATABASE_URL.
+ * Uses direct HTTP fetch (no Supabase SDK) so it works on Node.js 18/20/22.
  */
-import { createClient } from '@supabase/supabase-js'
 import { PrismaClient } from '@prisma/client'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -31,7 +30,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('ERROR: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY not set')
+  console.error('ERROR: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY not set in .env.local')
   process.exit(1)
 }
 
@@ -41,14 +40,22 @@ if (!process.env.DATABASE_URL) {
 }
 
 async function main() {
-  console.log('Connecting to Supabase...')
-  const supabase = createClient(SUPABASE_URL!, SUPABASE_KEY!)
+  // Read all rows from Supabase via plain REST API (no SDK, no WebSocket)
+  console.log('Fetching data from Supabase...')
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/app_store?select=key,value`, {
+    headers: {
+      'apikey': SUPABASE_KEY!,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  })
 
-  const { data, error } = await supabase.from('app_store').select('key, value')
-  if (error) {
-    console.error('Failed to read from Supabase:', error.message)
+  if (!res.ok) {
+    console.error(`Supabase request failed: ${res.status} ${res.statusText}`)
     process.exit(1)
   }
+
+  const data: { key: string; value: unknown }[] = await res.json()
 
   if (!data || data.length === 0) {
     console.log('No data found in Supabase app_store. Nothing to migrate.')
@@ -64,7 +71,6 @@ async function main() {
     let skipped = 0
 
     for (const row of data) {
-      // Check if already in SQLite
       const existing = await prisma.kvStore.findUnique({ where: { key: row.key } })
       if (existing) {
         console.log(`  SKIP (already exists): ${row.key}`)
@@ -82,7 +88,7 @@ async function main() {
       migrated++
     }
 
-    console.log(`\nMigration complete: ${migrated} migrated, ${skipped} skipped.`)
+    console.log(`\n✓ Migration complete: ${migrated} migrated, ${skipped} skipped.`)
   } finally {
     await prisma.$disconnect()
   }

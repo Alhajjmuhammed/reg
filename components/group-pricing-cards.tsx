@@ -10,11 +10,16 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-TZ', { style: 'decimal', minimumFractionDigits: 0 }).format(amount)
 }
 
-export function GroupPricingCards() {
+interface GroupPricingCardsProps {
+  initialTiers?: GroupPricingTier[]
+}
+
+export function GroupPricingCards({ initialTiers }: GroupPricingCardsProps) {
   const storeReady = useStoreReady()
-  const [tiers, setTiers] = useState<GroupPricingTier[]>([])
+  const [tiers, setTiers] = useState<GroupPricingTier[]>(initialTiers ?? [])
 
   useEffect(() => {
+    if (!storeReady) return
     setTiers(getGroupPricingTiers())
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeReady])

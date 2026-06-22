@@ -9,13 +9,18 @@ import type { Trainer } from '@/lib/types'
 import { assetUrl } from '@/lib/utils'
 import { useStoreReady } from '@/components/store-provider'
 
-export function TrainersShowcase() {
+interface TrainersShowcaseProps {
+  initialTrainers?: Trainer[]
+}
+
+export function TrainersShowcase({ initialTrainers }: TrainersShowcaseProps) {
   const storeReady = useStoreReady()
-  const [trainers, setTrainers] = useState<Trainer[]>([])
-  const [isMounted, setIsMounted] = useState(false)
+  const [trainers, setTrainers] = useState<Trainer[]>(initialTrainers ?? [])
+  const [isMounted, setIsMounted] = useState(!!initialTrainers)
 
   useEffect(() => {
     setIsMounted(true)
+    if (!storeReady) return
     setTrainers(getTrainers())
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeReady])

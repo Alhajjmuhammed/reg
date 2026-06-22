@@ -7,11 +7,16 @@ import { getAllPackages } from '@/lib/store'
 import type { Package } from '@/lib/types'
 import { useStoreReady } from '@/components/store-provider'
 
-export function PricingCards() {
+interface PricingCardsProps {
+  initialPackages?: Package[]
+}
+
+export function PricingCards({ initialPackages }: PricingCardsProps) {
   const storeReady = useStoreReady()
-  const [packages, setPackages] = useState<Package[]>([])
+  const [packages, setPackages] = useState<Package[]>(initialPackages ?? [])
 
   useEffect(() => {
+    if (!storeReady) return
     setPackages(getAllPackages().filter(p => p.active))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeReady])

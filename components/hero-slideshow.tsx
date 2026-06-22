@@ -25,10 +25,15 @@ function formatDateRange(start: string, end: string): string {
   }
 }
 
-export function HeroSlideshow() {
+interface HeroSlideshowProps {
+  initialSlides?: HeroSlide[]
+  initialSettings?: SiteSettings
+}
+
+export function HeroSlideshow({ initialSlides, initialSettings }: HeroSlideshowProps) {
   const storeReady = useStoreReady()
-  const [slides, setSlides] = useState<HeroSlide[]>([])
-  const [settings, setSettings] = useState<SiteSettings | null>(null)
+  const [slides, setSlides] = useState<HeroSlide[]>(initialSlides ?? [])
+  const [settings, setSettings] = useState<SiteSettings | null>(initialSettings ?? null)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isAutoPlaying, setIsAutoPlaying] = useState(true)
   const [isMounted, setIsMounted] = useState(false)
@@ -36,10 +41,12 @@ export function HeroSlideshow() {
   // isMounted guards SSR hydration — set on first client render only
   useEffect(() => { setIsMounted(true) }, [])
 
-  // Re-read settings and slides whenever the store finishes loading from Supabase
+  // Re-read from memStore after store syncs (picks up any admin changes made since server render)
   useEffect(() => {
+    if (!storeReady) return
     setSlides(getHeroSlides())
     setSettings(getSiteSettings())
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeReady])
 
   const nextSlide = useCallback(() => {

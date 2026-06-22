@@ -126,14 +126,20 @@ function AcademicPartnersCarousel({ partners }: { partners: AcademicPartner[] })
   )
 }
 
-export function AcademicPartnersSection() {
+interface AcademicPartnersSectionProps {
+  initialPartners?: AcademicPartner[]
+  initialSettings?: AcademicPartnerSettings
+}
+
+export function AcademicPartnersSection({ initialPartners, initialSettings }: AcademicPartnersSectionProps) {
   const storeReady = useStoreReady()
-  const [partners, setPartners] = useState<AcademicPartner[]>([])
-  const [sectionSettings, setSectionSettings] = useState<AcademicPartnerSettings | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const [partners, setPartners] = useState<AcademicPartner[]>(initialPartners ?? [])
+  const [sectionSettings, setSectionSettings] = useState<AcademicPartnerSettings | null>(initialSettings ?? null)
+  const [mounted, setMounted] = useState(!!initialPartners)
 
   useEffect(() => {
     setMounted(true)
+    if (!storeReady) return
     setPartners(getAcademicPartners())
     setSectionSettings(getAcademicPartnerSettings())
   // eslint-disable-next-line react-hooks/exhaustive-deps

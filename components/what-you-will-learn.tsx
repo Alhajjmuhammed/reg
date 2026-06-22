@@ -115,20 +115,26 @@ function getIcon(slug: string): LucideIcon {
   return ICON_MAP[slug] ?? Zap
 }
 
-export function WhatYouWillLearn() {
+interface WhatYouWillLearnProps {
+  initialModules?: CurriculumModule[]
+}
+
+export function WhatYouWillLearn({ initialModules }: WhatYouWillLearnProps) {
   const storeReady = useStoreReady()
-  const [modules, setModules] = useState<CurriculumModule[]>([])
+  const [modules, setModules] = useState<CurriculumModule[]>(initialModules ?? [])
   const [activeDay, setActiveDay] = useState<number | null>(null)
-  const [activeId, setActiveId] = useState('')
-  const [openMobileId, setOpenMobileId] = useState('')
+  const [activeId, setActiveId] = useState(initialModules?.[0]?.id ?? '')
+  const [openMobileId, setOpenMobileId] = useState(initialModules?.[0]?.id ?? '')
 
   useEffect(() => {
+    if (!storeReady) return
     const mods = getCurriculum()
     setModules(mods)
     if (mods.length > 0) {
       setActiveId(mods[0].id)
       setOpenMobileId(mods[0].id)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeReady])
 
   const days = [...new Set(modules.map(m => m.day))].filter(Boolean).sort((a, b) => a - b)

@@ -10,23 +10,43 @@ import { SiteFooter } from '@/components/site-footer'
 import { CreditCard, Smartphone, Shield, Gift } from 'lucide-react'
 import { PricingCards } from '@/components/pricing-cards'
 import { GroupPricingCards } from '@/components/group-pricing-cards'
+import {
+  serverGetHeroSlides,
+  serverGetSiteSettings,
+  serverGetCurriculum,
+  serverGetAcademicPartners,
+  serverGetAcademicPartnerSettings,
+  serverGetTrainers,
+  serverGetPackages,
+  serverGetGroupPricingTiers,
+} from '@/lib/server-data'
 
 export default function HomePage() {
+  // Read from SQLite at request time — no client-side flash of defaults
+  const heroSlides          = serverGetHeroSlides()
+  const siteSettings        = serverGetSiteSettings()
+  const curriculum          = serverGetCurriculum()
+  const academicPartners    = serverGetAcademicPartners()
+  const academicSettings    = serverGetAcademicPartnerSettings()
+  const trainers            = serverGetTrainers()
+  const packages            = serverGetPackages()
+  const groupPricingTiers   = serverGetGroupPricingTiers()
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
       {/* Hero Slideshow */}
-      <HeroSlideshow />
+      <HeroSlideshow initialSlides={heroSlides} initialSettings={siteSettings} />
 
       {/* What You Will Learn - Comprehensive Curriculum */}
-      <WhatYouWillLearn />
+      <WhatYouWillLearn initialModules={curriculum} />
 
       {/* Academic Partner */}
-      <AcademicPartnersSection />
+      <AcademicPartnersSection initialPartners={academicPartners} initialSettings={academicSettings} />
 
       {/* Trainers Showcase */}
-      <TrainersShowcase />
+      <TrainersShowcase initialTrainers={trainers} />
 
       {/* Packages Section */}
       <section id="packages" className="border-b border-border py-16 lg:py-24">
@@ -37,7 +57,7 @@ export default function HomePage() {
               Select the package that best fits your learning goals and budget
             </p>
           </div>
-          <PricingCards />
+          <PricingCards initialPackages={packages} />
         </div>
       </section>
 
@@ -54,7 +74,7 @@ export default function HomePage() {
               Bring your team and enjoy significant savings with our group booking offers
             </p>
           </div>
-          <GroupPricingCards />
+          <GroupPricingCards initialTiers={groupPricingTiers} />
           <p className="mt-6 text-center text-sm text-muted-foreground">
             For groups of 10+ seats, contact us for custom corporate packages with additional benefits
           </p>

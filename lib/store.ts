@@ -86,6 +86,13 @@ const memStore: Record<string, unknown> = {}
 // values are never written to DB before we know what's actually stored there.
 let storeInitialized = false
 
+// Write a value directly into memStore without touching the DB.
+// Use after lazy-fetching full data (e.g. hero slides with base64 images)
+// so that getHeroSlides() etc. return complete data for subsequent saves.
+export function patchMemStore(key: string, value: unknown): void {
+  memStore[key] = value
+}
+
 // Load light keys from SQLite into memStore on app start.
 // Heavy operational keys (participants, transactions, groups, notifications)
 // are excluded here and loaded separately by admin pages via loadHeavyKeys().

@@ -78,6 +78,7 @@ import {
   createHeroSlide,
   updateHeroSlide,
   deleteHeroSlide,
+  patchMemStore,
   getAllCurriculum,
   createCurriculumModule,
   updateCurriculumModule,
@@ -206,6 +207,23 @@ export default function AdminSettingsPage() {
     setSeatConfig({ confirmedSeats: seatCfg.confirmedSeats, reservedSeats: seatCfg.reservedSeats, waitlistCount: seatCfg.waitlistCount })
     setGroupTiers(getGroupPricingTiers())
     setAdminEmail(getAdminCredential().email)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
+
+  // Lazy-load full hero slides with base64 images (stripped from light response).
+  // Also patches memStore so updateHeroSlide/createHeroSlide read complete data
+  // and don't accidentally wipe images on other slides when saving one slide.
+  useEffect(() => {
+    if (!storeReady) return
+    fetch('/api/store?key=masterclass_hero_slides', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then((row: { key: string; value: HeroSlide[] } | null) => {
+        if (row?.value && Array.isArray(row.value)) {
+          patchMemStore('masterclass_hero_slides', row.value)
+          setHeroSlides(row.value.sort((a, b) => a.order - b.order))
+        }
+      })
+      .catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeReady])
 

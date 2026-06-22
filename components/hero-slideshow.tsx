@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Sparkles, Calendar, MapPin, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getHeroSlides, getSiteSettings } from '@/lib/store'
+import { getHeroSlides, getSiteSettings, patchMemStore } from '@/lib/store'
 import type { HeroSlide, SiteSettings } from '@/lib/types'
 import { assetUrl } from '@/lib/utils'
 import { useStoreReady } from '@/components/store-provider'
@@ -41,11 +41,31 @@ export function HeroSlideshow({ initialSlides, initialSettings }: HeroSlideshowP
   // isMounted guards SSR hydration — set on first client render only
   useEffect(() => { setIsMounted(true) }, [])
 
-  // Re-read from memStore after store syncs (picks up any admin changes made since server render)
+  // Re-read from memStore after store syncs (metadata fast path — imageUrl may be empty here)
   useEffect(() => {
     if (!storeReady) return
     setSlides(getHeroSlides())
     setSettings(getSiteSettings())
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeReady])
+
+  // Lazy-load the full hero slides including base64 images.
+  // The light-store response strips base64 imageUrl to keep initial load fast;
+  // we fetch the single key here so images appear as soon as the page is visible.
+  // patchMemStore ensures any subsequent getHeroSlides() calls (e.g. in admin
+  // save operations) return the full data, preventing accidental image erasure.
+  useEffect(() => {
+    if (!storeReady) return
+    fetch('/api/store?key=masterclass_hero_slides', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then((row: { key: string; value: HeroSlide[] } | null) => {
+        if (row?.value && Array.isArray(row.value)) {
+          patchMemStore('masterclass_hero_slides', row.value)
+          const active = row.value.filter(s => s.active).sort((a, b) => a.order - b.order)
+          if (active.length > 0) setSlides(active)
+        }
+      })
+      .catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeReady])
 
@@ -97,7 +117,7 @@ export function HeroSlideshow({ initialSlides, initialSettings }: HeroSlideshowP
           }`}
         >
           <Image
-            src={assetUrl(slide.imageUrl)}
+            src={assetUrl(slide.imageUrl) || '/images/hero-1.jpg'}
             alt={slide.title}
             fill
             className="object-cover"

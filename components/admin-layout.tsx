@@ -76,14 +76,17 @@ export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) 
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    // Wait for light store before checking session and loading heavy data.
+    // This ensures light keys (packages, settings) are in memStore before
+    // heavyReady fires, so dashboard stats and reports read correct package data.
+    if (!storeReady) return
     const s = getCurrentAdmin()
     if (!s) {
       window.location.href = '/login'
       return
     }
     setSession(s)
-    // Load participant/transaction/group data in the background after light store is ready.
-    // This keeps the initial page load fast while still populating admin tables.
+    setHeavyReady(false)
     loadHeavyKeys().finally(() => setHeavyReady(true))
   }, [storeReady])
 

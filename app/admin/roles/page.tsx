@@ -450,7 +450,7 @@ function UsersTab({ users, roles, onReload }: { users: SubAdminUser[]; roles: Ad
       } else {
         createSubAdmin(data) // throws if email already exists
       }
-      await flushSubAdmins() // throws on Supabase error
+      await flushSubAdmins() // throws on DB error
       showAlert('success', id ? 'Admin user updated' : 'Admin user created')
       setShowForm(false)
       setEditingUser(null)

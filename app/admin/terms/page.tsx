@@ -100,7 +100,7 @@ function RichEditor({
     try {
       setTermsContent({ [editorId]: html })
       await flushTermsContent()
-      showAlert('success', 'Saved to Supabase successfully!')
+      showAlert('success', 'Saved successfully!')
     } catch (err) {
       showAlert('error', err instanceof Error ? err.message : 'Save failed — check your connection')
     } finally {

@@ -537,7 +537,7 @@ export default function CurriculumPage() {
         {saveState === 'saved' && (
           <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400">
             <Check className="h-4 w-4 shrink-0" />
-            Curriculum saved to Supabase successfully.
+            Curriculum saved successfully.
           </div>
         )}
 
@@ -631,7 +631,7 @@ export default function CurriculumPage() {
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
           <p className="mb-1 font-medium text-foreground">How changes work</p>
           Edit, reorder, and toggle modules instantly. Click{' '}
-          <strong className="text-foreground">&ldquo;Save to Cloud&rdquo;</strong> to persist everything to Supabase
+          <strong className="text-foreground">&ldquo;Save to Cloud&rdquo;</strong> to persist everything to the database
           so changes appear on the live website for all visitors.
         </div>
       </div>

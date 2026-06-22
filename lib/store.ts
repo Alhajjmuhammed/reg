@@ -94,7 +94,7 @@ export async function initStore(): Promise<void> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 10000)
   try {
-    const res = await fetch('/api/store?light=1', { signal: controller.signal })
+    const res = await fetch('/api/store?light=1', { signal: controller.signal, cache: 'no-store' })
     clearTimeout(timer)
     if (!res.ok) {
       console.error('DB load error, status:', res.status, await res.text().catch(() => ''))
@@ -123,7 +123,7 @@ export async function initStore(): Promise<void> {
 export async function loadHeavyKeys(): Promise<void> {
   if (typeof window === 'undefined') return
   try {
-    const res = await fetch('/api/store?heavy=1')
+    const res = await fetch('/api/store?heavy=1', { cache: 'no-store' })
     if (!res.ok) return
     const rows: { key: string; value: unknown }[] = await res.json()
     for (const row of rows) {
@@ -139,7 +139,7 @@ export async function loadHeavyKeys(): Promise<void> {
 export async function refreshParticipants(): Promise<void> {
   if (typeof window === 'undefined') return
   try {
-    const res = await fetch(`/api/store?key=${STORAGE_KEYS.participants}`)
+    const res = await fetch(`/api/store?key=${STORAGE_KEYS.participants}`, { cache: 'no-store' })
     if (res.ok) {
       const row: { key: string; value: unknown } | null = await res.json()
       if (row) {

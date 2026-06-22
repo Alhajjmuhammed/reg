@@ -55,7 +55,7 @@ import {
   deleteTrainerAccount,
 } from '@/lib/store'
 import type { Trainer, TrainerAccount } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, assetUrl } from '@/lib/utils'
 import { useStoreReady } from '@/components/store-provider'
 
 // What the dialog passes back to the parent
@@ -185,7 +185,7 @@ export default function AdminTrainersPage() {
                     <div className="flex items-start gap-3">
                       <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0 border">
                         {trainer.photoUrl ? (
-                          <img src={trainer.photoUrl} alt={trainer.name} className="h-full w-full object-cover" />
+                          <img src={assetUrl(trainer.photoUrl)} alt={trainer.name} className="h-full w-full object-cover" />
                         ) : (
                           <Users className="h-6 w-6 text-muted-foreground" />
                         )}
@@ -513,7 +513,7 @@ function TrainerDialog({
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0 border">
                 {form.photoUrl
-                  ? <img src={form.photoUrl} alt="Preview" className="h-full w-full object-cover" />
+                  ? <img src={assetUrl(form.photoUrl)} alt="Preview" className="h-full w-full object-cover" />
                   : <Users className="h-7 w-7 text-muted-foreground" />
                 }
               </div>

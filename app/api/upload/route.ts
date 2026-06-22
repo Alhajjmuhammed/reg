@@ -5,6 +5,9 @@ import { v4 as uuidv4 } from 'uuid'
 
 export const dynamic = 'force-dynamic'
 
+// Must match UPLOADS_DIR in app/api/uploads/[filename]/route.ts
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), 'public', 'uploads')
+
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'])
 const ALLOWED_DOC_TYPES = new Set(['application/pdf', 'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -39,13 +42,13 @@ export async function POST(req: NextRequest) {
 
     const ext = (file.name.split('.').pop() ?? 'bin').toLowerCase().replace(/[^a-z0-9]/g, '')
     const filename = `${uuidv4()}.${ext}`
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
 
-    await mkdir(uploadsDir, { recursive: true, mode: 0o755 })
+    await mkdir(UPLOADS_DIR, { recursive: true, mode: 0o755 })
     const bytes = await file.arrayBuffer()
-    await writeFile(path.join(uploadsDir, filename), Buffer.from(bytes), { mode: 0o644 })
+    await writeFile(path.join(UPLOADS_DIR, filename), Buffer.from(bytes), { mode: 0o644 })
 
-    return NextResponse.json({ url: `/uploads/${filename}` })
+    // Serve via /api/uploads/[filename] route (guaranteed Next.js — no nginx/static issues)
+    return NextResponse.json({ url: `/api/uploads/${filename}` })
   } catch (err) {
     console.error('[api/upload]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

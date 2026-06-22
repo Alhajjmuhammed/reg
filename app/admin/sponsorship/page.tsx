@@ -560,7 +560,7 @@ export default function AdminSponsorshipPage() {
                 academicPartners.map(partner => (
                   <div key={partner.id} className={cn('flex items-center gap-4 px-4 py-3', !partner.active && 'opacity-50')}>
                     {partner.logoUrl ? (
-                      <img src={partner.logoUrl} alt={partner.name} className="h-10 w-20 object-contain rounded" />
+                      <img src={assetUrl(partner.logoUrl)} alt={partner.name} className="h-10 w-20 object-contain rounded" />
                     ) : (
                       <div className="h-10 w-20 rounded border bg-muted flex items-center justify-center text-xs text-muted-foreground">No logo</div>
                     )}
@@ -632,7 +632,7 @@ export default function AdminSponsorshipPage() {
                   )}>
                     {settings.heroImageUrl ? (
                       <div className="flex flex-col items-center gap-2 w-full">
-                        <img src={settings.heroImageUrl} alt="Hero background" className="max-h-36 w-full rounded-md object-cover border border-border" />
+                        <img src={assetUrl(settings.heroImageUrl)} alt="Hero background" className="max-h-36 w-full rounded-md object-cover border border-border" />
                         <button
                           type="button"
                           onClick={e => { e.preventDefault(); setSettings(s => s ? { ...s, heroImageUrl: '' } : s) }}
@@ -664,7 +664,7 @@ export default function AdminSponsorshipPage() {
                   )}>
                     {settings.packagesImageUrl ? (
                       <div className="flex flex-col items-center gap-2 w-full">
-                        <img src={settings.packagesImageUrl} alt="Packages section background" className="max-h-36 w-full rounded-md object-cover border border-border" />
+                        <img src={assetUrl(settings.packagesImageUrl)} alt="Packages section background" className="max-h-36 w-full rounded-md object-cover border border-border" />
                         <button
                           type="button"
                           onClick={e => { e.preventDefault(); setSettings(s => s ? { ...s, packagesImageUrl: '' } : s) }}
@@ -1003,7 +1003,7 @@ export default function AdminSponsorshipPage() {
               )}>
                 {tierForm.imageUrl ? (
                   <div className="flex flex-col items-center gap-2 w-full">
-                    <img src={tierForm.imageUrl} alt="Tier image" className="max-h-32 w-auto rounded-md object-contain border border-border" />
+                    <img src={assetUrl(tierForm.imageUrl)} alt="Tier image" className="max-h-32 w-auto rounded-md object-contain border border-border" />
                     <button
                       type="button"
                       onClick={e => { e.preventDefault(); setTierForm(f => ({ ...f, imageUrl: '' })) }}
@@ -1091,7 +1091,7 @@ export default function AdminSponsorshipPage() {
               <Label>Partner Logo</Label>
               <div className="flex items-center gap-3">
                 {sponsorForm.logoUrl && (
-                  <img src={sponsorForm.logoUrl} alt="logo preview" className="h-14 w-28 object-contain rounded border bg-muted" />
+                  <img src={assetUrl(sponsorForm.logoUrl)} alt="logo preview" className="h-14 w-28 object-contain rounded border bg-muted" />
                 )}
                 <label className="cursor-pointer flex items-center gap-2 rounded-md border border-dashed px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors">
                   <Plus className="h-4 w-4" />
@@ -1111,7 +1111,7 @@ export default function AdminSponsorshipPage() {
               <Label>Sponsor Banner</Label>
               <div className="flex items-center gap-3">
                 {sponsorForm.bannerUrl && (
-                  <img src={sponsorForm.bannerUrl} alt="banner preview" className="h-14 w-28 object-cover rounded border" />
+                  <img src={assetUrl(sponsorForm.bannerUrl)} alt="banner preview" className="h-14 w-28 object-cover rounded border" />
                 )}
                 <label className="cursor-pointer flex items-center gap-2 rounded-md border border-dashed px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors">
                   <Plus className="h-4 w-4" />
@@ -1206,7 +1206,7 @@ export default function AdminSponsorshipPage() {
               <Label>Institution Logo</Label>
               <div className="flex items-center gap-3">
                 {academicForm.logoUrl && (
-                  <img src={academicForm.logoUrl} alt="logo preview" className="h-14 w-28 object-contain rounded border bg-muted" />
+                  <img src={assetUrl(academicForm.logoUrl)} alt="logo preview" className="h-14 w-28 object-contain rounded border bg-muted" />
                 )}
                 <label className="cursor-pointer flex items-center gap-2 rounded-md border border-dashed px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors">
                   <Plus className="h-4 w-4" />
@@ -1226,7 +1226,7 @@ export default function AdminSponsorshipPage() {
               <Label>Banner Image</Label>
               <div className="flex items-center gap-3">
                 {academicForm.bannerUrl && (
-                  <img src={academicForm.bannerUrl} alt="banner preview" className="h-14 w-28 object-cover rounded border" />
+                  <img src={assetUrl(academicForm.bannerUrl)} alt="banner preview" className="h-14 w-28 object-cover rounded border" />
                 )}
                 <label className="cursor-pointer flex items-center gap-2 rounded-md border border-dashed px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors">
                   <Plus className="h-4 w-4" />

@@ -5,10 +5,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Return the asset path — basePath is now empty so this is a passthrough */
-export function assetUrl(path: string): string {
-  if (!path || path.startsWith('http') || path.startsWith('data:')) return path
-  return path
+/** Normalise an asset path for display. Rewrites legacy /uploads/ paths to the
+ *  /api/uploads/ route handler which is guaranteed to go through Next.js. */
+export function assetUrl(url: string): string {
+  if (!url || url.startsWith('http') || url.startsWith('data:')) return url
+  if (url.startsWith('/uploads/')) return '/api' + url
+  return url
 }
 
 /**

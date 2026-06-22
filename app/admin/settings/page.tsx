@@ -75,6 +75,7 @@ import {
   Check,
 } from 'lucide-react'
 import { uploadFile } from '@/lib/upload'
+import { assetUrl } from '@/lib/utils'
 import {
   getSiteSettings,
   updateSiteSettings,
@@ -1971,7 +1972,7 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
             {form.imageUrl && !form.imageUrl.startsWith('data:') && !imgBroken && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={form.imageUrl}
+                src={assetUrl(form.imageUrl)}
                 alt="Preview"
                 className="h-24 w-full rounded-lg object-cover border border-border"
                 onError={() => setImgBroken(true)}

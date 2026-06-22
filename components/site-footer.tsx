@@ -4,16 +4,17 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { getSiteSettings } from '@/lib/store'
 import type { SiteSettings } from '@/lib/types'
-import { useStoreReady } from '@/components/store-provider'
+import { useStoreReady, useStoreVersion } from '@/components/store-provider'
 
 export function SiteFooter() {
   const storeReady = useStoreReady()
+  const storeVersion = useStoreVersion()
   const [settings, setSettings] = useState<SiteSettings | null>(null)
 
   useEffect(() => {
     setSettings(getSiteSettings())
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeReady])
+  }, [storeReady, storeVersion])
 
   const phone = settings?.contactPhone || '+255 712 345 678'
   const email = settings?.contactEmail || 'info@executivemasterclass.co.tz'

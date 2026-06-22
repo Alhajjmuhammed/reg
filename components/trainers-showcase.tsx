@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { getTrainers } from '@/lib/store'
 import type { Trainer } from '@/lib/types'
 import { assetUrl } from '@/lib/utils'
-import { useStoreReady } from '@/components/store-provider'
+import { useStoreReady, useStoreVersion } from '@/components/store-provider'
 
 interface TrainersShowcaseProps {
   initialTrainers?: Trainer[]
@@ -15,6 +15,7 @@ interface TrainersShowcaseProps {
 
 export function TrainersShowcase({ initialTrainers }: TrainersShowcaseProps) {
   const storeReady = useStoreReady()
+  const storeVersion = useStoreVersion()
   const [trainers, setTrainers] = useState<Trainer[]>(initialTrainers ?? [])
   const [isMounted, setIsMounted] = useState(!!initialTrainers)
 
@@ -23,7 +24,7 @@ export function TrainersShowcase({ initialTrainers }: TrainersShowcaseProps) {
     if (!storeReady) return
     setTrainers(getTrainers())
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeReady])
+  }, [storeReady, storeVersion])
 
   if (!isMounted || trainers.length === 0) {
     return (

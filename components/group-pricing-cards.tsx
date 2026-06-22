@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Check, Gift } from 'lucide-react'
 import { getGroupPricingTiers } from '@/lib/store'
 import type { GroupPricingTier } from '@/lib/types'
-import { useStoreReady } from '@/components/store-provider'
+import { useStoreReady, useStoreVersion } from '@/components/store-provider'
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-TZ', { style: 'decimal', minimumFractionDigits: 0 }).format(amount)
@@ -16,13 +16,14 @@ interface GroupPricingCardsProps {
 
 export function GroupPricingCards({ initialTiers }: GroupPricingCardsProps) {
   const storeReady = useStoreReady()
+  const storeVersion = useStoreVersion()
   const [tiers, setTiers] = useState<GroupPricingTier[]>(initialTiers ?? [])
 
   useEffect(() => {
     if (!storeReady) return
     setTiers(getGroupPricingTiers())
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeReady])
+  }, [storeReady, storeVersion])
 
   if (tiers.length === 0) return null
 

@@ -9,7 +9,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { getCurriculum } from '@/lib/store'
-import { useStoreReady } from '@/components/store-provider'
+import { useStoreReady, useStoreVersion } from '@/components/store-provider'
 import type { CurriculumModule } from '@/lib/types'
 import { cn, sanitizeHtml } from '@/lib/utils'
 
@@ -121,6 +121,7 @@ interface WhatYouWillLearnProps {
 
 export function WhatYouWillLearn({ initialModules }: WhatYouWillLearnProps) {
   const storeReady = useStoreReady()
+  const storeVersion = useStoreVersion()
   const [modules, setModules] = useState<CurriculumModule[]>(initialModules ?? [])
   const [activeDay, setActiveDay] = useState<number | null>(null)
   const [activeId, setActiveId] = useState(initialModules?.[0]?.id ?? '')
@@ -135,7 +136,7 @@ export function WhatYouWillLearn({ initialModules }: WhatYouWillLearnProps) {
       setOpenMobileId(mods[0].id)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeReady])
+  }, [storeReady, storeVersion])
 
   const days = [...new Set(modules.map(m => m.day))].filter(Boolean).sort((a, b) => a - b)
 

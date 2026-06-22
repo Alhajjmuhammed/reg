@@ -2312,3 +2312,48 @@ export async function flushPackages(): Promise<void> {
   })
   if (!res.ok) throw new Error('Failed to persist packages')
 }
+
+export async function flushHeroSlides(): Promise<void> {
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.heroSlides, value: getHeroSlides() }),
+  })
+  if (!res.ok) throw new Error('Failed to persist hero slides')
+}
+
+export async function flushFAQs(): Promise<void> {
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.faqs, value: getAllFAQs() }),
+  })
+  if (!res.ok) throw new Error('Failed to persist FAQs')
+}
+
+export async function flushTestimonials(): Promise<void> {
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.testimonials, value: getAllTestimonials() }),
+  })
+  if (!res.ok) throw new Error('Failed to persist testimonials')
+}
+
+export async function flushChatbotQA(): Promise<void> {
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.chatbotQA, value: getAllChatbotQA() }),
+  })
+  if (!res.ok) throw new Error('Failed to persist chatbot Q&A')
+}
+
+export async function flushPaymentMethods(): Promise<void> {
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.paymentMethods, value: getAllPaymentMethods() }),
+  })
+  if (!res.ok) throw new Error('Failed to persist payment methods')
+}

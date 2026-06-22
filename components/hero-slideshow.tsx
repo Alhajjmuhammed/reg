@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { getHeroSlides, getSiteSettings, patchMemStore } from '@/lib/store'
 import type { HeroSlide, SiteSettings } from '@/lib/types'
 import { assetUrl } from '@/lib/utils'
-import { useStoreReady } from '@/components/store-provider'
+import { useStoreReady, useStoreVersion } from '@/components/store-provider'
 
 function formatDateRange(start: string, end: string): string {
   try {
@@ -32,6 +32,7 @@ interface HeroSlideshowProps {
 
 export function HeroSlideshow({ initialSlides, initialSettings }: HeroSlideshowProps) {
   const storeReady = useStoreReady()
+  const storeVersion = useStoreVersion()
   const [slides, setSlides] = useState<HeroSlide[]>(initialSlides ?? [])
   const [settings, setSettings] = useState<SiteSettings | null>(initialSettings ?? null)
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -47,7 +48,7 @@ export function HeroSlideshow({ initialSlides, initialSettings }: HeroSlideshowP
     setSlides(getHeroSlides())
     setSettings(getSiteSettings())
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeReady])
+  }, [storeReady, storeVersion])
 
   // Lazy-load the full hero slides including base64 images.
   // The light-store response strips base64 imageUrl to keep initial load fast;

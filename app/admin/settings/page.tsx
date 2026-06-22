@@ -116,6 +116,12 @@ import {
   flushSiteSettings,
   flushSeatConfiguration,
   flushPackages,
+  flushHeroSlides,
+  flushCurriculumModules,
+  flushFAQs,
+  flushTestimonials,
+  flushChatbotQA,
+  flushPaymentMethods,
 } from '@/lib/store'
 import { useStoreReady } from '@/components/store-provider'
 import type {
@@ -295,8 +301,19 @@ export default function AdminSettingsPage() {
     window.location.reload()
   }
 
+  // Shared flush-and-toast helper
+  const flushWithToast = async (flushFn: () => Promise<void>, msg: string) => {
+    try {
+      await flushFn()
+      setSaveMessage(msg)
+    } catch (err) {
+      setSaveMessage('Save failed: ' + (err instanceof Error ? err.message : 'Check your connection'))
+    }
+    setTimeout(() => setSaveMessage(''), 3000)
+  }
+
   // Hero Slide handlers
-  const handleSaveSlide = (slide: Partial<HeroSlide>) => {
+  const handleSaveSlide = async (slide: Partial<HeroSlide>) => {
     if (editingSlide?.id) {
       updateHeroSlide(editingSlide.id, slide)
     } else {
@@ -305,10 +322,11 @@ export default function AdminSettingsPage() {
     setHeroSlides(getHeroSlides())
     setIsSlideDialogOpen(false)
     setEditingSlide(null)
+    await flushWithToast(flushHeroSlides, 'Slide saved!')
   }
 
   // Curriculum handlers
-  const handleSaveModule = (module: Partial<CurriculumModule>) => {
+  const handleSaveModule = async (module: Partial<CurriculumModule>) => {
     if (editingModule?.id) {
       updateCurriculumModule(editingModule.id, module)
     } else {
@@ -317,10 +335,11 @@ export default function AdminSettingsPage() {
     setCurriculum(getAllCurriculum())
     setIsModuleDialogOpen(false)
     setEditingModule(null)
+    await flushWithToast(flushCurriculumModules, 'Module saved!')
   }
 
   // FAQ handlers
-  const handleSaveFaq = (faq: Partial<FAQ>) => {
+  const handleSaveFaq = async (faq: Partial<FAQ>) => {
     if (editingFaq?.id) {
       updateFAQ(editingFaq.id, faq)
     } else {
@@ -329,10 +348,11 @@ export default function AdminSettingsPage() {
     setFaqs(getAllFAQs())
     setIsFaqDialogOpen(false)
     setEditingFaq(null)
+    await flushWithToast(flushFAQs, 'FAQ saved!')
   }
 
   // Testimonial handlers
-  const handleSaveTestimonial = (testimonial: Partial<Testimonial>) => {
+  const handleSaveTestimonial = async (testimonial: Partial<Testimonial>) => {
     if (editingTestimonial?.id) {
       updateTestimonial(editingTestimonial.id, testimonial)
     } else {
@@ -341,10 +361,11 @@ export default function AdminSettingsPage() {
     setTestimonials(getAllTestimonials())
     setIsTestimonialDialogOpen(false)
     setEditingTestimonial(null)
+    await flushWithToast(flushTestimonials, 'Review saved!')
   }
 
   // Chatbot QA handlers
-  const handleSaveQA = (qa: Partial<ChatbotQA>) => {
+  const handleSaveQA = async (qa: Partial<ChatbotQA>) => {
     if (editingQA?.id) {
       updateChatbotQA(editingQA.id, qa)
     } else {
@@ -353,32 +374,38 @@ export default function AdminSettingsPage() {
     setChatbotQA(getAllChatbotQA())
     setIsQADialogOpen(false)
     setEditingQA(null)
+    await flushWithToast(flushChatbotQA, 'Q&A saved!')
   }
 
   // Delete handlers
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteConfirm) return
-    
+    let flushFn: (() => Promise<void>) | null = null
     switch (deleteConfirm.type) {
       case 'slide':
         deleteHeroSlide(deleteConfirm.id)
         setHeroSlides(getHeroSlides())
+        flushFn = flushHeroSlides
         break
       case 'module':
         deleteCurriculumModule(deleteConfirm.id)
         setCurriculum(getAllCurriculum())
+        flushFn = flushCurriculumModules
         break
       case 'faq':
         deleteFAQ(deleteConfirm.id)
         setFaqs(getAllFAQs())
+        flushFn = flushFAQs
         break
       case 'testimonial':
         deleteTestimonial(deleteConfirm.id)
         setTestimonials(getAllTestimonials())
+        flushFn = flushTestimonials
         break
       case 'qa':
         deleteChatbotQA(deleteConfirm.id)
         setChatbotQA(getAllChatbotQA())
+        flushFn = flushChatbotQA
         break
       case 'package': {
         deletePackage(deleteConfirm.id)
@@ -386,10 +413,12 @@ export default function AdminSettingsPage() {
         const cfgAfterDelete = getSeatConfiguration()
         setPackageSeats(cfgAfterDelete.packageSeats)
         setSeatConfig({ confirmedSeats: cfgAfterDelete.confirmedSeats, reservedSeats: cfgAfterDelete.reservedSeats, waitlistCount: cfgAfterDelete.waitlistCount })
+        flushFn = flushPackages
         break
       }
     }
     setDeleteConfirm(null)
+    if (flushFn) await flushWithToast(flushFn, 'Deleted!')
   }
 
   // Package handlers
@@ -431,9 +460,10 @@ export default function AdminSettingsPage() {
   }
 
   // Payment method update handler
-  const handleUpdatePaymentMethod = (id: string, data: Partial<PaymentMethodConfig>) => {
+  const handleUpdatePaymentMethod = async (id: string, data: Partial<PaymentMethodConfig>) => {
     updatePaymentMethod(id, data)
     setPaymentMethods(getAllPaymentMethods())
+    await flushWithToast(flushPaymentMethods, 'Payment method updated!')
   }
 
   // Admin credential handler

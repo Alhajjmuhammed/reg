@@ -2301,3 +2301,14 @@ export async function flushCurriculumModules(): Promise<void> {
   })
   if (!res.ok) throw new Error('Failed to persist curriculum modules')
 }
+
+// Explicitly awaits the DB write for packages. Throws on error.
+export async function flushPackages(): Promise<void> {
+  const packages = getAllPackages()
+  const res = await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.packages, value: packages }),
+  })
+  if (!res.ok) throw new Error('Failed to persist packages')
+}

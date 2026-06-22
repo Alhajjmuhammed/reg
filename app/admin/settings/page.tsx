@@ -70,6 +70,8 @@ import {
   Copy,
   Share2,
   Upload,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react'
 import { uploadFile } from '@/lib/upload'
 import {
@@ -112,6 +114,7 @@ import {
   updateGroupPricingTiers,
   flushSiteSettings,
   flushSeatConfiguration,
+  flushPackages,
 } from '@/lib/store'
 import { useStoreReady } from '@/components/store-provider'
 import type {
@@ -253,6 +256,19 @@ export default function AdminSettingsPage() {
       setSaveMessage('Save failed: ' + (err instanceof Error ? err.message : 'Check your connection'))
     } finally {
       setIsSavingSeats(false)
+      setTimeout(() => setSaveMessage(''), 4000)
+    }
+  }
+
+  const handleSavePackages = async () => {
+    setIsSaving(true)
+    try {
+      await flushPackages()
+      setSaveMessage('Packages saved!')
+    } catch (err) {
+      setSaveMessage('Save failed: ' + (err instanceof Error ? err.message : 'Check your connection'))
+    } finally {
+      setIsSaving(false)
       setTimeout(() => setSaveMessage(''), 4000)
     }
   }
@@ -440,11 +456,6 @@ export default function AdminSettingsPage() {
               Manage all configurable content and settings for your registration system
             </p>
           </div>
-          {saveMessage && (
-            <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-              {saveMessage}
-            </Badge>
-          )}
         </div>
 
         {/* Settings Tabs */}
@@ -1146,6 +1157,12 @@ export default function AdminSettingsPage() {
                     </div>
                   ))}
                 </div>
+                <div className="flex justify-end pt-4 border-t mt-4">
+                  <Button onClick={handleSavePackages} disabled={isSaving}>
+                    <Save className="mr-2 h-4 w-4" />
+                    {isSaving ? 'Saving…' : 'Save Packages'}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1684,6 +1701,20 @@ export default function AdminSettingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Fixed toast — visible regardless of scroll position */}
+      {saveMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg bg-background border shadow-lg px-4 py-3 text-sm max-w-sm">
+          {saveMessage.toLowerCase().includes('failed') || saveMessage.toLowerCase().includes('error') ? (
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+          )}
+          <span className={saveMessage.toLowerCase().includes('failed') || saveMessage.toLowerCase().includes('error') ? 'text-destructive' : 'text-foreground'}>
+            {saveMessage}
+          </span>
+        </div>
+      )}
     </AdminLayout>
   )
 }
@@ -1773,8 +1804,11 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
     order: 1,
     active: true,
   })
+  const [uploadError, setUploadError] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
 
   useEffect(() => {
+    setUploadError('')
     if (slide) {
       setForm(slide)
     } else {
@@ -1789,7 +1823,7 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
         active: true,
       })
     }
-  }, [slide])
+  }, [slide, open])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1815,7 +1849,9 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
             <Label>Hero Image</Label>
             <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:bg-muted/30 p-4 text-center transition-colors">
               <Upload className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Click to upload image from your computer</span>
+              <span className="text-sm text-muted-foreground">
+                {isUploading ? 'Uploading…' : 'Click to upload image from your computer'}
+              </span>
               <input
                 type="file"
                 accept="image/*"
@@ -1823,13 +1859,26 @@ function SlideDialog({ open, onOpenChange, slide, onSave }: {
                 onChange={async (e) => {
                   const file = e.target.files?.[0]
                   if (!file) return
+                  setUploadError('')
+                  setIsUploading(true)
                   try {
                     const url = await uploadFile(file)
                     setForm(f => ({ ...f, imageUrl: url }))
-                  } catch { /* ignore */ }
+                  } catch (err) {
+                    setUploadError(err instanceof Error ? err.message : 'Upload failed — try again')
+                    e.target.value = ''
+                  } finally {
+                    setIsUploading(false)
+                  }
                 }}
               />
             </label>
+            {uploadError && (
+              <p className="flex items-center gap-1.5 text-xs text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                {uploadError}
+              </p>
+            )}
             {form.imageUrl && !form.imageUrl.startsWith('data:') && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={form.imageUrl} alt="Preview" className="h-24 w-full rounded-lg object-cover border border-border" />

@@ -43,6 +43,7 @@ import {
   Upload,
   FileText,
   X,
+  AlertTriangle,
 } from 'lucide-react'
 import {
   getAllSponsorshipTiers,
@@ -155,42 +156,60 @@ export default function AdminSponsorshipPage() {
     try {
       const url = await uploadFile(file)
       setSponsorForm(f => ({ ...f, [field]: url }))
-    } catch { /* ignore */ }
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message : 'Upload failed')
+      setTimeout(() => setSaveMsg(''), 4000)
+    }
   }
 
   const handleTierImageUpload = async (file: File) => {
     try {
       const url = await uploadFile(file)
       setTierForm(f => ({ ...f, imageUrl: url }))
-    } catch { /* ignore */ }
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message : 'Upload failed')
+      setTimeout(() => setSaveMsg(''), 4000)
+    }
   }
 
   const handleHeroImageUpload = async (file: File) => {
     try {
       const url = await uploadFile(file)
       setSettings(s => s ? { ...s, heroImageUrl: url } : s)
-    } catch { /* ignore */ }
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message : 'Upload failed')
+      setTimeout(() => setSaveMsg(''), 4000)
+    }
   }
 
   const handlePackagesImageUpload = async (file: File) => {
     try {
       const url = await uploadFile(file)
       setSettings(s => s ? { ...s, packagesImageUrl: url } : s)
-    } catch { /* ignore */ }
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message : 'Upload failed')
+      setTimeout(() => setSaveMsg(''), 4000)
+    }
   }
 
   const handleAcademicImageUpload = async (field: 'logoUrl' | 'bannerUrl', file: File) => {
     try {
       const url = await uploadFile(file)
       setAcademicForm(f => ({ ...f, [field]: url }))
-    } catch { /* ignore */ }
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message : 'Upload failed')
+      setTimeout(() => setSaveMsg(''), 4000)
+    }
   }
 
   const handleProposalUpload = async (file: File) => {
     try {
       const url = await uploadFile(file)
       setSettings(s => s ? { ...s, proposalFileUrl: url, proposalFileName: file.name } : s)
-    } catch { /* ignore */ }
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message : 'Upload failed')
+      setTimeout(() => setSaveMsg(''), 4000)
+    }
   }
 
   // Delete confirms
@@ -339,7 +358,7 @@ export default function AdminSponsorshipPage() {
             <p className="text-sm text-muted-foreground">Manage tiers, sponsors, and page content</p>
           </div>
           <div className="flex items-center gap-3">
-            {saveMsg && <span className="text-sm text-green-600 dark:text-green-400 font-medium">{saveMsg}</span>}
+            {/* Toast moved to fixed position below */}
             <Button variant="outline" size="sm" asChild>
               <a href="/sponsorship" target="_blank" rel="noopener noreferrer" className="gap-2">
                 <ExternalLink className="h-3.5 w-3.5" />
@@ -1287,6 +1306,20 @@ export default function AdminSponsorshipPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Fixed toast — visible regardless of scroll position */}
+      {saveMsg && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg bg-background border shadow-lg px-4 py-3 text-sm max-w-sm">
+          {saveMsg.toLowerCase().includes('failed') || saveMsg.toLowerCase().includes('error') ? (
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+          )}
+          <span className={saveMsg.toLowerCase().includes('failed') || saveMsg.toLowerCase().includes('error') ? 'text-destructive' : 'text-foreground'}>
+            {saveMsg}
+          </span>
+        </div>
+      )}
     </AdminLayout>
   )
 }

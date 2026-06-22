@@ -40,6 +40,8 @@ import {
   ChevronDown,
   ChevronUp,
   ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react'
 import { uploadFile } from '@/lib/upload'
 import {
@@ -158,7 +160,7 @@ export default function AdminTrainersPage() {
             <p className="text-sm text-muted-foreground">Manage trainer profiles and their portal login credentials</p>
           </div>
           <div className="flex items-center gap-3">
-            {saveMsg && <span className="text-sm text-green-600 dark:text-green-400 font-medium">{saveMsg}</span>}
+            {/* Toast moved to fixed position below */}
             <Button onClick={openAdd} className="gap-2">
               <Plus className="h-4 w-4" /> Add Trainer
             </Button>
@@ -314,6 +316,20 @@ export default function AdminTrainersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Fixed toast — visible regardless of scroll position */}
+      {saveMsg && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg bg-background border shadow-lg px-4 py-3 text-sm max-w-sm">
+          {saveMsg.toLowerCase().includes('failed') || saveMsg.toLowerCase().includes('error') ? (
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+          )}
+          <span className={saveMsg.toLowerCase().includes('failed') || saveMsg.toLowerCase().includes('error') ? 'text-destructive' : 'text-foreground'}>
+            {saveMsg}
+          </span>
+        </div>
+      )}
     </AdminLayout>
   )
 }

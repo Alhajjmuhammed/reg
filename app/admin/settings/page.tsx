@@ -381,6 +381,18 @@ export default function AdminSettingsPage() {
     setPackages(getAllPackages())
   }
 
+  // Used for toggle switches — awaits the DB write so the public website reflects the change immediately
+  const handleTogglePackage = async (id: PackageType, data: Partial<Package>) => {
+    handleUpdatePackage(id, data)
+    try {
+      await flushPackages()
+      setSaveMessage('Saved!')
+    } catch (err) {
+      setSaveMessage('Save failed: ' + (err instanceof Error ? err.message : 'Check your connection'))
+    }
+    setTimeout(() => setSaveMessage(''), 3000)
+  }
+
   const handleAddPackage = () => {
     if (!newPkg.name.trim() || !newPkg.price) return
     createPackage({
@@ -1069,14 +1081,14 @@ export default function AdminSettingsPage() {
                             <span className="text-xs text-muted-foreground">Popular</span>
                             <Switch
                               checked={!!pkg.popular}
-                              onCheckedChange={(checked) => handleUpdatePackage(pkg.id, { popular: checked })}
+                              onCheckedChange={(checked) => handleTogglePackage(pkg.id, { popular: checked })}
                             />
                           </div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs text-muted-foreground">Active</span>
                             <Switch
                               checked={pkg.active}
-                              onCheckedChange={(checked) => handleUpdatePackage(pkg.id, { active: checked })}
+                              onCheckedChange={(checked) => handleTogglePackage(pkg.id, { active: checked })}
                             />
                           </div>
                         </div>
@@ -1086,8 +1098,8 @@ export default function AdminSettingsPage() {
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Package Name</Label>
                         <Input
-                          value={pkg.name}
-                          onChange={(e) => handleUpdatePackage(pkg.id, { name: e.target.value })}
+                          defaultValue={pkg.name}
+                          onBlur={(e) => handleUpdatePackage(pkg.id, { name: e.target.value })}
                           placeholder="Package name"
                         />
                       </div>
@@ -1097,8 +1109,8 @@ export default function AdminSettingsPage() {
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</Label>
                         <Textarea
                           rows={2}
-                          value={pkg.description ?? ''}
-                          onChange={(e) => handleUpdatePackage(pkg.id, { description: e.target.value })}
+                          defaultValue={pkg.description ?? ''}
+                          onBlur={(e) => handleUpdatePackage(pkg.id, { description: e.target.value })}
                           placeholder="Short description shown to participants"
                         />
                       </div>
@@ -1107,8 +1119,8 @@ export default function AdminSettingsPage() {
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Currency</Label>
                         <Input
-                          value={pkg.currency}
-                          onChange={(e) => handleUpdatePackage(pkg.id, { currency: e.target.value })}
+                          defaultValue={pkg.currency}
+                          onBlur={(e) => handleUpdatePackage(pkg.id, { currency: e.target.value })}
                           placeholder="TZS"
                         />
                       </div>
@@ -1118,8 +1130,8 @@ export default function AdminSettingsPage() {
                         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Price</Label>
                         <Input
                           type="number"
-                          value={pkg.price}
-                          onChange={(e) => handleUpdatePackage(pkg.id, { price: parseInt(e.target.value) || 0 })}
+                          defaultValue={pkg.price}
+                          onBlur={(e) => handleUpdatePackage(pkg.id, { price: parseInt(e.target.value) || 0 })}
                         />
                       </div>
 
@@ -1130,15 +1142,15 @@ export default function AdminSettingsPage() {
                           <Switch
                             checked={pkg.originalPrice !== undefined && pkg.originalPrice > 0}
                             onCheckedChange={(checked) =>
-                              handleUpdatePackage(pkg.id, { originalPrice: checked ? (pkg.price + 100000) : undefined })
+                              handleTogglePackage(pkg.id, { originalPrice: checked ? (pkg.price + 100000) : undefined })
                             }
                           />
                         </div>
                         {pkg.originalPrice !== undefined && pkg.originalPrice > 0 && (
                           <Input
                             type="number"
-                            value={pkg.originalPrice}
-                            onChange={(e) => handleUpdatePackage(pkg.id, { originalPrice: parseInt(e.target.value) || 0 })}
+                            defaultValue={pkg.originalPrice}
+                            onBlur={(e) => handleUpdatePackage(pkg.id, { originalPrice: parseInt(e.target.value) || 0 })}
                           />
                         )}
                       </div>

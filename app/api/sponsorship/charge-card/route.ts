@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { dbGet, dbSet } from '@/lib/db'
 import { chargeCard, PAID_STATES } from '@/lib/ngenius'
 import { v4 as uuidv4 } from 'uuid'
 import type { SponsorshipApplication } from '@/lib/types'
@@ -11,19 +11,12 @@ function getBaseUrl(req: NextRequest): string {
   return `${proto}://${host}`
 }
 
-async function readApps(): Promise<SponsorshipApplication[]> {
-  const row = await prisma.kvStore.findUnique({
-    where: { key: 'masterclass_sponsorship_applications' },
-  })
-  return row ? JSON.parse(row.value) : []
+function readApps(): SponsorshipApplication[] {
+  return dbGet<SponsorshipApplication[]>('masterclass_sponsorship_applications', [])
 }
 
-async function writeApps(apps: SponsorshipApplication[]): Promise<void> {
-  await prisma.kvStore.upsert({
-    where: { key: 'masterclass_sponsorship_applications' },
-    create: { key: 'masterclass_sponsorship_applications', value: JSON.stringify(apps) },
-    update: { value: JSON.stringify(apps) },
-  })
+function writeApps(apps: SponsorshipApplication[]): void {
+  dbSet('masterclass_sponsorship_applications', apps)
 }
 
 export async function POST(req: NextRequest) {
@@ -45,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 1. Save application to SQLite ────────────────────────────────────────
-    const apps = await readApps()
+    const apps = readApps()
     const seq  = (apps.length + 1).toString().padStart(4, '0')
     const year = new Date().getFullYear()
     const now  = new Date().toISOString()
@@ -59,7 +52,7 @@ export async function POST(req: NextRequest) {
       paymentStatus: 'unpaid',
     }
     apps.push(application)
-    await writeApps(apps)
+    writeApps(apps)
     console.log('[charge-card] application saved:', application.invoiceNumber)
 
     // ── 2. Convert expiry MM/YY → YYYY-MM ────────────────────────────────────
@@ -93,7 +86,7 @@ export async function POST(req: NextRequest) {
         ...apps[idx !== -1 ? idx : apps.length - 1],
         status: 'confirmed', paymentStatus: 'paid',
       }
-      await writeApps(apps)
+      writeApps(apps)
       return NextResponse.json({
         success:       true,
         applicationId: application.id,

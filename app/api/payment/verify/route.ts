@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { dbGet, dbSet } from '@/lib/db'
 import type { Participant } from '@/lib/types'
 
 const IDENTITY_URL = process.env.NGENIUS_IDENTITY_URL!
@@ -25,19 +25,6 @@ async function getNGeniusToken(): Promise<string> {
   return d.access_token as string
 }
 
-async function readKey<T>(key: string, fallback: T): Promise<T> {
-  const row = await prisma.kvStore.findUnique({ where: { key } })
-  if (!row) return fallback
-  return JSON.parse(row.value) as T
-}
-
-async function writeKey(key: string, value: unknown): Promise<void> {
-  await prisma.kvStore.upsert({
-    where: { key },
-    create: { key, value: JSON.stringify(value) },
-    update: { value: JSON.stringify(value) },
-  })
-}
 
 const PAID_STATES = new Set(['CAPTURED', 'AUTHORISED', 'SUCCESS', 'PURCHASED'])
 
@@ -71,7 +58,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Mark participant as confirmed
-    const participants = await readKey<Participant[]>('masterclass_participants', [])
+    const participants = dbGet<Participant[]>('masterclass_participants', [])
     const idx = participants.findIndex(
       p => p.paymentReference === ref || p.id === merchantOrderRef
     )
@@ -85,7 +72,7 @@ export async function GET(req: NextRequest) {
         amountPaid: participants[idx].totalAmount,
         lastUpdated: now,
       }
-      await writeKey('masterclass_participants', participants)
+      dbSet('masterclass_participants', participants)
 
       return NextResponse.json({
         success: true,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { dbGet, dbSet } from '@/lib/db'
 import { hashPassword } from '@/lib/crypto'
 import type { Participant, UserAccount } from '@/lib/types'
 
@@ -30,19 +30,6 @@ async function getNGeniusToken(): Promise<string> {
   return data.access_token as string
 }
 
-async function readKey<T>(key: string, fallback: T): Promise<T> {
-  const row = await prisma.kvStore.findUnique({ where: { key } })
-  if (!row) return fallback
-  return JSON.parse(row.value) as T
-}
-
-async function writeKey(key: string, value: unknown): Promise<void> {
-  await prisma.kvStore.upsert({
-    where: { key },
-    create: { key, value: JSON.stringify(value) },
-    update: { value: JSON.stringify(value) },
-  })
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -138,13 +125,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Save participant to SQLite
-    const participants = await readKey<Participant[]>('masterclass_participants', [])
+    const participants = dbGet<Participant[]>('masterclass_participants', [])
     participants.push(newParticipant)
-    await writeKey('masterclass_participants', participants)
+    dbSet('masterclass_participants', participants)
 
     // Create user account if password provided
     if (password && pData.email) {
-      const accounts = await readKey<UserAccount[]>('masterclass_user_accounts', [])
+      const accounts = dbGet<UserAccount[]>('masterclass_user_accounts', [])
       const exists = accounts.findIndex(a => a.email.toLowerCase() === pData.email!.toLowerCase())
       const newAccount: UserAccount = {
         id: `ua-${Date.now()}`,
@@ -158,7 +145,7 @@ export async function POST(req: NextRequest) {
       } else {
         accounts[exists] = newAccount
       }
-      await writeKey('masterclass_user_accounts', accounts)
+      dbSet('masterclass_user_accounts', accounts)
     }
 
     return NextResponse.json({ success: true, paymentUrl, orderId, participantId, receiptNumber })

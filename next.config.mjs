@@ -8,7 +8,7 @@ const nextConfig = {
     unoptimized: true,
   },
   // Prevent Next.js from bundling these Node.js-only packages.
-  serverExternalPackages: ['nodemailer', '@prisma/client', '.prisma/client'],
+  serverExternalPackages: ['nodemailer', '@prisma/client', '.prisma/client', 'better-sqlite3'],
 }
 
 export default nextConfig

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { dbGet, dbSet } from '@/lib/db'
 import { authenticate3DS2, PAID_STATES } from '@/lib/ngenius'
 import type { SponsorshipApplication } from '@/lib/types'
 
@@ -10,19 +10,12 @@ function getBaseUrl(req: NextRequest): string {
   return `${proto}://${host}`
 }
 
-async function readApps(): Promise<SponsorshipApplication[]> {
-  const row = await prisma.kvStore.findUnique({
-    where: { key: 'masterclass_sponsorship_applications' },
-  })
-  return row ? JSON.parse(row.value) : []
+function readApps(): SponsorshipApplication[] {
+  return dbGet<SponsorshipApplication[]>('masterclass_sponsorship_applications', [])
 }
 
-async function writeApps(apps: SponsorshipApplication[]): Promise<void> {
-  await prisma.kvStore.upsert({
-    where: { key: 'masterclass_sponsorship_applications' },
-    create: { key: 'masterclass_sponsorship_applications', value: JSON.stringify(apps) },
-    update: { value: JSON.stringify(apps) },
-  })
+function writeApps(apps: SponsorshipApplication[]): void {
+  dbSet('masterclass_sponsorship_applications', apps)
 }
 
 export async function POST(req: NextRequest) {
@@ -66,11 +59,11 @@ export async function POST(req: NextRequest) {
 
     // Frictionless — payment done immediately
     if (PAID_STATES.has(authResult.state as string)) {
-      const apps = await readApps()
+      const apps = readApps()
       const i = apps.findIndex(a => a.id === applicationId)
       if (i !== -1) {
         apps[i] = { ...apps[i], status: 'confirmed', paymentStatus: 'paid' }
-        await writeApps(apps)
+        writeApps(apps)
       }
       return NextResponse.json({ success: true, applicationId, invoiceNumber })
     }

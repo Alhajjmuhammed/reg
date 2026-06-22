@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { dbGet, dbSet } from '@/lib/db'
 import { v4 as uuidv4 } from 'uuid'
 import type { SponsorshipApplication } from '@/lib/types'
 
@@ -36,19 +36,12 @@ async function getNGeniusToken(): Promise<string> {
   return data.access_token as string
 }
 
-async function readApps(): Promise<SponsorshipApplication[]> {
-  const row = await prisma.kvStore.findUnique({
-    where: { key: 'masterclass_sponsorship_applications' },
-  })
-  return row ? JSON.parse(row.value) : []
+function readApps(): SponsorshipApplication[] {
+  return dbGet<SponsorshipApplication[]>('masterclass_sponsorship_applications', [])
 }
 
-async function writeApps(apps: SponsorshipApplication[]): Promise<void> {
-  await prisma.kvStore.upsert({
-    where: { key: 'masterclass_sponsorship_applications' },
-    create: { key: 'masterclass_sponsorship_applications', value: JSON.stringify(apps) },
-    update: { value: JSON.stringify(apps) },
-  })
+function writeApps(apps: SponsorshipApplication[]): void {
+  dbSet('masterclass_sponsorship_applications', apps)
 }
 
 export async function POST(req: NextRequest) {
@@ -62,7 +55,7 @@ export async function POST(req: NextRequest) {
     }
     console.log('[sponsorship/create-order] tierPrice:', tierPrice, 'company:', applicationData.companyName)
 
-    const apps = await readApps()
+    const apps = readApps()
     const seq  = (apps.length + 1).toString().padStart(4, '0')
     const year = new Date().getFullYear()
     const now  = new Date().toISOString()
@@ -77,7 +70,7 @@ export async function POST(req: NextRequest) {
       paymentStatus: 'unpaid',
     }
     apps.push(application)
-    await writeApps(apps)
+    writeApps(apps)
 
     // Create NGenius order — charge includes 15% VAT
     const totalAmount = Math.round(tierPrice * 1.15)
@@ -127,7 +120,7 @@ export async function POST(req: NextRequest) {
     const idx = apps.findIndex(a => a.id === application.id)
     if (idx !== -1) {
       apps[idx].paymentReference = orderId
-      await writeApps(apps)
+      writeApps(apps)
     }
 
     return NextResponse.json({

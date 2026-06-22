@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { dbGet, dbSet } from '@/lib/db'
 import type { SponsorshipApplication } from '@/lib/types'
 
 const IDENTITY_URL = process.env.NGENIUS_IDENTITY_URL!
@@ -27,19 +27,12 @@ async function getNGeniusToken(): Promise<string> {
   return data.access_token as string
 }
 
-async function readApps(): Promise<SponsorshipApplication[]> {
-  const row = await prisma.kvStore.findUnique({
-    where: { key: 'masterclass_sponsorship_applications' },
-  })
-  return row ? JSON.parse(row.value) : []
+function readApps(): SponsorshipApplication[] {
+  return dbGet<SponsorshipApplication[]>('masterclass_sponsorship_applications', [])
 }
 
-async function writeApps(apps: SponsorshipApplication[]): Promise<void> {
-  await prisma.kvStore.upsert({
-    where: { key: 'masterclass_sponsorship_applications' },
-    create: { key: 'masterclass_sponsorship_applications', value: JSON.stringify(apps) },
-    update: { value: JSON.stringify(apps) },
-  })
+function writeApps(apps: SponsorshipApplication[]): void {
+  dbSet('masterclass_sponsorship_applications', apps)
 }
 
 export async function GET(req: NextRequest) {
@@ -71,14 +64,14 @@ export async function GET(req: NextRequest) {
     }
 
     // Find and confirm the sponsorship application
-    const apps = await readApps()
+    const apps = readApps()
     const idx = apps.findIndex(
       a => a.paymentReference === ref || `spo-${a.id}` === merchantRef
     )
 
     if (idx !== -1 && apps[idx].paymentStatus !== 'paid') {
       apps[idx] = { ...apps[idx], status: 'confirmed', paymentStatus: 'paid' }
-      await writeApps(apps)
+      writeApps(apps)
       return NextResponse.json({ success: true, status: 'paid', application: apps[idx] })
     }
 

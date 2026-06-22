@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { type PackageType } from '@/lib/types'
 import { getAllPackages, getGroupPricingTiers, computeGroupPricing } from '@/lib/store'
 import type { Package, GroupPricingTier } from '@/lib/types'
-import { useStoreReady } from '@/components/store-provider'
+import { useStoreReady, useStoreVersion } from '@/components/store-provider'
 
 interface GroupBookingSelectorProps {
   selectedSeats: number
@@ -25,6 +25,7 @@ export function GroupBookingSelector({
   onPackageChange,
 }: GroupBookingSelectorProps) {
   const storeReady = useStoreReady()
+  const storeVersion = useStoreVersion()
   const [packages, setPackages] = useState<Package[]>([])
   const [tiers, setTiers] = useState<GroupPricingTier[]>([])
   const [pricing, setPricing] = useState<PricingResult | null>(null)
@@ -33,7 +34,7 @@ export function GroupBookingSelector({
     setPackages(getAllPackages().filter(p => p.active))
     setTiers(getGroupPricingTiers())
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeReady])
+  }, [storeReady, storeVersion])
 
   useEffect(() => {
     setPricing(computeGroupPricing(selectedSeats, basePackage))

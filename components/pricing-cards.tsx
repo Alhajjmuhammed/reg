@@ -5,7 +5,7 @@ import { Check, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getAllPackages } from '@/lib/store'
 import type { Package } from '@/lib/types'
-import { useStoreReady } from '@/components/store-provider'
+import { useStoreReady, useStoreVersion } from '@/components/store-provider'
 
 interface PricingCardsProps {
   initialPackages?: Package[]
@@ -13,13 +13,14 @@ interface PricingCardsProps {
 
 export function PricingCards({ initialPackages }: PricingCardsProps) {
   const storeReady = useStoreReady()
+  const storeVersion = useStoreVersion()
   const [packages, setPackages] = useState<Package[]>(initialPackages ?? [])
 
   useEffect(() => {
     if (!storeReady) return
     setPackages(getAllPackages().filter(p => p.active))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeReady])
+  }, [storeReady, storeVersion])
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-TZ', { style: 'decimal', minimumFractionDigits: 0 }).format(amount)

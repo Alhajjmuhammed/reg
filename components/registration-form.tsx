@@ -35,7 +35,7 @@ import { PaymentGateway } from './payment-gateway'
 import { CouponInput } from './coupon-input'
 import { SeatMap } from './seat-map'
 import { createParticipant, getSeatConfiguration, useCoupon, computeGroupPricing, getAllPackages, getSiteSettings, refreshParticipants, getParticipantByEmail } from '@/lib/store'
-import { useStoreReady } from '@/components/store-provider'
+import { useStoreReady, useStoreVersion } from '@/components/store-provider'
 import { EmailSentDialog } from '@/components/email-sent-dialog'
 import {
   type PackageType,
@@ -139,6 +139,7 @@ interface RegistrationResult {
 export function RegistrationForm() {
   const router = useRouter()
   const storeReady = useStoreReady()
+  const storeVersion = useStoreVersion()
   const [currentStep, setCurrentStep] = useState(1)
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [formData, setFormData] = useState<FormData>(initialFormData)
@@ -165,9 +166,9 @@ export function RegistrationForm() {
         groupBasePackage: activePackages.find(p => p.id === prev.groupBasePackage) ? prev.groupBasePackage : activePackages[0].id,
       }))
     }
-  // Re-run when Supabase data finishes loading so seat counts and packages are fresh
+  // Re-run when store data loads or background-refetches (e.g. window focus after admin change)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeReady])
+  }, [storeReady, storeVersion])
 
   const updateField = useCallback(
     <K extends keyof FormData>(field: K, value: FormData[K]) => {

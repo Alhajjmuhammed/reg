@@ -1,3 +1,5 @@
+'use client'
+
 import { RegistrationForm } from '@/components/registration-form'
 import { ShareQRCode } from '@/components/share-qr-code'
 import { HeroSlideshow } from '@/components/hero-slideshow'
@@ -10,43 +12,23 @@ import { SiteFooter } from '@/components/site-footer'
 import { CreditCard, Smartphone, Shield, Gift } from 'lucide-react'
 import { PricingCards } from '@/components/pricing-cards'
 import { GroupPricingCards } from '@/components/group-pricing-cards'
-import {
-  serverGetHeroSlides,
-  serverGetSiteSettings,
-  serverGetCurriculum,
-  serverGetAcademicPartners,
-  serverGetAcademicPartnerSettings,
-  serverGetTrainers,
-  serverGetPackages,
-  serverGetGroupPricingTiers,
-} from '@/lib/server-data'
 
 export default function HomePage() {
-  // Read from SQLite at request time — no client-side flash of defaults
-  const heroSlides          = serverGetHeroSlides()
-  const siteSettings        = serverGetSiteSettings()
-  const curriculum          = serverGetCurriculum()
-  const academicPartners    = serverGetAcademicPartners()
-  const academicSettings    = serverGetAcademicPartnerSettings()
-  const trainers            = serverGetTrainers()
-  const packages            = serverGetPackages()
-  const groupPricingTiers   = serverGetGroupPricingTiers()
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
       {/* Hero Slideshow */}
-      <HeroSlideshow initialSlides={heroSlides} initialSettings={siteSettings} />
+      <HeroSlideshow />
 
       {/* What You Will Learn - Comprehensive Curriculum */}
-      <WhatYouWillLearn initialModules={curriculum} />
+      <WhatYouWillLearn />
 
       {/* Academic Partner */}
-      <AcademicPartnersSection initialPartners={academicPartners} initialSettings={academicSettings} />
+      <AcademicPartnersSection />
 
       {/* Trainers Showcase */}
-      <TrainersShowcase initialTrainers={trainers} />
+      <TrainersShowcase />
 
       {/* Packages Section */}
       <section id="packages" className="border-b border-border py-16 lg:py-24">
@@ -57,7 +39,7 @@ export default function HomePage() {
               Select the package that best fits your learning goals and budget
             </p>
           </div>
-          <PricingCards initialPackages={packages} />
+          <PricingCards />
         </div>
       </section>
 
@@ -74,7 +56,7 @@ export default function HomePage() {
               Bring your team and enjoy significant savings with our group booking offers
             </p>
           </div>
-          <GroupPricingCards initialTiers={groupPricingTiers} />
+          <GroupPricingCards />
           <p className="mt-6 text-center text-sm text-muted-foreground">
             For groups of 10+ seats, contact us for custom corporate packages with additional benefits
           </p>

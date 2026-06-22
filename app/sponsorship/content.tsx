@@ -26,6 +26,7 @@ import { Navbar } from '@/components/navbar'
 import { SiteFooter } from '@/components/site-footer'
 import { getSponsorshipTiers, getSponsors, getSponsorshipSettings } from '@/lib/store'
 import type { SponsorshipTier, Sponsor, SponsorshipPageSettings } from '@/lib/types'
+import { DEFAULT_SPONSORSHIP_TIERS, DEFAULT_SPONSORS, DEFAULT_SPONSORSHIP_SETTINGS } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { SponsorshipApplicationModal } from '@/components/sponsorship-application-modal'
 import { useStoreReady } from '@/components/store-provider'
@@ -131,19 +132,18 @@ function formatCurrency(amount: number, currency: string) {
 }
 
 interface SponsorshipContentProps {
-  initialTiers: SponsorshipTier[]
-  initialSponsors: Sponsor[]
-  initialSettings: SponsorshipPageSettings
+  initialTiers?: SponsorshipTier[]
+  initialSponsors?: Sponsor[]
+  initialSettings?: SponsorshipPageSettings
 }
 
-export function SponsorshipContent({ initialTiers, initialSponsors, initialSettings }: SponsorshipContentProps) {
+export function SponsorshipContent({ initialTiers, initialSponsors, initialSettings }: SponsorshipContentProps = {}) {
   const storeReady = useStoreReady()
-  const [tiers, setTiers] = useState<SponsorshipTier[]>(initialTiers)
-  const [sponsors, setSponsors] = useState<Sponsor[]>(initialSponsors)
-  const [settings, setSettings] = useState<SponsorshipPageSettings>(initialSettings)
+  const [tiers, setTiers] = useState<SponsorshipTier[]>(initialTiers ?? DEFAULT_SPONSORSHIP_TIERS.filter(t => t.active))
+  const [sponsors, setSponsors] = useState<Sponsor[]>(initialSponsors ?? DEFAULT_SPONSORS.filter(s => s.active))
+  const [settings, setSettings] = useState<SponsorshipPageSettings>(initialSettings ?? DEFAULT_SPONSORSHIP_SETTINGS)
   const [applyTier, setApplyTier] = useState<SponsorshipTier | null>(null)
 
-  // Re-read from memStore after client store syncs — picks up admin changes made since server render
   useEffect(() => {
     if (!storeReady) return
     setTiers(getSponsorshipTiers())

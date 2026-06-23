@@ -34,7 +34,7 @@ import {
   getCurrentUser,
   logoutAll,
   loginUser,
-  getParticipantById,
+  loadParticipantForDashboard,
   getDocumentsForParticipant,
   updateParticipant,
   getAllPackages,
@@ -43,7 +43,6 @@ import {
 import type { UserAccount, GroupMember, Package } from '@/lib/types'
 import type { Participant, EventDocument } from '@/lib/types'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { useStoreReady } from '@/components/store-provider'
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   confirmed: { label: 'Confirmed', icon: CheckCircle, color: 'text-green-500' },
@@ -77,12 +76,12 @@ function formatDate(dateStr: string) {
 
 export default function AccountDashboard() {
   const router = useRouter()
-  const storeReady = useStoreReady()
   const [user, setUser] = useState<UserAccount | null>(null)
   const [participant, setParticipant] = useState<Participant | null>(null)
   const [documents, setDocuments] = useState<EventDocument[]>([])
   const [packages, setPackages] = useState<Package[]>([])
   const [isMounted, setIsMounted] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   // Group member editing state
   const [editingMembers, setEditingMembers] = useState(false)
@@ -98,16 +97,22 @@ export default function AccountDashboard() {
     }
     setUser(currentUser)
     setPackages(getAllPackages())
-    const p = getParticipantById(currentUser.participantId)
-    if (p) {
-      setParticipant(p)
-      setDocuments(getDocumentsForParticipant(p.selectedPackage))
-    } else if (storeReady) {
-      // Store is loaded but no matching participant — stale session, clear and redirect
-      logoutAll()
-      router.replace('/login')
-    }
-  }, [router, storeReady])
+    // Participants are a heavy key — not in memStore on public pages.
+    // Fetch directly from DB so the dashboard works without AdminLayout.
+    // loadParticipantForDashboard also populates memStore so updateParticipant() works.
+    loadParticipantForDashboard(currentUser.participantId).then(p => {
+      if (p) {
+        setParticipant(p)
+        setDocuments(getDocumentsForParticipant(p.selectedPackage))
+      } else {
+        // Participant ID in session not found in DB → stale/invalid session
+        logoutAll()
+        router.replace('/login')
+      }
+    }).catch(() => {
+      setLoadError(true)
+    })
+  }, [router])
 
   const handleEditMembers = () => {
     if (!participant) return
@@ -174,6 +179,23 @@ export default function AccountDashboard() {
     setPwSuccess(true)
     setPwForm({ current: '', next: '', confirm: '' })
     setTimeout(() => { setPwSuccess(false); setShowChangePw(false) }, 2500)
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-3 p-8">
+          <p className="text-destructive font-medium">Failed to load your account data.</p>
+          <p className="text-sm text-muted-foreground">Please check your connection and try again.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-sm text-primary underline"
+          >
+            Reload page
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (!isMounted || !user || !participant) {

@@ -161,6 +161,24 @@ export async function refreshParticipants(): Promise<void> {
   }
 }
 
+// Fetch a single participant by ID from DB without loading all heavy keys.
+// Populates memStore so that updateParticipant() works after the call.
+// Used by the participant account dashboard (no AdminLayout → no loadHeavyKeys).
+export async function loadParticipantForDashboard(participantId: string): Promise<Participant | null> {
+  if (typeof window === 'undefined') return null
+  try {
+    const res = await fetch(`/api/store?key=${STORAGE_KEYS.participants}`, { cache: 'no-store' })
+    if (!res.ok) return null
+    const row: { key: string; value: Participant[] } | null = await res.json()
+    const all: Participant[] = (row?.value as Participant[]) ?? []
+    // Cache in memStore so synchronous helpers (updateParticipant etc.) work
+    if (all.length > 0) memStore[STORAGE_KEYS.participants] = all
+    return all.find(p => p.id === participantId) ?? null
+  } catch {
+    return null
+  }
+}
+
 // Persist a single key to SQLite via /api/store (fire-and-forget from client)
 async function syncToDb(key: string, value: unknown): Promise<void> {
   if (typeof window === 'undefined') return

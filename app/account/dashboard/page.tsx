@@ -37,6 +37,7 @@ import {
   loadParticipantForDashboard,
   getDocumentsForParticipant,
   updateParticipant,
+  flushParticipants,
   getAllPackages,
   resetUserAccountPassword,
 } from '@/lib/store'
@@ -110,6 +111,7 @@ export default function AccountDashboard() {
         router.replace('/login')
       }
     }).catch(() => {
+      logoutAll()
       setLoadError(true)
     })
   }, [router])
@@ -117,7 +119,7 @@ export default function AccountDashboard() {
   const handleEditMembers = () => {
     if (!participant) return
     // groupSeats - 1 because the applicant (seat 1) is not in groupMembers
-    const memberCount = Math.max(1, (participant.groupSeats ?? 2) - 1)
+    const memberCount = Math.max(0, (participant.groupSeats ?? 2) - 1)
     const existing = participant.groupMembers ?? []
     const padded = Array.from({ length: memberCount }, (_, i) => existing[i] ?? { name: '', email: '', phone: '' })
     setMemberDraft(padded)
@@ -125,12 +127,13 @@ export default function AccountDashboard() {
     setMemberSaved(false)
   }
 
-  const handleSaveMembers = () => {
+  const handleSaveMembers = async () => {
     if (!participant) return
     const updated = updateParticipant(participant.id, {
       groupMembers: memberDraft.filter(m => m.name.trim()),
     })
     if (updated) {
+      await flushParticipants().catch(() => {})
       setParticipant(updated)
       setEditingMembers(false)
       setMemberSaved(true)

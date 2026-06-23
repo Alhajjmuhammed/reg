@@ -1251,6 +1251,16 @@ export function createParticipant(
   return newParticipant
 }
 
+export async function flushParticipants(): Promise<void> {
+  const participants = getStorage<Participant[]>(STORAGE_KEYS.participants, [])
+  if (participants.length === 0) return
+  await fetch('/api/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: STORAGE_KEYS.participants, value: participants }),
+  })
+}
+
 export function updateParticipant(id: string, data: Partial<Participant>): Participant | null {
   const participants = getParticipants()
   const index = participants.findIndex((p) => p.id === id)

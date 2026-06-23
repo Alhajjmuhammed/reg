@@ -347,51 +347,6 @@ export function RegistrationForm() {
     console.error('Payment error:', error)
   }
 
-  const handleNGeniusRedirect = async (method: PaymentMethod) => {
-    const totalAmount = calculateTotal()
-    const selectedPkg = formData.bookingType === 'group' ? formData.groupBasePackage : formData.selectedPackage
-
-    if (formData.couponCode) useCoupon(formData.couponCode)
-
-    const res = await fetch('/api/payment/create-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount: totalAmount,
-        participant: {
-          fullName: formData.fullName,
-          phoneNumber: formData.phoneNumber,
-          whatsappNumber: formData.whatsappNumber,
-          email: formData.email,
-          gender: formData.gender || undefined,
-          country: formData.country || undefined,
-          city: formData.city,
-          occupation: formData.occupation,
-          organizationName: formData.organizationName || undefined,
-          businessType: formData.businessType,
-          yearsOfExperience: formData.yearsOfExperience ? parseInt(formData.yearsOfExperience) : undefined,
-          trainingInterests: formData.trainingInterests,
-          bookingType: formData.bookingType,
-          groupSeats: formData.bookingType === 'group' ? formData.groupSeats : undefined,
-          groupMembers: formData.bookingType === 'group' ? formData.groupMembers.filter(m => m.name.trim()) : undefined,
-          selectedPackage: selectedPkg,
-          paymentMethod: method,
-          couponCode: formData.couponCode || undefined,
-          discountApplied: formData.couponDiscount || undefined,
-          notes: formData.notes || undefined,
-        },
-      }),
-    })
-
-    const data = await res.json()
-
-    if (!res.ok || !data.paymentUrl) {
-      throw new Error(data.error || 'Failed to create payment order. Please try again.')
-    }
-
-    window.location.href = data.paymentUrl
-  }
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-TZ', {
       style: 'decimal',
@@ -1011,7 +966,6 @@ export function RegistrationForm() {
                 amount={totalAmount}
                 onPaymentComplete={handlePaymentComplete}
                 onPaymentError={handlePaymentError}
-                onNGeniusRedirect={handleNGeniusRedirect}
                 isProcessing={isProcessing}
                 setIsProcessing={setIsProcessing}
               />

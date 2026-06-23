@@ -24,6 +24,7 @@ import {
   ShieldX,
   UserCircle,
   BookOpen,
+  AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -66,6 +67,7 @@ export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [session, setSession] = useState<AdminSession | null>(null)
   const [heavyReady, setHeavyReady] = useState(false)
+  const [heavyLoadFailed, setHeavyLoadFailed] = useState(false)
   const storeReady = useStoreReady()
 
   // Populate session from localStorage on first mount (synchronous read, no Supabase needed).
@@ -93,7 +95,13 @@ export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) 
         setHeavyReady(true)
       } else {
         setTimeout(() => {
-          loadHeavyKeys().finally(() => setHeavyReady(true))
+          loadHeavyKeys().then(ok2 => {
+            setHeavyReady(true)
+            if (!ok2) setHeavyLoadFailed(true)
+          }).catch(() => {
+            setHeavyReady(true)
+            setHeavyLoadFailed(true)
+          })
         }, 1500)
       }
     })
@@ -269,7 +277,24 @@ export function AdminLayout({ children, requiredPermission }: AdminLayoutProps) 
                 Return to Dashboard
               </Link>
             </div>
-          ) : children}
+          ) : (
+            <>
+              {heavyLoadFailed && (
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/20 dark:text-amber-200">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  Data failed to load.{' '}
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="font-medium underline"
+                  >
+                    Refresh the page
+                  </button>{' '}
+                  to try again.
+                </div>
+              )}
+              {children}
+            </>
+          )}
         </main>
       </div>
     </div>

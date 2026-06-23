@@ -110,6 +110,7 @@ import {
   getAdminCredential,
   updateAdminCredential,
   updateAdminEmail,
+  logoutAll,
   createPackage,
   deletePackage,
   getGroupPricingTiers,
@@ -491,8 +492,9 @@ export default function AdminSettingsPage() {
     } else {
       updateAdminEmail(trimmedEmail)
     }
-    setAdminCredMessage('Admin credentials updated successfully!')
-    setTimeout(() => setAdminCredMessage(''), 3000)
+    // Force re-login so the new credentials take effect in this session
+    logoutAll()
+    window.location.href = '/login'
   }
 
   if (!siteSettings) {

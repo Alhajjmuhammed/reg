@@ -6,12 +6,9 @@ import {
   Check,
   Loader2,
   AlertCircle,
-  Shield,
   Upload,
   ImageIcon,
-  ArrowRight,
   CreditCard,
-  Smartphone,
 } from 'lucide-react'
 import { cn, assetUrl } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -23,18 +20,14 @@ interface PaymentGatewayProps {
   amount: number
   onPaymentComplete: (reference: string, method: PaymentMethod, receiptUrl?: string) => void
   onPaymentError: (error: string) => void
-  onNGeniusRedirect?: (method: PaymentMethod) => Promise<void>
   isProcessing: boolean
   setIsProcessing: (processing: boolean) => void
 }
-
-const NGENIUS_METHODS: PaymentMethod[] = ['mpesa', 'mpesa-mixx', 'visa', 'mastercard']
 
 export function PaymentGateway({
   amount,
   onPaymentComplete,
   onPaymentError,
-  onNGeniusRedirect,
   isProcessing,
   setIsProcessing,
 }: PaymentGatewayProps) {
@@ -45,8 +38,6 @@ export function PaymentGateway({
   const [error, setError] = useState('')
 
   const isLipaNumber = selectedMethod === 'lipa-number'
-  const isNGenius = selectedMethod !== null && NGENIUS_METHODS.includes(selectedMethod)
-  const isCard = selectedMethod === 'visa' || selectedMethod === 'mastercard'
 
   const handleReceiptChange = (file: File | null) => {
     if (!file) { setReceiptUrl(''); setReceiptName(''); return }
@@ -66,21 +57,6 @@ export function PaymentGateway({
     setError('')
     if (!selectedMethod) { setError('Please select a payment method'); return }
 
-    // NGenius redirect flow
-    if (isNGenius && onNGeniusRedirect) {
-      try {
-        setIsProcessing(true)
-        await onNGeniusRedirect(selectedMethod)
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Payment failed'
-        setError(msg)
-        onPaymentError(msg)
-        setIsProcessing(false)
-      }
-      return
-    }
-
-    // Lipa Number manual flow
     if (isLipaNumber) {
       if (!receiptUrl && !lipaReference.trim()) {
         setError('Please upload your payment receipt or enter the payment reference number')
@@ -145,33 +121,6 @@ export function PaymentGateway({
       {/* Payment Details Area */}
       {selectedMethod && (
         <div className="rounded-lg border border-border bg-card p-4 space-y-4">
-
-          {/* NGenius methods: show redirect info */}
-          {isNGenius && (
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/20 p-4">
-                {isCard ? (
-                  <CreditCard className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                ) : (
-                  <Smartphone className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                )}
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {isCard ? 'Secure Card Payment via NBC' : 'Mobile Money via NBC'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {isCard
-                      ? 'You will be redirected to NBC\'s secure payment page to enter your card details. Your card information is never stored on our servers.'
-                      : 'You will be redirected to NBC\'s secure payment page to complete your mobile money payment.'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Shield className="h-4 w-4 text-green-500 shrink-0" />
-                Secured by NBC NGenius Payment Gateway — 256-bit SSL encrypted
-              </div>
-            </div>
-          )}
 
           {/* Lipa Number: receipt upload */}
           {isLipaNumber && (
@@ -271,17 +220,10 @@ export function PaymentGateway({
         {isProcessing ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {isNGenius ? 'Redirecting to payment…' : 'Submitting…'}
-          </>
-        ) : isLipaNumber ? (
-          'Submit for Approval'
-        ) : isNGenius ? (
-          <>
-            Proceed to Payment — TZS {formatCurrency(amount)}
-            <ArrowRight className="ml-2 h-4 w-4" />
+            Submitting…
           </>
         ) : (
-          `Pay TZS ${formatCurrency(amount)}`
+          'Submit for Approval'
         )}
       </Button>
     </div>

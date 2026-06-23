@@ -469,7 +469,7 @@ export default function AdminSettingsPage() {
   }
 
   // Admin credential handler
-  const handleSaveAdminCredential = () => {
+  const handleSaveAdminCredential = async () => {
     setAdminCredMessage('')
     setAdminCredError('')
     const trimmedEmail = adminEmail.trim()
@@ -492,6 +492,14 @@ export default function AdminSettingsPage() {
     } else {
       updateAdminEmail(trimmedEmail)
     }
+    // Explicitly await the DB write before navigating — updateAdminCredential fires syncToDb
+    // as fire-and-forget, which would be cancelled by the navigation below.
+    const newCred = getAdminCredential()
+    await fetch('/api/store', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'masterclass_admin_credential', value: newCred }),
+    }).catch(() => {})
     // Force re-login so the new credentials take effect in this session
     logoutAll()
     window.location.href = '/login'

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select'
 import {
   Building2, Receipt, CreditCard, CheckCircle2,
-  ArrowRight, ArrowLeft, Loader2, AlertCircle, X, Eye, EyeOff,
+  ArrowRight, ArrowLeft, Loader2, AlertCircle, X,
   Upload, ImageIcon, Download,
 } from 'lucide-react'
 import Image from 'next/image'
@@ -48,40 +48,12 @@ const INDUSTRY_OPTIONS = [
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-type CardBrand = 'visa' | 'mastercard' | 'amex' | 'other' | null
-
-function detectCardBrand(number: string): CardBrand {
-  const n = number.replace(/\s/g, '')
-  if (!n) return null
-  if (/^4/.test(n)) return 'visa'
-  if (/^(5[1-5]|2[2-7])/.test(n)) return 'mastercard'
-  if (/^3[47]/.test(n)) return 'amex'
-  if (n.length >= 1) return 'other'
-  return null
-}
-
-const BRAND_META: Record<string, { label: string; color: string }> = {
-  visa:       { label: 'VISA',       color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200' },
-  mastercard: { label: 'MASTERCARD', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/60 dark:text-yellow-200' },
-  amex:       { label: 'AMEX',       color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/60 dark:text-sky-200' },
-  other:      { label: 'CARD',       color: 'bg-muted text-muted-foreground' },
-}
-
 function fmtCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat('en-TZ', {
     style: currency === 'TZS' ? 'decimal' : 'currency',
     currency,
     minimumFractionDigits: 0,
   }).format(amount) + (currency === 'TZS' ? ' TZS' : '')
-}
-
-function fmtCardNumber(raw: string) {
-  return raw.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
-}
-
-function fmtExpiry(raw: string) {
-  const digits = raw.replace(/\D/g, '').slice(0, 4)
-  return digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits
 }
 
 // ── Step bar ──────────────────────────────────────────────────────────────────
@@ -342,9 +314,7 @@ interface FormData {
   billingCity: string; billingCountry: string; taxId: string
   // Payment
   paymentMethod: string; paymentReference: string; notes: string
-  // Card
-  cardNumber: string; cardExpiry: string; cardCvv: string; cardName: string
-  // Lipa Number receipt upload
+  // Lipa Number / Bank Transfer receipt upload
   receiptDataUrl: string; receiptName: string
 }
 
@@ -355,7 +325,6 @@ const EMPTY: FormData = {
   location: '', poBox: '',
   billingCity: '', billingCountry: 'Tanzania', taxId: '',
   paymentMethod: 'lipa-number', paymentReference: '', notes: '',
-  cardNumber: '', cardExpiry: '', cardCvv: '', cardName: '',
   receiptDataUrl: '', receiptName: '',
 }
 
@@ -371,26 +340,13 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
   const [settings, setSettings]     = useState<SiteSettings | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [application, setApp]       = useState<SponsorshipApplication | null>(null)
-  const [showCvv, setShowCvv]       = useState(false)
   const [docTab, setDocTab]         = useState<'receipt' | 'invoice'>('receipt')
   const [agreedToTerms, setAgreedToTerms] = useState(false)
-  // 3DS method (device fingerprinting) state
-  const [method, setMethod] = useState<{
-    threeDSMethodURL: string; threeDSServerTransID: string; methodNotifyUrl: string
-    orderRef: string; paymentId: string; applicationId: string
-    invoiceNumber: string; browserInfo: Record<string, unknown>
-  } | null>(null)
-  // 3DS challenge state
-  const [challenge, setChallenge]   = useState<{
-    orderRef: string; paymentId: string; applicationId: string
-    invoiceNumber: string; acsUrl: string; creq: string; notifyUrl: string
-  } | null>(null)
   const scrollRef                   = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (open) {
       setStep(0); setForm(EMPTY); setErrors({}); setApp(null); setDocTab('receipt')
-      setChallenge(null); setMethod(null)
       setMethods(getPaymentMethods()); setSettings(getSiteSettings())
     }
   }, [open, storeReady])
@@ -398,30 +354,9 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
   useEffect(() => { scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }) }, [step])
 
   const patch = (p: Partial<FormData>) => setForm(f => ({ ...f, ...p }))
-  const isCard       = form.paymentMethod === 'visa' || form.paymentMethod === 'mastercard'
-
-  // Fetch latest application from Supabase so step 3 shows confirmed status
-  const fetchApplication = async (id: string): Promise<SponsorshipApplication | null> => {
-    try {
-      const res = await fetch(`/api/sponsorship/application?id=${encodeURIComponent(id)}`)
-      if (!res.ok) return null
-      const data = await res.json()
-      return data.application ?? null
-    } catch { return null }
-  }
   const isLipaNumber   = form.paymentMethod === 'lipa-number'
   const isBankTransfer = form.paymentMethod === 'bank-transfer'
   const selectedMethod = methods.find(m => m.id === form.paymentMethod)
-  const detectedBrand  = detectCardBrand(form.cardNumber)
-
-  const handleCardNumberChange = (raw: string) => {
-    const formatted = fmtCardNumber(raw)
-    const brand = detectCardBrand(formatted)
-    const update: Partial<FormData> = { cardNumber: formatted }
-    if (brand === 'visa' && form.paymentMethod !== 'visa') update.paymentMethod = 'visa'
-    if (brand === 'mastercard' && form.paymentMethod !== 'mastercard') update.paymentMethod = 'mastercard'
-    patch(update)
-  }
 
   const handleReceiptChange = (file: File | null) => {
     if (!file) { patch({ receiptDataUrl: '', receiptName: '' }); return }
@@ -456,12 +391,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
     }
     if (s === 2) {
       if (!form.paymentMethod) e.paymentMethod = 'Select a payment method'
-      if (isCard) {
-        if (form.cardNumber.replace(/\s/g, '').length < 16) e.cardNumber = 'Enter a valid 16-digit card number'
-        if (form.cardExpiry.length < 5)  e.cardExpiry = 'Enter expiry as MM/YY'
-        if (form.cardCvv.length < 3)     e.cardCvv    = 'Enter a valid CVV'
-        if (!form.cardName.trim())        e.cardName   = 'Name on card is required'
-      } else if (isLipaNumber || isBankTransfer) {
+      if (isLipaNumber || isBankTransfer) {
         if (!form.receiptDataUrl && !form.paymentReference.trim())
           e.paymentReference = 'Please upload your deposit receipt or enter the reference number'
       } else if (form.paymentMethod) {
@@ -877,143 +807,6 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
     if (!validate(2)) return
     setSubmitting(true)
 
-    // ── Card payment: one-stage direct API (no redirect) ────────────────────
-    if (isCard) {
-      try {
-        const appData = {
-          companyName:      form.companyName.trim(),
-          contactName:      form.contactName.trim(),
-          contactEmail:     form.contactEmail.trim(),
-          contactPhone:     form.contactPhone.trim(),
-          website:          form.website.trim() || undefined,
-          industry:         form.industry.trim(),
-          billingName:      form.billingName.trim(),
-          billingEmail:     form.billingEmail.trim(),
-          billingAddress:   form.billingAddress.trim(),
-          location:         form.location.trim() || undefined,
-          poBox:            form.poBox.trim() || undefined,
-          billingCity:      form.billingCity.trim(),
-          billingCountry:   form.billingCountry.trim(),
-          taxId:            form.taxId.trim() || undefined,
-          tierId:           tier.id,
-          tierName:         tier.name,
-          amount:           tier.price,
-          currency:         tier.currency,
-          paymentMethod:    form.paymentMethod as SponsorshipApplication['paymentMethod'],
-          paymentReference: '',
-          notes:            form.notes.trim() || undefined,
-        }
-        const res = await fetch('/api/sponsorship/charge-card', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            applicationData: appData,
-            tierPrice: tier.price,
-            card: {
-              pan:    form.cardNumber,
-              expiry: form.cardExpiry,
-              cvv:    form.cardCvv,
-              name:   form.cardName,
-            },
-            browserInfo: {
-              acceptHeader:    'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-              colorDepth:      window.screen.colorDepth,
-              javaEnabled:     false,
-              language:        navigator.language,
-              screenHeight:    window.screen.height,
-              screenWidth:     window.screen.width,
-              timeZoneOffset:  new Date().getTimezoneOffset(),
-              userAgent:       navigator.userAgent,
-            },
-          }),
-        })
-        let data: Record<string, unknown>
-        try { data = await res.json() } catch { data = {} }
-
-        if (!res.ok) {
-          setErrors({ paymentMethod: (data.error as string) || 'Payment failed. Please try again.' })
-          setSubmitting(false)
-          return
-        }
-
-        if (data.success) {
-          const app = await fetchApplication(data.applicationId as string)
-          if (app) {
-            setApp(app)
-            // Send submission confirmation email (fire-and-forget)
-            fetch('/api/email/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'sponsorship_submitted',
-                to: app.contactEmail,
-                name: app.contactName,
-                eventName: settings?.eventName,
-                eventDate: settings?.eventDate,
-                eventTime: settings?.eventTime,
-                eventVenue: settings?.eventVenue
-                  ? `${settings.eventVenue}, ${settings.eventCity}`
-                  : settings?.eventCity,
-                selectedPackage: `${tier.name} Sponsorship`,
-                totalAmount: tier.price,
-                paymentMethod: form.paymentMethod,
-                receiptNumber: app.invoiceNumber,
-                currency: tier.currency,
-              }),
-            }).catch(console.error)
-          }
-          setStep(3)
-          setSubmitting(false)
-          return
-        }
-
-        if (data.needs3DSMethod) {
-          setMethod({
-            threeDSMethodURL:     data.threeDSMethodURL     as string,
-            threeDSServerTransID: data.threeDSServerTransID as string,
-            methodNotifyUrl:      data.methodNotifyUrl      as string,
-            orderRef:             data.orderRef             as string,
-            paymentId:            data.paymentId            as string,
-            applicationId:        data.applicationId        as string,
-            invoiceNumber:        data.invoiceNumber        as string,
-            browserInfo: {
-              acceptHeader:   'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-              colorDepth:     window.screen.colorDepth,
-              language:       navigator.language,
-              screenHeight:   window.screen.height,
-              screenWidth:    window.screen.width,
-              timeZoneOffset: new Date().getTimezoneOffset(),
-              userAgent:      navigator.userAgent,
-            },
-          })
-          setSubmitting(false)
-          return
-        }
-
-        if (data.needs3DSChallenge) {
-          setChallenge({
-            orderRef:      data.orderRef      as string,
-            paymentId:     data.paymentId     as string,
-            applicationId: data.applicationId as string,
-            invoiceNumber: data.invoiceNumber as string,
-            acsUrl:        data.acsUrl        as string,
-            creq:          data.creq          as string,
-            notifyUrl:     data.notifyUrl     as string,
-          })
-          setSubmitting(false)
-          return
-        }
-
-        setErrors({ paymentMethod: (data.error as string) || 'Payment failed. Please try again.' })
-        setSubmitting(false)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Payment failed. Please try again.'
-        setErrors({ paymentMethod: msg })
-        setSubmitting(false)
-      }
-      return
-    }
-
     // ── Manual payment: save locally and show receipt ────────────────────────
     await new Promise(r => setTimeout(r, 1500))
     const ref = (isLipaNumber || isBankTransfer)
@@ -1355,7 +1148,7 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
               )}
 
               {/* Mobile money — phone number input */}
-              {!isCard && !isLipaNumber && !isBankTransfer && form.paymentMethod && (
+              {!isLipaNumber && !isBankTransfer && form.paymentMethod && (
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
                   <p className="text-xs font-bold text-primary uppercase tracking-wide">
                     {form.paymentMethod === 'mpesa' ? 'M-Pesa' : 'Mixx by Yas'} Phone Number
@@ -1443,80 +1236,6 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                 </div>
               )}
 
-              {/* Card fields */}
-              {isCard && (
-                <div className="rounded-xl border-2 border-primary/20 bg-card p-5 space-y-4">
-                  <p className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-primary" />
-                    Card Details
-                    {detectedBrand && BRAND_META[detectedBrand] && (
-                      <span className={cn('rounded px-2 py-0.5 text-[10px] font-extrabold tracking-wider', BRAND_META[detectedBrand].color)}>
-                        {BRAND_META[detectedBrand].label} detected
-                      </span>
-                    )}
-                  </p>
-                  <Field label="Name on Card" required error={errors.cardName}>
-                    <Input
-                      value={form.cardName}
-                      onChange={e => patch({ cardName: e.target.value.toUpperCase() })}
-                      placeholder="JOHN DOE"
-                      className="uppercase font-medium tracking-wider"
-                    />
-                  </Field>
-                  <Field label="Card Number" required error={errors.cardNumber}>
-                    <div className="relative">
-                      <Input
-                        value={form.cardNumber}
-                        onChange={e => handleCardNumberChange(e.target.value)}
-                        placeholder="1234 5678 9012 3456"
-                        maxLength={19}
-                        className="font-mono text-base tracking-widest pr-24"
-                        inputMode="numeric"
-                      />
-                      {detectedBrand && BRAND_META[detectedBrand] && (
-                        <span className={cn(
-                          'absolute right-2.5 top-1/2 -translate-y-1/2 rounded px-2 py-0.5 text-[10px] font-extrabold tracking-wider',
-                          BRAND_META[detectedBrand].color
-                        )}>
-                          {BRAND_META[detectedBrand].label}
-                        </span>
-                      )}
-                    </div>
-                  </Field>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="Expiry (MM/YY)" required error={errors.cardExpiry}>
-                      <Input
-                        value={form.cardExpiry}
-                        onChange={e => patch({ cardExpiry: fmtExpiry(e.target.value) })}
-                        placeholder="MM/YY"
-                        maxLength={5}
-                        className="font-mono tracking-widest"
-                        inputMode="numeric"
-                      />
-                    </Field>
-                    <Field label="CVV" required error={errors.cardCvv}>
-                      <div className="relative">
-                        <Input
-                          value={form.cardCvv}
-                          onChange={e => patch({ cardCvv: e.target.value.replace(/\D/g, '').slice(0, 4) })}
-                          placeholder="•••"
-                          type={showCvv ? 'text' : 'password'}
-                          maxLength={4}
-                          className="font-mono pr-9"
-                          inputMode="numeric"
-                        />
-                        <button type="button" onClick={() => setShowCvv(v => !v)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showCvv ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                        </button>
-                      </div>
-                    </Field>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                    🔒 Card details are sent directly to NBC — never stored on our server.
-                  </p>
-                </div>
-              )}
             </div>
           )}
 
@@ -1727,12 +1446,8 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
             )}
             {step === 2 && (() => {
               const lipaIncomplete   = (isLipaNumber || isBankTransfer) && !form.receiptDataUrl && !form.paymentReference.trim()
-              const mobileIncomplete = !isCard && !isLipaNumber && !isBankTransfer && !!form.paymentMethod && !form.paymentReference.trim()
-              const cardIncomplete   = isCard && (
-                form.cardNumber.replace(/\s/g, '').length < 16 ||
-                form.cardExpiry.length < 5 || form.cardCvv.length < 3 || !form.cardName.trim()
-              )
-              const blocked = !form.paymentMethod || lipaIncomplete || mobileIncomplete || cardIncomplete
+              const mobileIncomplete = !isLipaNumber && !isBankTransfer && !!form.paymentMethod && !form.paymentReference.trim()
+              const blocked = !form.paymentMethod || lipaIncomplete || mobileIncomplete
               const hint = !form.paymentMethod ? 'Select a payment method'
                          : lipaIncomplete      ? 'Upload receipt/deposit slip or enter reference number'
                          : mobileIncomplete    ? 'Enter your phone number'
@@ -1746,10 +1461,8 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
                   title={hint}
                 >
                   {submitting
-                    ? <><Loader2 className="h-4 w-4 animate-spin" /> {isCard ? 'Processing payment…' : 'Submitting…'}</>
-                    : isCard
-                      ? <><CreditCard className="h-4 w-4" /> Pay with {form.paymentMethod === 'visa' ? 'Visa' : 'Mastercard'}</>
-                      : <><CheckCircle2 className="h-4 w-4" /> Confirm & Submit</>
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</>
+                    : <><CheckCircle2 className="h-4 w-4" /> Confirm & Submit</>
                   }
                 </Button>
               )
@@ -1774,261 +1487,6 @@ export function SponsorshipApplicationModal({ tier, open, onClose }: Props) {
         </div>
       </div>
 
-      {/* ── 3DS Method overlay (device fingerprinting) ───────────────────── */}
-      {method && (
-        <ThreeDSMethod
-          method={method}
-          onDone={async (methodCompleted) => {
-            const m = method
-            setMethod(null)
-            try {
-              const res = await fetch('/api/sponsorship/3ds/authenticate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  orderRef:      m.orderRef,
-                  paymentId:     m.paymentId,
-                  applicationId: m.applicationId,
-                  invoiceNumber: m.invoiceNumber,
-                  browserInfo:   m.browserInfo,
-                  methodCompleted,
-                }),
-              })
-              let data: Record<string, unknown>
-              try { data = await res.json() } catch { data = {} }
-              if (!res.ok) {
-                setErrors({ paymentMethod: (data.error as string) || 'Verification failed. Please try again.' })
-                return
-              }
-              if (data.success) {
-                const app = await fetchApplication(data.applicationId as string)
-                if (app) {
-                  setApp(app)
-                  fetch('/api/email/send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      type: 'sponsorship_submitted',
-                      to: app.contactEmail,
-                      name: app.contactName,
-                      eventName: settings?.eventName,
-                      eventDate: settings?.eventDate,
-                      eventTime: settings?.eventTime,
-                      eventVenue: settings?.eventVenue
-                        ? `${settings.eventVenue}, ${settings.eventCity}`
-                        : settings?.eventCity,
-                      selectedPackage: `${tier?.name} Sponsorship`,
-                      totalAmount: tier?.price,
-                      paymentMethod: form.paymentMethod,
-                      receiptNumber: app.invoiceNumber,
-                      currency: tier?.currency,
-                    }),
-                  }).catch(console.error)
-                }
-                setStep(3)
-                return
-              }
-              if (data.needs3DSChallenge) {
-                setChallenge({
-                  orderRef:      data.orderRef      as string,
-                  paymentId:     data.paymentId     as string,
-                  applicationId: data.applicationId as string,
-                  invoiceNumber: data.invoiceNumber as string,
-                  acsUrl:        data.acsUrl        as string,
-                  creq:          data.creq          as string,
-                  notifyUrl:     data.notifyUrl     as string,
-                })
-                return
-              }
-              setErrors({ paymentMethod: (data.error as string) || 'Verification failed. Please try again.' })
-            } catch {
-              setErrors({ paymentMethod: 'Verification failed. Please try again.' })
-            }
-          }}
-        />
-      )}
-
-      {/* ── 3DS Challenge overlay ─────────────────────────────────────────── */}
-      {challenge && (
-        <ThreeDSChallenge
-          challenge={challenge}
-          onSuccess={async () => {
-            const app = await fetchApplication(challenge.applicationId)
-            setChallenge(null)
-            if (app) {
-              setApp(app)
-              fetch('/api/email/send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  type: 'sponsorship_submitted',
-                  to: app.contactEmail,
-                  name: app.contactName,
-                  eventName: settings?.eventName,
-                  eventDate: settings?.eventDate,
-                  eventTime: settings?.eventTime,
-                  eventVenue: settings?.eventVenue
-                    ? `${settings.eventVenue}, ${settings.eventCity}`
-                    : settings?.eventCity,
-                  selectedPackage: `${tier?.name} Sponsorship`,
-                  totalAmount: tier?.price,
-                  paymentMethod: form.paymentMethod,
-                  receiptNumber: app.invoiceNumber,
-                  currency: tier?.currency,
-                }),
-              }).catch(console.error)
-            }
-            setStep(3)
-          }}
-          onFailure={(msg) => {
-            setChallenge(null)
-            setErrors({ paymentMethod: msg || '3DS authentication failed. Please try again.' })
-          }}
-        />
-      )}
-    </div>
-  )
-}
-
-// ── 3DS Method component (hidden device fingerprinting iframe) ────────────────
-function ThreeDSMethod({
-  method,
-  onDone,
-}: {
-  method: {
-    threeDSMethodURL: string; threeDSServerTransID: string; methodNotifyUrl: string
-    orderRef: string; paymentId: string; applicationId: string; invoiceNumber: string
-    browserInfo: Record<string, unknown>
-  }
-  onDone: (methodCompleted: boolean) => void
-}) {
-  const done = useRef(false)
-
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      if (e.data?.type === '3ds_method_done' && !done.current) {
-        done.current = true
-        onDone(true)
-      }
-    }
-    window.addEventListener('message', handler)
-    // Timeout: if bank doesn't respond in 10s, proceed anyway with N
-    const timer = setTimeout(() => {
-      if (!done.current) { done.current = true; onDone(false) }
-    }, 10000)
-    return () => { window.removeEventListener('message', handler); clearTimeout(timer) }
-  }, [onDone])
-
-  const methodData = btoa(JSON.stringify({
-    threeDSMethodNotificationURL: method.methodNotifyUrl,
-    threeDSServerTransID: method.threeDSServerTransID,
-  })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-
-  const srcdoc = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/></head>
-<body onload="document.getElementById('f').submit()">
-<form id="f" method="POST" action="${method.threeDSMethodURL}">
-  <input type="hidden" name="threeDSMethodData" value="${methodData}"/>
-</form>
-</body></html>`
-
-  return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/90 backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Verifying your card with your bank…</p>
-        <iframe srcDoc={srcdoc} style={{ display: 'none' }} title="3DS Method" sandbox="allow-forms allow-scripts allow-same-origin" />
-      </div>
-    </div>
-  )
-}
-
-// ── 3DS Challenge overlay component ──────────────────────────────────────────
-function ThreeDSChallenge({
-  challenge,
-  onSuccess,
-  onFailure,
-}: {
-  challenge: {
-    orderRef: string; paymentId: string; applicationId: string
-    invoiceNumber: string; acsUrl: string; creq: string; notifyUrl: string
-  }
-  onSuccess: () => void
-  onFailure: (msg?: string) => void
-}) {
-  const [completing, setCompleting] = useState(false)
-
-  const srcdoc = challenge.acsUrl ? `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/></head>
-<body onload="document.getElementById('f').submit()" style="margin:0;background:#f8fafc">
-  <form id="f" method="POST" action="${challenge.acsUrl}">
-    <input type="hidden" name="creq" value="${challenge.creq}"/>
-  </form>
-  <p style="font-family:sans-serif;font-size:13px;color:#666;text-align:center;margin-top:40px">
-    Loading bank verification…
-  </p>
-</body></html>` : `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/></head>
-<body style="margin:0;font-family:sans-serif;text-align:center;padding:40px">
-  <p style="color:#666">Waiting for bank 3DS challenge…</p>
-</body></html>`
-
-  useEffect(() => {
-    const handler = async (e: MessageEvent) => {
-      if (e.data?.type !== '3ds_challenge_done') return
-      const cres = e.data.cres as string
-      if (!cres) { onFailure('No challenge response received'); return }
-      setCompleting(true)
-      try {
-        const res = await fetch('/api/sponsorship/3ds/complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderRef:      challenge.orderRef,
-            paymentId:     challenge.paymentId,
-            cres,
-            applicationId: challenge.applicationId,
-          }),
-        })
-        const data = await res.json()
-        if (data.success) { onSuccess() }
-        else { onFailure(data.error || 'Payment not completed after 3DS') }
-      } catch (err) {
-        onFailure(err instanceof Error ? err.message : '3DS completion failed')
-      } finally { setCompleting(false) }
-    }
-    window.addEventListener('message', handler)
-    return () => window.removeEventListener('message', handler)
-  }, [challenge, onSuccess, onFailure])
-
-  return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/90 backdrop-blur-sm">
-      <div className="w-full max-w-sm mx-4 rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <div>
-            <p className="font-bold text-sm">Bank Verification (3DS)</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Complete the security check from your bank</p>
-          </div>
-          {completing && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-        </div>
-        {completing ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Confirming payment…</p>
-          </div>
-        ) : (
-          <iframe
-            srcDoc={srcdoc}
-            className="w-full border-0"
-            style={{ height: '420px' }}
-            title="3DS Bank Verification"
-            sandbox="allow-forms allow-scripts allow-same-origin allow-top-navigation"
-          />
-        )}
-        <div className="px-5 py-3 border-t border-border bg-muted/30 text-center">
-          <p className="text-[10px] text-muted-foreground">🔒 Secure verification — {challenge.invoiceNumber}</p>
-        </div>
-      </div>
     </div>
   )
 }

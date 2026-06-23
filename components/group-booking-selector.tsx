@@ -117,7 +117,13 @@ export function GroupBookingSelector({
       {/* Pricing Tiers */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {tiers.map((tier, idx) => {
-          const isActive = selectedSeats >= tier.minSeats && selectedSeats <= tier.maxSeats
+          // Compare against the single tier computeGroupPricing actually selected.
+          // Checking seat range overlap causes ALL overlapping tiers to appear active.
+          const isActive =
+            pricing !== null &&
+            pricing.tier !== null &&
+            pricing.tier.minSeats === tier.minSeats &&
+            pricing.tier.maxSeats === tier.maxSeats
           return (
             <button
               key={`${tier.minSeats}-${tier.maxSeats}-${idx}`}

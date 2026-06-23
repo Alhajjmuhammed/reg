@@ -116,9 +116,10 @@ export default function AccountDashboard() {
 
   const handleEditMembers = () => {
     if (!participant) return
-    const count = participant.groupSeats ?? Math.max(participant.groupMembers?.length ?? 0, 2)
+    // groupSeats - 1 because the applicant (seat 1) is not in groupMembers
+    const memberCount = Math.max(1, (participant.groupSeats ?? 2) - 1)
     const existing = participant.groupMembers ?? []
-    const padded = Array.from({ length: count }, (_, i) => existing[i] ?? { name: '', email: '', phone: '' })
+    const padded = Array.from({ length: memberCount }, (_, i) => existing[i] ?? { name: '', email: '', phone: '' })
     setMemberDraft(padded)
     setEditingMembers(true)
     setMemberSaved(false)
@@ -454,8 +455,7 @@ export default function AccountDashboard() {
                   {memberDraft.map((member, i) => (
                     <div key={i} className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
                       <p className="text-sm font-medium text-foreground">
-                        Member {i + 1}
-                        {i === 0 && <span className="ml-2 text-xs font-normal text-muted-foreground">(Group lead)</span>}
+                        Additional Member {i + 1}
                       </p>
                       <div className="grid gap-3 sm:grid-cols-3">
                         <div className="space-y-1.5">

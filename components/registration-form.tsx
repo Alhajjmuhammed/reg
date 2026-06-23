@@ -105,7 +105,7 @@ const initialFormData: FormData = {
   bookingType: 'individual',
   groupSeats: 2,
   groupBasePackage: 'standard',
-  groupMembers: [emptyMember(), emptyMember()],
+  groupMembers: [emptyMember()],  // 1 entry: seat 1 = applicant (Step 2), seat 2+ = members here
   fullName: '',
   phoneNumber: '',
   whatsappNumber: '',
@@ -173,14 +173,16 @@ export function RegistrationForm() {
   const updateField = useCallback(
     <K extends keyof FormData>(field: K, value: FormData[K]) => {
       setFormData((prev) => {
-        // When groupSeats changes, resize groupMembers to match
+        // When groupSeats changes, resize groupMembers to groupSeats - 1.
+        // The applicant (from Step 2) fills seat 1; additional members fill the rest.
         if (field === 'groupSeats') {
           const newCount = value as number
+          const memberCount = Math.max(1, newCount - 1)
           const current = prev.groupMembers
           const resized =
-            newCount > current.length
-              ? [...current, ...Array.from({ length: newCount - current.length }, emptyMember)]
-              : current.slice(0, newCount)
+            memberCount > current.length
+              ? [...current, ...Array.from({ length: memberCount - current.length }, emptyMember)]
+              : current.slice(0, memberCount)
           return { ...prev, [field]: value, groupMembers: resized }
         }
         return { ...prev, [field]: value }
@@ -618,18 +620,18 @@ export function RegistrationForm() {
                   <div>
                     <h3 className="font-medium text-foreground flex items-center gap-2">
                       <Users className="h-4 w-4 text-primary" />
-                      Group Member Details
+                      Additional Group Members
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Enter each member's information. You can update this later from your account.
+                      Your own details are captured in the next step. Enter the details of the other {formData.groupSeats - 1} member{formData.groupSeats - 1 > 1 ? 's' : ''} in your group below.
                     </p>
                   </div>
                   <div className="space-y-4">
                     {formData.groupMembers.map((member, i) => (
                       <div key={i} className="rounded-lg border border-border bg-card p-4 space-y-3">
                         <p className="text-sm font-medium text-foreground">
-                          Member {i + 1}
-                          {i === 0 && <span className="ml-2 text-xs text-muted-foreground font-normal">(Group lead / contact person)</span>}
+                          Additional Member {i + 1}
+                          {formData.groupSeats - 1 === 1 && <span className="ml-2 text-xs text-muted-foreground font-normal">(the other person in your group)</span>}
                         </p>
                         <div className="grid gap-3 sm:grid-cols-3">
                           <div className="space-y-1.5">

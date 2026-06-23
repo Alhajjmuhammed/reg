@@ -153,7 +153,9 @@ export default function AccountDashboard() {
   const [pwError, setPwError] = useState('')
   const [pwSuccess, setPwSuccess] = useState(false)
 
-  const handleChangePassword = () => {
+  const [pwSaving, setPwSaving] = useState(false)
+
+  const handleChangePassword = async () => {
     setPwError('')
     if (!pwForm.current || !pwForm.next || !pwForm.confirm) {
       setPwError('All fields are required.')
@@ -171,9 +173,11 @@ export default function AccountDashboard() {
       setPwError('New passwords do not match.')
       return
     }
-    const ok = resetUserAccountPassword(user!.email, pwForm.next)
+    setPwSaving(true)
+    const ok = await resetUserAccountPassword(user!.email, pwForm.next)
+    setPwSaving(false)
     if (!ok) {
-      setPwError('Failed to update password. Please try again.')
+      setPwError('Failed to save — please check your connection and try again.')
       return
     }
     setPwSuccess(true)
@@ -587,8 +591,10 @@ export default function AccountDashboard() {
                 {pwError && <p className="text-sm text-destructive">{pwError}</p>}
                 {pwSuccess && <p className="text-sm text-green-600 font-medium">✓ Password updated successfully!</p>}
                 <div className="flex gap-2 pt-1">
-                  <Button size="sm" onClick={handleChangePassword}>Save Password</Button>
-                  <Button size="sm" variant="outline" onClick={() => { setShowChangePw(false); setPwError(''); setPwForm({ current: '', next: '', confirm: '' }) }}>Cancel</Button>
+                  <Button size="sm" onClick={handleChangePassword} disabled={pwSaving}>
+                    {pwSaving ? 'Saving…' : 'Save Password'}
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={pwSaving} onClick={() => { setShowChangePw(false); setPwError(''); setPwForm({ current: '', next: '', confirm: '' }) }}>Cancel</Button>
                 </div>
               </div>
             )}

@@ -687,9 +687,10 @@ export function ParticipantModal({
                       variant="outline"
                       disabled={newPassword.length < 6}
                       onClick={() => {
-                        const ok = resetUserAccountPassword(formData.email, newPassword)
-                        if (ok) { setPwMessage('Password updated!'); setNewPassword('') }
-                        else setPwMessage('Account not found — email may have changed.')
+                        resetUserAccountPassword(formData.email, newPassword).then(ok => {
+                          if (ok) { setPwMessage('Password updated!'); setNewPassword('') }
+                          else setPwMessage('Account not found — email may have changed.')
+                        })
                       }}
                     >
                       Update

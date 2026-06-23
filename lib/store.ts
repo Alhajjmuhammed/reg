@@ -2049,13 +2049,25 @@ export function getUserByParticipantId(participantId: string): UserAccount | nul
   return accounts.find(a => a.participantId === participantId) || null
 }
 
-export function resetUserAccountPassword(email: string, newPassword: string): boolean {
+// Async version that awaits the DB write before returning.
+// syncToDb is fire-and-forget so the user could log out and cancel the
+// in-flight request before it completes — new password would not persist.
+export async function resetUserAccountPassword(email: string, newPassword: string): Promise<boolean> {
   const accounts = getStorage<UserAccount[]>(STORAGE_KEYS.userAccounts, [])
   const idx = accounts.findIndex(a => a.email.toLowerCase() === email.toLowerCase())
   if (idx === -1) return false
   accounts[idx] = { ...accounts[idx], passwordHash: hashPassword(newPassword) }
-  setStorage(STORAGE_KEYS.userAccounts, accounts)
-  return true
+  memStore[STORAGE_KEYS.userAccounts] = accounts
+  try {
+    const res = await fetch('/api/store', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: STORAGE_KEYS.userAccounts, value: accounts }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
 }
 
 export function deleteUserAccountByParticipantId(participantId: string): boolean {

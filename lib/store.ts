@@ -116,11 +116,14 @@ export async function initStore(): Promise<void> {
     if (subAdminsRow) {
       setLocalStorage('masterclass_sub_admins_local', subAdminsRow.value)
     }
+    // Only mark initialized after a successful load so seedIfReady never
+    // writes default values to the DB when the store fetch failed.
+    storeInitialized = true
   } catch (e) {
     clearTimeout(timer)
     console.error('initStore failed', e)
-  } finally {
-    storeInitialized = true
+    // intentionally NOT setting storeInitialized = true here —
+    // seedIfReady must not overwrite real DB data with defaults on a failed load
   }
 }
 
@@ -185,6 +188,7 @@ async function syncToDb(key: string, value: unknown): Promise<void> {
   try {
     await fetch('/api/store', {
       method: 'POST',
+      keepalive: true, // survives page navigation / tab close
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key, value }),
     })

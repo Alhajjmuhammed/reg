@@ -297,7 +297,7 @@ export function SponsorshipContent({ initialTiers, initialSponsors, initialSetti
                   <p className="text-sm text-muted-foreground mb-6 leading-relaxed">{tier.description}</p>
 
                   {/* Benefits list */}
-                  <ul className="space-y-2.5 mb-3">
+                  <ul className="space-y-2.5">
                     {visibleBenefits.map((b, i) => (
                       <li key={i} className={cn('flex items-start gap-2.5 text-sm', !b.included && 'opacity-40')}>
                         {b.included ? <CheckCircle2 className={cn('h-4 w-4 shrink-0 mt-0.5', style.check)} /> : <XCircle className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground/50" />}
@@ -306,22 +306,20 @@ export function SponsorshipContent({ initialTiers, initialSponsors, initialSetti
                     ))}
                   </ul>
 
-                  {/* View more / less toggle */}
-                  {hasMore && (
-                    <button
-                      onClick={() => toggleExpand(tier.id)}
-                      className={cn('flex items-center gap-1.5 text-xs font-semibold mb-6 transition-colors', style.check, 'hover:opacity-80')}
-                    >
-                      {isExpanded ? (
-                        <><ChevronUp className="h-3.5 w-3.5" /> Show less</>
-                      ) : (
-                        <><ChevronDown className="h-3.5 w-3.5" /> View {hiddenCount} more benefit{hiddenCount > 1 ? 's' : ''}</>
-                      )}
-                    </button>
-                  )}
-                  {!hasMore && <div className="mb-6" />}
-
-                  <div className="mt-auto">
+                  {/* View more + Get Started pinned together at bottom */}
+                  <div className="mt-auto pt-5 flex flex-col gap-3">
+                    {hasMore && (
+                      <button
+                        onClick={() => toggleExpand(tier.id)}
+                        className={cn('flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-lg border transition-colors', style.check, 'border-current/20 hover:opacity-80')}
+                      >
+                        {isExpanded ? (
+                          <><ChevronUp className="h-3.5 w-3.5" /> Show less</>
+                        ) : (
+                          <><ChevronDown className="h-3.5 w-3.5" /> View {hiddenCount} more benefit{hiddenCount > 1 ? 's' : ''}</>
+                        )}
+                      </button>
+                    )}
                     <Button className={cn('w-full gap-2')} variant={tier.highlighted ? 'default' : 'outline'} onClick={() => setApplyTier(tier)}>
                       Get Started <ArrowRight className="h-4 w-4" />
                     </Button>

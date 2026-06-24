@@ -18,6 +18,8 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Download,
   FileText,
 } from 'lucide-react'
@@ -143,6 +145,17 @@ export function SponsorshipContent({ initialTiers, initialSponsors, initialSetti
   const [sponsors, setSponsors] = useState<Sponsor[]>(initialSponsors ?? DEFAULT_SPONSORS.filter(s => s.active))
   const [settings, setSettings] = useState<SponsorshipPageSettings>(initialSettings ?? DEFAULT_SPONSORSHIP_SETTINGS)
   const [applyTier, setApplyTier] = useState<SponsorshipTier | null>(null)
+  const [expandedTiers, setExpandedTiers] = useState<Set<string>>(new Set())
+  const VISIBLE_COUNT = 4
+
+  const toggleExpand = (id: string) => {
+    setExpandedTiers(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   useEffect(() => {
     if (!storeReady) return
@@ -252,9 +265,13 @@ export function SponsorshipContent({ initialTiers, initialSponsors, initialSetti
             <h2 className="text-3xl font-bold text-foreground mb-4">Sponsorship Packages</h2>
             <p className="text-muted-foreground max-w-xl mx-auto">Choose the package that best aligns with your brand goals and budget.</p>
           </div>
-          <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-4 items-start">
             {tiers.map(tier => {
               const style = TIER_STYLES[tier.color] || TIER_STYLES.custom
+              const isExpanded = expandedTiers.has(tier.id)
+              const hasMore = tier.benefits.length > VISIBLE_COUNT
+              const visibleBenefits = isExpanded ? tier.benefits : tier.benefits.slice(0, VISIBLE_COUNT)
+              const hiddenCount = tier.benefits.length - VISIBLE_COUNT
               return (
                 <div key={tier.id} className={cn('relative rounded-2xl border-2 bg-gradient-to-b p-6 flex flex-col transition-all duration-200 hover:-translate-y-1 hover:shadow-xl', style.gradient, style.border, tier.highlighted && style.ring)}>
                   {tier.highlighted && (
@@ -277,18 +294,38 @@ export function SponsorshipContent({ initialTiers, initialSponsors, initialSetti
                   <div className="mb-3">
                     <span className={cn('text-3xl font-extrabold', style.price)}>{formatCurrency(tier.price, tier.currency)}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-6 leading-relaxed flex-1">{tier.description}</p>
-                  <ul className="space-y-2.5 mb-8">
-                    {tier.benefits.map((b, i) => (
+                  <p className="text-sm text-muted-foreground mb-6 leading-relaxed">{tier.description}</p>
+
+                  {/* Benefits list */}
+                  <ul className="space-y-2.5 mb-3">
+                    {visibleBenefits.map((b, i) => (
                       <li key={i} className={cn('flex items-start gap-2.5 text-sm', !b.included && 'opacity-40')}>
                         {b.included ? <CheckCircle2 className={cn('h-4 w-4 shrink-0 mt-0.5', style.check)} /> : <XCircle className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground/50" />}
                         <span className={b.included ? 'text-foreground' : 'text-muted-foreground line-through'}>{b.text}</span>
                       </li>
                     ))}
                   </ul>
-                  <Button className={cn('w-full gap-2')} variant={tier.highlighted ? 'default' : 'outline'} onClick={() => setApplyTier(tier)}>
-                    Get Started <ArrowRight className="h-4 w-4" />
-                  </Button>
+
+                  {/* View more / less toggle */}
+                  {hasMore && (
+                    <button
+                      onClick={() => toggleExpand(tier.id)}
+                      className={cn('flex items-center gap-1.5 text-xs font-semibold mb-6 transition-colors', style.check, 'hover:opacity-80')}
+                    >
+                      {isExpanded ? (
+                        <><ChevronUp className="h-3.5 w-3.5" /> Show less</>
+                      ) : (
+                        <><ChevronDown className="h-3.5 w-3.5" /> View {hiddenCount} more benefit{hiddenCount > 1 ? 's' : ''}</>
+                      )}
+                    </button>
+                  )}
+                  {!hasMore && <div className="mb-6" />}
+
+                  <div className="mt-auto">
+                    <Button className={cn('w-full gap-2')} variant={tier.highlighted ? 'default' : 'outline'} onClick={() => setApplyTier(tier)}>
+                      Get Started <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               )
             })}

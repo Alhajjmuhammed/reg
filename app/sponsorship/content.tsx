@@ -265,7 +265,7 @@ export function SponsorshipContent({ initialTiers, initialSponsors, initialSetti
             <h2 className="text-3xl font-bold text-foreground mb-4">Sponsorship Packages</h2>
             <p className="text-muted-foreground max-w-xl mx-auto">Choose the package that best aligns with your brand goals and budget.</p>
           </div>
-          <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-4 items-start">
+          <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-4">
             {tiers.map(tier => {
               const style = TIER_STYLES[tier.color] || TIER_STYLES.custom
               const isExpanded = expandedTiers.has(tier.id)
@@ -273,7 +273,7 @@ export function SponsorshipContent({ initialTiers, initialSponsors, initialSetti
               const visibleBenefits = isExpanded ? tier.benefits : tier.benefits.slice(0, VISIBLE_COUNT)
               const hiddenCount = tier.benefits.length - VISIBLE_COUNT
               return (
-                <div key={tier.id} className={cn('relative rounded-2xl border-2 bg-gradient-to-b p-6 flex flex-col transition-all duration-200 hover:-translate-y-1 hover:shadow-xl', style.gradient, style.border, tier.highlighted && style.ring)}>
+                <div key={tier.id} className={cn('relative rounded-2xl border-2 bg-gradient-to-b p-6 flex flex-col h-full transition-all duration-200 hover:-translate-y-1 hover:shadow-xl', style.gradient, style.border, tier.highlighted && style.ring)}>
                   {tier.highlighted && (
                     <div className="absolute -top-3.5 left-0 right-0 flex justify-center">
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground shadow-lg">

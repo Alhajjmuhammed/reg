@@ -944,9 +944,9 @@ export function createCoupon(coupon: Omit<CouponCode, 'usedCount'>): CouponCode 
 
 export function updateCoupon(code: string, data: Partial<CouponCode>): CouponCode | null {
   const coupons = getCoupons()
-  const index = coupons.findIndex(c => c.code === code)
+  const index = coupons.findIndex(c => c.code.toUpperCase() === code.toUpperCase())
   if (index === -1) return null
-  
+
   coupons[index] = { ...coupons[index], ...data }
   setStorage(STORAGE_KEYS.coupons, coupons)
   return coupons[index]
@@ -954,7 +954,7 @@ export function updateCoupon(code: string, data: Partial<CouponCode>): CouponCod
 
 export function deleteCoupon(code: string): boolean {
   const coupons = getCoupons()
-  const filtered = coupons.filter(c => c.code !== code)
+  const filtered = coupons.filter(c => c.code.toUpperCase() !== code.toUpperCase())
   if (filtered.length === coupons.length) return false
   setStorage(STORAGE_KEYS.coupons, filtered)
   return true

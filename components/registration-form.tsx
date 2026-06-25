@@ -282,11 +282,6 @@ export function RegistrationForm() {
     // to minimise the chance of two simultaneous registrations getting the same seat.
     await refreshParticipants()
 
-    // Use coupon if applied
-    if (formData.couponCode) {
-      useCoupon(formData.couponCode)
-    }
-
     let participant
     try {
       participant = createParticipant({
@@ -327,6 +322,11 @@ export function RegistrationForm() {
       setErrors(prev => ({ ...prev, email: msg }))
       setCurrentStep(2)
       return
+    }
+
+    // Increment coupon usage only after participant is successfully created
+    if (formData.couponCode) {
+      useCoupon(formData.couponCode)
     }
 
     setRegistrationResult({

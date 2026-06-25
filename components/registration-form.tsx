@@ -964,6 +964,9 @@ export function RegistrationForm() {
             {agreedToTerms ? (
               <PaymentGateway
                 amount={totalAmount}
+                originalAmount={getBaseAmount()}
+                couponCode={formData.couponCode || undefined}
+                couponDiscount={formData.couponDiscount || undefined}
                 onPaymentComplete={handlePaymentComplete}
                 onPaymentError={handlePaymentError}
                 isProcessing={isProcessing}

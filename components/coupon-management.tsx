@@ -12,6 +12,7 @@ import {
   Calendar,
   Check,
   X,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,10 +42,11 @@ import {
 import { getCoupons, createCoupon, updateCoupon, deleteCoupon, getAllPackages } from '@/lib/store'
 import type { CouponCode, Package, PackageType } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { useStoreReady } from '@/components/store-provider'
+import { useStoreReady, useStoreVersion } from '@/components/store-provider'
 
 export function CouponManagement() {
   const storeReady = useStoreReady()
+  const storeVersion = useStoreVersion()
   const [coupons, setCoupons] = useState<CouponCode[]>([])
   const [packages, setPackages] = useState<Package[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -61,10 +63,11 @@ export function CouponManagement() {
   })
 
   useEffect(() => {
+    if (!storeReady) return
     setCoupons(getCoupons())
     setPackages(getAllPackages())
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeReady])
+  }, [storeReady, storeVersion])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-TZ', {
@@ -152,6 +155,11 @@ export function CouponManagement() {
           <Tag className="h-5 w-5 text-primary" />
           <h3 className="font-semibold text-foreground">Coupon Management</h3>
         </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setCoupons(getCoupons())}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button size="sm" onClick={() => handleOpenDialog()}>
@@ -289,6 +297,7 @@ export function CouponManagement() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="overflow-x-auto">

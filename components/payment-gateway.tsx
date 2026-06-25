@@ -18,6 +18,9 @@ import { type PaymentMethod } from '@/lib/types'
 
 interface PaymentGatewayProps {
   amount: number
+  originalAmount?: number
+  couponCode?: string
+  couponDiscount?: number
   onPaymentComplete: (reference: string, method: PaymentMethod, receiptUrl?: string) => void
   onPaymentError: (error: string) => void
   isProcessing: boolean
@@ -26,6 +29,9 @@ interface PaymentGatewayProps {
 
 export function PaymentGateway({
   amount,
+  originalAmount,
+  couponCode,
+  couponDiscount,
   onPaymentComplete,
   onPaymentError,
   isProcessing,
@@ -74,7 +80,17 @@ export function PaymentGateway({
       {/* Amount */}
       <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
         <p className="text-sm text-muted-foreground">Amount to Pay</p>
-        <p className="text-3xl font-bold text-primary">TZS {formatCurrency(amount)}</p>
+        {couponDiscount && couponDiscount > 0 && originalAmount ? (
+          <>
+            <p className="text-base text-muted-foreground line-through">TZS {formatCurrency(originalAmount)}</p>
+            <p className="text-3xl font-bold text-primary">TZS {formatCurrency(amount)}</p>
+            <p className="mt-1 text-sm font-medium text-green-500">
+              You save TZS {formatCurrency(couponDiscount)}{couponCode ? ` with ${couponCode}` : ''}
+            </p>
+          </>
+        ) : (
+          <p className="text-3xl font-bold text-primary">TZS {formatCurrency(amount)}</p>
+        )}
       </div>
 
       {/* Payment Method Grid */}

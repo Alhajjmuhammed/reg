@@ -141,9 +141,6 @@ export function CouponInput({
         <p className="text-sm text-green-600">{success}</p>
       )}
 
-      <p className="text-xs text-muted-foreground">
-        Try: EARLY2024 (10% off), STUDENT25 (25% off for students)
-      </p>
     </div>
   )
 }
